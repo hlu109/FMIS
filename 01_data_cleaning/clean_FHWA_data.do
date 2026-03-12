@@ -29,21 +29,21 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * Load FHWA total national highway spending data
 * DISCHT 1945-2001: https://www.fhwa.dot.gov/ohim/hs01/discht.htm
 * DISB-C 2000-2023: https://www.fhwa.dot.gov/policyinformation/statistics/2023/disbc.cfm
-import excel using "$raw_data/Total National Highway Spending/disbc_2000_2023.xlsx", cellrange(A85:E111) firstrow clear
+import excel using "$raw_data/FHWA_Highway_Statistics/disbc_2000_2023.xlsx", cellrange(A85:E111) firstrow clear
 drop in 1/2 // drop intermediate headers
 rename Year year
-save "$intermediate_data/Total National Highway Spending/disbc_2000_2023.dta", replace
+save "$intermediate_data/FHWA_Highway_Statistics/disbc_2000_2023.dta", replace
 
-import excel using "$raw_data/Total National Highway Spending/discht_1945_2001.xls", cellrange(A52:E111) firstrow clear
+import excel using "$raw_data/FHWA_Highway_Statistics/discht_1945_2001.xls", cellrange(A52:E111) firstrow clear
 drop in 1/2 // drop intermediate headers
 rename Year year
 * save as .dta 
-save "$intermediate_data/Total National Highway Spending/discht_1945_2001.dta", replace
+save "$intermediate_data/FHWA_Highway_Statistics/discht_1945_2001.dta", replace
 * drop years 2000 and 2001 due to duplicate data
 drop if year == 2000 | year == 2001
 
 * stack datasets
-append using "$intermediate_data/Total National Highway Spending/disbc_2000_2023.dta"
+append using "$intermediate_data/FHWA_Highway_Statistics/disbc_2000_2023.dta"
 
 * rename columns and convert to numeric
 rename CapitalOutlay cap_mills
@@ -75,6 +75,7 @@ save `total_hw_spend'
 
 * ==============================================================================
 * Load interstate spending data from Brooks and Liscow 
+
 use "$raw_data/BrooksLiscow_Annual_In-House_Dataset.dta", clear
 keep state_name YEAR FED_INT_CONST_EXP_fa3 
 // FED_INT_CONST_EXP_fa3 is total federal interstate cosntruction expenditures from FHWA Highway Statistics series FA3; I believe this should be in nominal (thousands?) of dollars  // TODO check this 
@@ -93,4 +94,4 @@ label variable FED_INT_CONST_EXP_fa3_bills_2025 "Total Fed Interstate Constructi
 * merge with the above total highway spending 
 merge 1:1 year using `total_hw_spend', nogen
 
-save "$intermediate_data/Total National Highway Spending/total_hw_spend.dta", replace
+save "$intermediate_data/FHWA_Highway_Statistics/total_hw_spend.dta", replace

@@ -57,7 +57,7 @@ gen int_func_cost_mills_adj = interstate_func_cost_mills / cpi
 gen int_syscode_cost_mills_adj = interstate_syscode_cost_mills / cpi
 
 * merge in total national highway spending data
-merge 1:1 year using "$intermediate_data/Total National Highway Spending/total_hw_spend.dta", nogen
+merge 1:1 year using "$intermediate_data/FHWA_Highway_Statistics/total_hw_spend.dta", nogen
 
 * convert to billions
 gen total_hw_spend_bills_adj = total_hw_spend_mills_adj / 1000
