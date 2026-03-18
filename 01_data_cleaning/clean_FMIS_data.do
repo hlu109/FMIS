@@ -1,9 +1,6 @@
 /*==============================================================================
  	FMIS data processing 
-	02/27/2026
     This script cleans and saves the receipt-level FMIS data. 
-    Modified from FMIS_exploration_AK.do
-    The only difference is that this script also extracts the functional system and system code variables.
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -125,7 +122,6 @@ gen total_cost = nongis_totalcost
 replace total_cost = gis_totalcost if total_cost == . 
 gen total_cost_mills = total_cost / 1000000 
 
-* HL added on 3/5/26 
 * Add costs by level of government or other source
 gen federal_funds = nongis_federalfunds
 replace federal_funds = gis_federalfunds if federal_funds == .
@@ -181,7 +177,6 @@ label values system_code system_code_lbl
 gen interstate_functional = functional_system == 1
 gen interstate_syscode = system_code == 1
 
-* AK added this on 3/2/26
 * Reformat the detail_lastactiondate variable 
 gen detail_lastactiondate_temp = regexs(0) if regexm(detail_lastactiondate, "([0-9]{2}/[0-9]{2}/[0-9]{4})")
 gen detail_lastactiondate_numeric = date(detail_lastactiondate_temp, "MDY")
@@ -189,11 +184,11 @@ format detail_lastactiondate_numeric %tdCCYY-NN-DD
 drop detail_lastactiondate_temp detail_lastactiondate
 rename detail_lastactiondate_numeric detail_lastactiondate
 
-
+rename nepaclassofaction nepa_class
+rename nepaclassofactiondecisiondate nepa_decision_date
 
 * export 
-* HL updated 3/9/26: include additional date variables
-keep recipientid projectstatus projecttitle detail_lastactiondate detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds completedate authpedate authrowdate authconstdate authsprdate authotherdate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
+keep recipientid projectstatus projecttitle detail_lastactiondate detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds completedate authpedate authrowdate authconstdate authsprdate authotherdate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
@@ -217,7 +212,7 @@ by federal_project_number recipientid: replace alltypes = alltypes[_N]
 	
 gen receipts = 1 // this is used for reciept counts
 
-* HL edit 3/6/26: add interstate_functional and interstate_syscode to the project-level data
+* add interstate_functional and interstate_syscode to the project-level data
 collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription completedate authconstdate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
 
 label variable interstate_functional "True if at least one receipt is interstate"
