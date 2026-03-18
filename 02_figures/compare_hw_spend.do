@@ -110,14 +110,16 @@ drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 // 	(line maint_bills_adj year) ///
 // 	(line admin_law_int_bills_adj year) ///
 // 	(line debt_retire_bills_adj year) ///
-// 	(line FED_INT_CONST_EXP_fa3_bills_2025 year), ///
+// 	(line FA3_interstate_adj_bills year), ///
 // 	title("US Highway Spending: Total vs. Federal Interstate Construction") ///
 // 	ytitle("Billions of 2025 USD", xoffset(-4)) ///
 // 	xtitle("Year") ///
-// 	legend(label(1 "Total Capital Outlays") label(2 "Total Maintenance") label(3 "Total Administrative," "Law Enforcement," "Bond Interest") label(4 "Total Debt Retirement") label(5 "Federal Interstate" "Construction Only")) ///
+// 	legend(label(1 "Total Capital Outlays") label(2 "Total Maintenance") label(3 "Total Administrative," "Law Enforcement," "Bond Interest") label(4 "Total Debt Retirement") label(5 "FHWA Federal Interstate")) ///
 // 	note( ///
 // 		"Source: Total spending categories from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023). " ///
 // 		"Federal interstate construction spending from FHWA Table FA3." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
 // 		"Administrative costs include general overhead, engineering, research, planning, litigation, and publications.", ///
 // 		size(small) span ///
 // 	) ///
@@ -164,20 +166,6 @@ drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 // 	legend(label(1 "Total Spending") label(2 "Federal Spending"))
 // graph export "$output/fed_portion_of_fmis_spending.png", replace width(2500)
 
-
-// /*====
-//  Federal reimbursement share over time (percentage of total)
-// ====*/
-// preserve 
-// gen pct = 100 * fmis_fed_bills_adj / total_fmis_cost_bills_adj
-// graph twoway /// 
-// 	(line pct year), ///
-// 	title("Federal Reimbursement Share of Total FMIS Spending") ///
-// 	ytitle("% of Total Spending") ///
-// 	xtitle("Completion Year") ///
-// 	yscale(range(0 100)) ylabel(0(10)100)
-// graph export "$output/fed_portion_of_fmis_spending_pct.png", replace width(2500)
-// restore 
 
 // preserve 
 // /*====
@@ -233,207 +221,202 @@ drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 // 	graphregion(margin(l=15 r=15))
 // graph export "$output/fed_portion_of_fmis_spending_interstate.png", replace width(2500)
 
+// restore 
+
 // /*====
-//  Federal reimbursement share over time (percentage of total)
+//  Federal reimbursement share over time (percentage): combined all FMIS and interstate
 // ====*/
-// gen pct = 100 * federal_funds_bills_adj / total_cost_bills_adj
+// gen pct_all = 100 * fmis_fed_bills_adj / total_fmis_cost_bills_adj
+
+// preserve
+// use "$intermediate_data/project_level_FMIS_lite.dta", clear
+// keep if interstate_syscode == 1
+// rename completion_year year
+// collapse (sum) total_cost_mills federal_funds, by(year)
+// merge 1:1 year using "$intermediate_data/CPI_2025.dta", keep(3) keepusing(cpi) nogen
+// gen total_cost_bills_adj = total_cost_mills / cpi / 1000
+// gen federal_funds_bills_adj = federal_funds / cpi / 1000000000
+// gen pct_interstate = 100 * federal_funds_bills_adj / total_cost_bills_adj
+// keep year pct_interstate
+// tempfile interstate_pct
+// save `interstate_pct'
+// restore
+
+// merge 1:1 year using `interstate_pct', nogen
+
 // graph twoway /// 
-// 	(line pct year), ///
-// 	title("Federal Reimbursement Share of Interstate" "Projects in FMIS") ///
-// 	ytitle("% of Total Interstate Spending") ///
+// 	(line pct_all year) ///
+// 	(line pct_interstate year), ///
+// 	title("Federal Reimbursement Share of FMIS Spending") ///
+// 	ytitle("% of Total Spending") ///
 // 	xtitle("Completion Year") ///
 // 	yscale(range(0 100)) ylabel(0(10)100) ///
+// 	legend(order(2 1) label(1 "All FMIS Projects") label(2 "Interstate Projects")) ///
+// 	note("Interstate classification is defined by federal aid system code.", size(small) span) ///
+// 	graphregion(margin(l=15 r=15))
+// graph export "$output/fed_portion_of_fmis_spending_pct_combined.png", replace width(2500)
+
+// drop pct_all pct_interstate
+
+
+// /*====
+//  Total spending in the US vs in FMIS
+// ====*/
+// graph twoway ///
+//     (line total_fmis_cost_bills_adj year) ///
+//     (line total_hw_spend_bills_adj year), ///
+//     title("Total US Highway Spending vs. Spending Captured by FMIS") ///
+//     ytitle("Billions of 2025 USD") ///
+// 	xtitle("Year") ///
 // 	note( ///
-// 		"Interstate classification is defined by federal aid system code.", ///
+// 		"Includes spending by federal, state, and local governments." ///
+// 		"Total national spending categories encompass capital outlays, maintenance, administrative costs (including general overhead, " ///
+// 		"engineering, research, planning, highway litigation, and highway publications), law enforcement, bond interest, " ///
+// 		"and debt retirement. " ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year." ///
+//         "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023).", ///
+// 		size(small) span ///
+// 	) ///
+//     legend(order(2 "National Total" 1 "FMIS")) ///
+//     ylabel(, format(%12.0fc)) 
+// graph export "$output/total_hw_spend_vs_FMIS.png", replace width(2500)
+
+
+// /*====
+//  Total spending in the US by category vs in FMIS
+// ====*/
+// graph twoway ///
+//     (line total_fmis_cost_bills_adj year) ///
+//     (line cap_bills_adj year) ///
+//     (line maint_bills_adj year) ///
+//     (line admin_law_int_bills_adj year) ///
+//     (line debt_retire_bills_adj year), ///
+//     title("Total US Highway Spending vs Spending Captured by FMIS") ///
+//     ytitle("Billions of 2025 USD") ///
+// 	xtitle("Year") ///
+// 	legend(label(1 "FMIS") label(2 "Total Capital Outlays") label(3 "Total Maintenance") label(4 "Total Administrative," "Law Enforcement," "Bond Interest") label(5 "Total Debt Retirement")) ///
+// 	note( ///
+//         "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
+// 		"Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
 // 		size(small) span ///
 // 	) ///
 // 	graphregion(margin(l=15 r=15))
-// graph export "$output/fed_portion_of_fmis_spending_pct_interstate.png", replace width(2500)
+// graph export "$output/total_hw_spend_by_category_vs_FMIS.png", replace width(2500)
 
-// restore 
-
-/*====
- Federal reimbursement share over time (percentage): combined all FMIS and interstate
-====*/
-gen pct_all = 100 * fmis_fed_bills_adj / total_fmis_cost_bills_adj
-
-preserve
-use "$intermediate_data/project_level_FMIS_lite.dta", clear
-keep if interstate_syscode == 1
-rename completion_year year
-collapse (sum) total_cost_mills federal_funds, by(year)
-merge 1:1 year using "$intermediate_data/CPI_2025.dta", keep(3) keepusing(cpi) nogen
-gen total_cost_bills_adj = total_cost_mills / cpi / 1000
-gen federal_funds_bills_adj = federal_funds / cpi / 1000000000
-gen pct_interstate = 100 * federal_funds_bills_adj / total_cost_bills_adj
-keep year pct_interstate
-tempfile interstate_pct
-save `interstate_pct'
-restore
-
-merge 1:1 year using `interstate_pct', nogen
-
-graph twoway /// 
-	(line pct_all year) ///
-	(line pct_interstate year), ///
-	title("Federal Reimbursement Share of FMIS Spending") ///
-	ytitle("% of Total Spending") ///
-	xtitle("Completion Year") ///
-	yscale(range(0 100)) ylabel(0(10)100) ///
-	legend(order(2 1) label(1 "All FMIS Projects") label(2 "Interstate Projects")) ///
-	note("Interstate classification is defined by federal aid system code.", size(small) span) ///
-	graphregion(margin(l=15 r=15))
-graph export "$output/fed_portion_of_fmis_spending_pct_combined.png", replace width(2500)
-
-drop pct_all pct_interstate
-
-exit 
-
-/*====
- Total spending in the US vs in FMIS
-====*/
-graph twoway ///
-    (line total_fmis_cost_bills_adj year) ///
-    (line total_hw_spend_bills_adj year), ///
-    title("Total US Highway Spending vs. Spending Captured by FMIS") ///
-    ytitle("Billions of 2025 USD") ///
-	xtitle("Year") ///
-	note( ///
-		"Includes spending by federal, state, and local governments." ///
-		"Total national spending categories encompass capital outlays, maintenance, administrative costs (including general overhead, " ///
-		"engineering, research, planning, highway litigation, and highway publications), law enforcement, bond interest, " ///
-		"and debt retirement. " ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year." ///
-        "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023).", ///
-		size(small) span ///
-	) ///
-    legend(order(2 "National Total" 1 "FMIS")) ///
-    ylabel(, format(%12.0fc)) 
-graph export "$output/total_hw_spend_vs_FMIS.png", replace width(2500)
+// /*====
+//  Total spending in the US by category vs in FMIS vs fed interstate construction
+// ====*/
+// graph twoway ///
+//     (line total_fmis_cost_bills_adj year) ///
+//     (line cap_bills_adj year) ///
+//     (line maint_bills_adj year) ///
+//     (line admin_law_int_bills_adj year) ///
+//     (line debt_retire_bills_adj year) ///
+//     (line FA3_interstate_adj_bills year), ///
+//     title("US Highway Spending: Total vs Spending Captured by FMIS") ///
+//     ytitle("Billions of 2025 USD", xoffset(-4)) ///
+// 	xtitle("Year") ///
+// 	legend(label(1 "FMIS*") label(2 "Capital Outlays*") label(3 "Maintenance*") label(4 "Administrative,**" "Law Enforcement," "Bond Interest*") label(5 "Debt Retirement*") label(6 "FHWA Federal Interstate***")) ///
+// 	note( ///
+//         "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
+// 		"Federal interstate expenditures from FHWA Table FA3." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
+// 		"* Totals are for all levels of government." ///
+// 		"**Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
+// 		"***Federal interstate expenditures are administered by the FHWA and exclude primary, secondary, and urban" ///
+// 		"roads, as well as planning and research, highway safety, bridge replacement, beautification, and other" ///
+// 		"miscellaneous expenditures. " ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
+// 		size(small) span ///
+// 	) ///
+// 	graphregion(margin(l=15 r=15))
+// graph export "$output/total_hw_spend_by_category_vs_FMIS_w_fed_int.png", replace width(2500)
 
 
-/*====
- Total spending in the US by category vs in FMIS
-====*/
-graph twoway ///
-    (line total_fmis_cost_bills_adj year) ///
-    (line cap_bills_adj year) ///
-    (line maint_bills_adj year) ///
-    (line admin_law_int_bills_adj year) ///
-    (line debt_retire_bills_adj year), ///
-    title("Total US Highway Spending vs Spending Captured by FMIS") ///
-    ytitle("Billions of 2025 USD") ///
-	xtitle("Year") ///
-	legend(label(1 "FMIS") label(2 "Total Capital Outlays") label(3 "Total Maintenance") label(4 "Total Administrative," "Law Enforcement," "Bond Interest") label(5 "Total Debt Retirement")) ///
-	note( ///
-        "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
-		"Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
-		size(small) span ///
-	) ///
-	graphregion(margin(l=15 r=15))
-graph export "$output/total_hw_spend_by_category_vs_FMIS.png", replace width(2500)
+// /*====
+//  Fed interstate construction vs FMIS interstate (functional class) vs FMIS interstate (system code)
+// ====*/
+// graph twoway ///
+//     (line FA3_interstate_adj_bills year) ///
+//     (line int_func_cost_bills_adj year) ///
+//     (line int_syscode_cost_bills_adj year), ///
+//     title("Comparison of Interstate Spending between FHWA and FMIS") ///
+//     ytitle("Billions of 2025 USD", xoffset(-3)) ///
+//     xtitle("Year") ///
+//     legend(label(1 "FHWA Federal Interstate" "(FA3)") label(2 "FMIS Interstate" "Functional Class") label(3 "FMIS Interstate" "System Code")) ///
+// 	legend(order(1 3 2)) ///
+//     note( ///
+//         "Federal interstate expenditures from FHWA Table FA3." ///
+//         "FMIS data includes all project costs across multiple levels of government." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
+// 		"Interstate projects are classified in multiple ways. A functional classification indicates the roadway segment" ///
+// 		"meets the functional definitions of an interstate highway. The system code classification is likely an" ///
+// 		"administrative designation about funding eligibility." ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
+// 		size(small) span ///
+// 	) ///
+// 	graphregion(margin(l=15 r=15))
+// graph export "$output/interstate_comparison.png", replace width(2500)
 
-/*====
- Total spending in the US by category vs in FMIS vs fed interstate construction
-====*/
-graph twoway ///
-    (line total_fmis_cost_bills_adj year) ///
-    (line cap_bills_adj year) ///
-    (line maint_bills_adj year) ///
-    (line admin_law_int_bills_adj year) ///
-    (line debt_retire_bills_adj year) ///
-    (line FED_INT_CONST_EXP_fa3_bills_2025 year), ///
-    title("US Highway Spending: Total vs Spending Captured by FMIS") ///
-    ytitle("Billions of 2025 USD", xoffset(-4)) ///
-	xtitle("Year") ///
-	legend(label(1 "FMIS*") label(2 "Capital Outlays*") label(3 "Maintenance*") label(4 "Administrative,**" "Law Enforcement," "Bond Interest*") label(5 "Debt Retirement*") label(6 "Interstate Construction," "Federal Expenditures Only***")) ///
-	note( ///
-        "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
-		"Federal interstate construction spending from FHWA Table FA3." ///
-		"* Totals are for all levels of government." ///
-		"**Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
-		"***Federal interstate expenditures are administered by the FHWA and exclude primary, secondary, and urban" ///
-		"roads, as well as planning and research, highway safety, bridge replacement, beautification, and other" ///
-		"miscellaneous expenditures. " ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
-		size(small) span ///
-	) ///
-	graphregion(margin(l=15 r=15))
-graph export "$output/total_hw_spend_by_category_vs_FMIS_w_fed_int.png", replace width(2500)
+// /*====
+//  Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code)
+// ====*/
+// gen fmis_fhwa_interstate_ratio = int_syscode_cost_bills_adj / FA3_interstate_adj_bills
 
+// preserve
+// drop if year > 1995
 
-/*====
- Fed interstate construction vs FMIS interstate (functional class) vs FMIS interstate (system code)
-====*/
-graph twoway ///
-    (line FED_INT_CONST_EXP_fa3_bills_2025 year) ///
-    (line int_func_cost_bills_adj year) ///
-    (line int_syscode_cost_bills_adj year), ///
-    title("Comparison of Interstate Spending between FHWA and FMIS") ///
-    ytitle("Billions of 2025 USD", xoffset(-3)) ///
-    xtitle("Year") ///
-    legend(label(1 "FHWA Federal Interstate" "Construction Expenditures") label(2 "FMIS Interstate" "Functional Class") label(3 "FMIS Interstate" "System Code")) ///
-	legend(order(1 3 2)) ///
-    note( ///
-        "Federal interstate construction spending from FHWA Table FA3." ///
-        "FMIS data includes all project costs across multiple levels of government." ///
-		"Interstate projects are classified in multiple ways. A functional classification indicates the roadway segment" ///
-		"meets the functional definitions of an interstate highway. The system code classification is likely an" ///
-		"administrative designation about funding eligibility." ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
-		size(small) span ///
-	) ///
-	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_comparison.png", replace width(2500)
-
-/*====
- Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code)
-====*/
-gen fmis_fhwa_interstate_ratio = int_syscode_cost_bills_adj / FED_INT_CONST_EXP_fa3_bills_2025
-
-graph twoway line fmis_fhwa_interstate_ratio year, ///
-	title("Ratio of FMIS to FHWA Interstate Spending") ///
-	ytitle("Ratio") ///
-	xtitle("Year") ///
-	note( ///
-		"FHWA interstate spending is sourced from Table FA3." ///
-		"FMIS interstate classification is defined by federal aid system code." ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
-		size(small) span ///
-	)
-graph export "$output/fmis_fhwa_interstate_ratio.png", replace width(2500)
+// graph twoway line fmis_fhwa_interstate_ratio year, ///
+// 	title("Ratio of FMIS to FHWA Interstate Spending") ///
+// 	ytitle("Ratio") ///
+// 	xtitle("Year") ///
+// 	xlabel(1950(10)2000) ///
+// 	note( ///
+// 		"FHWA interstate spending is sourced from Table FA3." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
+// 		"FMIS interstate classification is defined by federal aid system code." ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
+// 		size(small) span ///
+// 	)
+// graph export "$output/fmis_fhwa_interstate_ratio.png", replace width(2500)
 
 
-/*====
- Total spending in the US by category vs in FMIS vs interstate only
-====*/
-graph twoway ///
-    (line total_fmis_cost_bills_adj year) ///
-    (line cap_bills_adj year) ///
-    (line maint_bills_adj year) ///
-    (line admin_law_int_bills_adj year) ///
-    (line debt_retire_bills_adj year) ///
-	(line FED_INT_CONST_EXP_fa3_bills_2025 year) ///
-    (line int_syscode_cost_bills_adj year), ///
-    title("US Highway Spending Comparisons") ///
-    ytitle("Billions of 2025 USD", xoffset(-3)) ///
-	xtitle("Year") ///
-	legend(label(1 "FMIS Total*") label(2 "Capital Outlays*") label(3 "Maintenance*") label(4 "Administrative,**" "Law Enforcement," "Bond Interest*") label(5 "Debt Retirement*") label(6 "Interstate Construction," "Federal Expenditures Only***") label(7 "FMIS Interstate" "(System Code)****")) ///
-	note( ///
-        "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
-		"Federal interstate construction spending from FHWA Table FA3." ///
-		"* Totals are for all levels of government." ///
-		"** Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
-		"*** Federal interstate expenditures are administered by the FHWA and exclude primary, secondary, and urban" ///
-		"roads, as well as planning and research, highway safety, bridge replacement, beautification, and other" ///
-		"miscellaneous expenditures. " ///	
-		"**** This FMIS classification of interstate highways is likely based on project funding eligibility rather" "than roadway functionality." ///
-		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
-		size(small) span ///
-	) ///
-	graphregion(margin(l=10 r=10))
-graph export "$output/total_hw_spend_by_category_vs_FMIS_vs_int.png", replace width(2500)
+// /*====
+//  Total spending in the US by category vs in FMIS vs interstate only
+// ====*/
+// graph twoway ///
+//     (line total_fmis_cost_bills_adj year) ///
+//     (line cap_bills_adj year) ///
+//     (line maint_bills_adj year) ///
+//     (line admin_law_int_bills_adj year) ///
+//     (line debt_retire_bills_adj year) ///
+// 	(line FA3_interstate_adj_bills year) ///
+//     (line int_syscode_cost_bills_adj year), ///
+//     title("US Highway Spending Comparisons") ///
+//     ytitle("Billions of 2025 USD", xoffset(-3)) ///
+// 	xtitle("Year") ///
+// 	legend(label(1 "FMIS Total*") label(2 "Capital Outlays*") label(3 "Maintenance*") label(4 "Administrative,**" "Law Enforcement," "Bond Interest*") label(5 "Debt Retirement*") label(6 "Interstate Construction," "FHWA Federal Interstate***") label(7 "FMIS Interstate" "(System Code)****") size(small)) ///
+// 	note( ///
+//         "Total national spending data from FHWA Tables DISCHT (1945-2001) and DISB-C (2000-2023)." ///
+// 		"Federal interstate expenditures from FHWA Table FA3." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
+// 		"* Totals are for all levels of government." ///
+// 		"** Administrative costs include general overhead, engineering, research, planning, litigation, and publications." ///
+// 		"*** Federal interstate expenditures are administered by the FHWA and exclude primary, secondary, and urban" ///
+// 		"roads, as well as planning and research, highway safety, bridge replacement, beautification, and other" ///
+// 		"miscellaneous expenditures. " ///	
+// 		"**** This FMIS classification of interstate highways is likely based on project funding eligibility rather" "than roadway functionality." ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
+// 		size(vsmall) span ///
+// 	) ///
+// 	ysize(10) xsize(12) ///
+// 	graphregion(margin(l=10 r=10))
+// graph export "$output/total_hw_spend_by_category_vs_FMIS_vs_int.png", replace width(2500)
 
 
 * ==============================================================================
@@ -444,3 +427,43 @@ graph export "$output/total_hw_spend_by_category_vs_FMIS_vs_int.png", replace wi
 
 
 * FHWA costs by level of government 
+use "$intermediate_data/FHWA_Highway_Statistics/HF10_1921_2023.dta", clear
+* adjust for inflation 
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
+gen cost_mills_adj = cost_mills / cpi
+gen cost_bills_adj = cost_mills_adj / 1000
+
+collapse (sum) cost_bills_adj, by(year agency)
+
+* fill in missing (year, agency) for selected years so the line graph shows gaps (cost_bills_adj = .)
+preserve
+clear
+set obs 18
+gen year = .
+gen agency = .
+replace year = 1996 in 1/3
+replace year = 1997 in 4/6
+replace year = 1998 in 7/9
+replace year = 2011 in 10/12
+replace year = 2013 in 13/15
+replace year = 2017 in 16/18
+replace agency = mod(_n - 1, 3) + 1 in 1/18
+gen cost_bills_adj = .
+tempfile gap_years
+save `gap_years'
+restore
+append using `gap_years'
+* keep existing values when (year, agency) appears in both; otherwise keep the . row (so line has a gap)
+sort year agency cost_bills_adj
+bysort year agency: keep if _n == 1
+sort agency year
+
+graph twoway ///
+    (line cost_bills_adj year if agency == 1, cmissing(n)) ///
+    (line cost_bills_adj year if agency == 2, cmissing(n)) ///
+    (line cost_bills_adj year if agency == 3, cmissing(n)), ///
+    title("FHWA Highway Spending by Level of Government") ///
+    ytitle("Billions of 2025 USD") ///
+    xtitle("Year") ///
+    legend(label(1 "Federal") label(2 "State") label(3 "Local"))
+graph export "$output/fhwa_hw_spend_by_level_of_government.png", replace width(2500)

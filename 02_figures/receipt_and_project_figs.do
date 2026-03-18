@@ -29,7 +29,7 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 /*==========================
  Num projects by year
 ===========================*/
-use "$data/Intermediate/project_level_FMIS_lite.dta", clear
+use "$intermediate_data/project_level_FMIS_lite.dta", clear
 gen n_obs = 1
 gen n_obs_interstate = 1 if interstate_syscode == 1
 keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
@@ -37,7 +37,7 @@ collapse (sum) n_obs n_obs_interstate, by(completion_year)
 
 * add count of projects with at least one interstate new construction receipt
 preserve
-use "$data/Intermediate/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025
 keep if interstate_syscode == 1 & (detail_improvementtype == 1 | detail_improvementtype == 8 | detail_improvementtype == 50)
 keep recipientid federal_project_number completion_year
@@ -51,25 +51,41 @@ restore
 
 merge 1:1 completion_year using `interstate_newconstr', nogen
 
-graph twoway line n_obs n_obs_interstate n_obs_interstate_newconstr completion_year, sort /// 
-    title("Number of Projects by Completion Year") ///
+// graph twoway line n_obs n_obs_interstate n_obs_interstate_newconstr completion_year, sort /// 
+//     title("Number of Projects by Completion Year") ///
+//     ytitle("Number of Projects") ///
+//     ylabel(, format(%9.0fc)) ///
+//     xtitle("Completion Year") ///
+//     legend(label(1 "All Projects") label(2 "Interstate Projects") label(3 "Interstate Projects" "with New Construction")) ///
+// 	note( ///
+// 		"Interstate projects are those that have at least one receipt with an interstate federal-aid system code." ///
+// 		`"Interstate projects with new construction are those that have at least one interstate receipt classified as "' ///
+// 		`""new construction roadway", "bridge new construction", or "new tunnel"."', ///
+// 		size(small) span ///
+// 	)
+// graph export "$output/num_projects_by_yr_with_interstate.png", replace width(2500)
+
+* version without all projects, so the other lines are more visible
+graph twoway line n_obs_interstate n_obs_interstate_newconstr completion_year, sort /// 
+    title("Number of Interstate Projects by Completion Year") ///
     ytitle("Number of Projects") ///
     ylabel(, format(%9.0fc)) ///
     xtitle("Completion Year") ///
-    legend(label(1 "All Projects") label(2 "Interstate Projects") label(3 "Interstate Projects" "with New Construction")) ///
+    lcolor(stc2 stc3) ///
+    legend(label(1 "Interstate Projects") label(2 "Interstate Projects" "with New Construction")) ///
 	note( ///
 		"Interstate projects are those that have at least one receipt with an interstate federal-aid system code." ///
 		`"Interstate projects with new construction are those that have at least one interstate receipt classified as "' ///
 		`""new construction roadway", "bridge new construction", or "new tunnel"."', ///
 		size(small) span ///
 	)
-graph export "$output/num_projects_by_yr_with_interstate.png", replace width(2500)
+graph export "$output/num_projects_by_yr_interstate_only.png", replace width(2500)
 
-
+exit 
 /*===============================
  Num Receipts by year 
 ================================*/
-use "$data/Intermediate/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 gen n_obs = 1
 gen n_obs_interstate = 1 if interstate_syscode == 1
 gen n_obs_interstate_newconstr = 1 if interstate_syscode == 1 & (detail_improvementtype == 1 | detail_improvementtype == 8 | detail_improvementtype == 50)
@@ -92,20 +108,20 @@ graph export "$output/num_receipts_by_yr_with_interstate.png", replace width(250
 /*=======================
  Num receipts per project
 ========================*/
-use "$data/Intermediate/project_level_FMIS_lite.dta", clear
+use "$intermediate_data/project_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
 gen receipts_interstate = receipts if interstate_syscode == 1
 collapse (mean) receipts receipts_interstate, by(completion_year)
 
 * add mean receipts for interstate new construction projects
 preserve
-use "$data/Intermediate/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025
 keep if interstate_syscode == 1 & (detail_improvementtype == 1 | detail_improvementtype == 8 | detail_improvementtype == 50)
 * crosswalk to project data 
 keep recipientid federal_project_number
 duplicates drop
-merge 1:1 recipientid federal_project_number using "$data/Intermediate/project_level_FMIS_lite.dta", keep(match) nogen
+merge 1:1 recipientid federal_project_number using "$intermediate_data/project_level_FMIS_lite.dta", keep(match) nogen
 collapse (mean) receipts, by(completion_year)
 rename receipts receipts_interstate_newconstr
 tempfile receipts_newconstr
@@ -132,7 +148,7 @@ graph export "$output/receipts_per_proj_by_year_with_interstate.png", replace wi
 /*===============================
  Average receipt cost over time
 ================================*/
-use "$data/Intermediate/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
 
 * collapse all receipts
@@ -164,7 +180,7 @@ merge 1:1 completion_year using `all', nogen
 rename completion_year year
 
 * adjust for inflation
-merge m:1 year using "$data/Intermediate/CPI_2025.dta", nogen
+merge m:1 year using "$intermediate_data/CPI_2025.dta", nogen
 gen avg_all_adj = avg_all / cpi
 gen avg_interstate_adj = avg_interstate / cpi
 gen avg_interstate_newconstr_adj = avg_interstate_newconstr / cpi
@@ -187,7 +203,7 @@ graph export "$output/avg_receipt_cost_by_yr_with_interstate.png", replace width
 /*===============================
  Average project cost over time 
 ================================*/
-use "$data/Intermediate/project_level_FMIS_lite.dta", clear
+use "$intermediate_data/project_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
 
 * collapse all projects
@@ -208,12 +224,12 @@ save `interstate'
 restore
 
 * collapse interstate new construction projects (projects with at least one interstate new construction receipt)
-use "$data/Intermediate/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if interstate_syscode == 1
 keep if detail_improvementtype == 1 | detail_improvementtype == 8 | detail_improvementtype == 50 // new construction roadway, bridge new construction, and new tunnel
 keep recipientid federal_project_number
 duplicates drop
-merge 1:1 recipientid federal_project_number using "$data/Intermediate/project_level_FMIS_lite.dta", keep(match) nogen
+merge 1:1 recipientid federal_project_number using "$intermediate_data/project_level_FMIS_lite.dta", keep(match) nogen
 collapse (mean) total_cost_mills, by(completion_year)
 rename total_cost_mills avg_interstate_newconstr
 tempfile interstate_newconstr
@@ -224,7 +240,7 @@ use `all', clear
 merge 1:1 completion_year using `interstate', nogen
 merge 1:1 completion_year using `interstate_newconstr', nogen
 rename completion_year year
-merge m:1 year using "$data/Intermediate/CPI_2025.dta", keep(3) nogen
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keep(3) nogen
 gen avg_all_adj = avg_all / cpi
 gen avg_interstate_adj = avg_interstate / cpi
 gen avg_interstate_newconstr_adj = avg_interstate_newconstr / cpi
