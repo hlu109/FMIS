@@ -3,7 +3,7 @@
  	Hannah Lu 
 	02/24/2026
 
-	This script processes FHWA Highway Statistics data on total highway spending across all levels of government.
+	This script processes FHWA Highway Statistics data.
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -69,29 +69,9 @@ label variable maint_mills_adj "Maintenance (millions 2025 USD)"
 label variable admin_law_int_mills_adj "Administrative, Law Enforcement, Bond Interest (millions 2025 USD)"
 label variable debt_retire_mills_adj "Debt Retirement (millions 2025 USD)"
 
-tempfile total_hw_spend
-save `total_hw_spend'
-
 
 * ==============================================================================
-* Load interstate spending data from Brooks and Liscow 
-
-use "$raw_data/BrooksLiscow_Annual_In-House_Dataset.dta", clear
-keep state_name YEAR FED_INT_CONST_EXP_fa3 
-// FED_INT_CONST_EXP_fa3 is total federal interstate cosntruction expenditures from FHWA Highway Statistics series FA3; I believe this should be in nominal (thousands?) of dollars  // TODO check this 
-rename YEAR year
-keep if state_name == "US_Total"
-drop state_name
-
-* adjust for inflation 	
-merge 1:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
-gen FED_INT_CONST_EXP_fa3_2025 = FED_INT_CONST_EXP_fa3 / cpi 
-gen FED_INT_CONST_EXP_fa3_mills_2025 = FED_INT_CONST_EXP_fa3_2025 / 1000
-gen FED_INT_CONST_EXP_fa3_bills_2025 = FED_INT_CONST_EXP_fa3_mills_2025 / 1000
-label variable FED_INT_CONST_EXP_fa3_mills_2025 "Total Fed Interstate Construction Expenditure (FA3, millions 2025 USD)"
-label variable FED_INT_CONST_EXP_fa3_bills_2025 "Total Fed Interstate Construction Expenditure (FA3, billions 2025 USD)"
-
-* merge with the above total highway spending 
-merge 1:1 year using `total_hw_spend', nogen
+// merge in FA3 interstate data 
+merge 1:1 year using "$intermediate_data/FHWA_Highway_Statistics/FA3_interstate_1956_2024.dta", nogen
 
 save "$intermediate_data/FHWA_Highway_Statistics/total_hw_spend.dta", replace
