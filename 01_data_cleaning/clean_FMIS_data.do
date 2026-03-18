@@ -177,22 +177,41 @@ label values system_code system_code_lbl
 gen interstate_functional = functional_system == 1
 gen interstate_syscode = system_code == 1
 
-* Reformat the detail_lastactiondate variable 
-gen detail_lastactiondate_temp = regexs(0) if regexm(detail_lastactiondate, "([0-9]{2}/[0-9]{2}/[0-9]{4})")
-gen detail_lastactiondate_numeric = date(detail_lastactiondate_temp, "MDY")
-format detail_lastactiondate_numeric %tdCCYY-NN-DD
-drop detail_lastactiondate_temp detail_lastactiondate
-rename detail_lastactiondate_numeric detail_lastactiondate
+* Reformat the date variables
+// gen detail_lastactiondate_temp = regexs(0) if regexm(detail_lastactiondate, "([0-9]{2}/[0-9]{2}/[0-9]{4})")
+// gen detail_lastactiondate_numeric = date(detail_lastactiondate_temp, "MDY")
+// format detail_lastactiondate_numeric %tdCCYY-NN-DD
+// drop detail_lastactiondate_temp detail_lastactiondate
+// rename detail_lastactiondate_numeric detail_lastactiondate
 
+foreach d in authsprdate authpedate authrowdate authconstdate authotherdate completedate detail_lastactiondate {
+    gen `d'_temp = regexs(0) if regexm(`d', "([0-9]{2}/[0-9]{2}/[0-9]{4})")
+    gen `d'_numeric = date(`d'_temp, "MDY")
+    format `d'_numeric %tdCCYY-NN-DD
+    drop `d'_temp `d'
+    rename `d'_numeric `d'
+}
+
+
+* Add NEPA variables
 rename nepaclassofaction nepa_class
 rename nepaclassofactiondecisiondate nepa_decision_date
+global nepa_class_lbl_def ///
+    0  "Undefined" ///
+    1  "Categorial Exclusions" ///
+    2  "Environmental Assessment"
+label define nepa_class_lbl $nepa_class_lbl_def, replace
+label values nepa_class nepa_class_lbl
+label variable nepa_class "NEPA Class of Action"
+label variable nepa_decision_date "Decision date for NEPA class of action"
+
 
 * export 
-keep recipientid projectstatus projecttitle detail_lastactiondate detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds completedate authpedate authrowdate authconstdate authsprdate authotherdate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
+keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
-drop projecttitle projectdescription completedate authconstdate recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid gisbreakdown_countyid
+drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid gisbreakdown_countyid
 
 save "$intermediate_data/receipt_level_FMIS_lite.dta", replace
 
