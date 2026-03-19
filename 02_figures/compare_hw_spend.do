@@ -361,6 +361,17 @@ drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 // 	graphregion(margin(l=15 r=15))
 // graph export "$output/interstate_comparison.png", replace width(2500)
 
+/*====
+ Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code) - single number 
+====*/
+preserve
+keep if year >= 1956 & year <= 1993 
+collapse (sum) FA3_interstate_adj_bills int_syscode_cost_bills_adj
+gen fmis_fhwa_interstate_ratio = int_syscode_cost_bills_adj / FA3_interstate_adj_bills
+summarize fmis_fhwa_interstate_ratio
+display "Ratio of FMIS to FHWA interstate spending between 1956 and 1993: " r(mean)
+restore
+
 // /*====
 //  Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code)
 // ====*/
