@@ -32,10 +32,6 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * Import raw FMIS data and gen common variables. 
 import delimited "$data/CSVs/combined_data.csv", clear bindquote(strict) varnames(1)
 
-* Completion year for grouping projects/reciepts 
-gen completion_year = regexs(1) if regexm(completedate, "/([0-9]{4})$")
-destring completion_year, replace
-
 rename federalprojectnumber federal_project_number
 * In the variable detail_improvementtype, there is a category (15) called preliminary engineering, which is by far the most common.
 
@@ -117,6 +113,25 @@ global improvement_lbl_def ///
 label define improvement_lbl $improvement_lbl_def, replace
 label values detail_improvementtype improvement_lbl
 
+* Define project status 
+global project_status_lbl_def ///
+    1  "State Certification Signature needed" ///
+    2  "Unsigned, State Certification Signature needed" ///
+    3  "State Recommendation Signature needed" ///
+    4  "State Authorization Signature needed" ///
+    5  "State Modification Signature needed" ///
+    6  "Division Review Signature needed" ///
+    7  "Division Recommendation Signature needed" ///
+    8  "Division Authorization Signature needed" ///
+    10 "Active" ///
+    11 "Closed" ///
+    12 "Closed Pending Expenditures" ///
+    13 "Withdrawn" ///
+    14 "Withdrawn Pending Expenditures" ///
+    16 "Rejected By Division"
+label define project_status_lbl $project_status_lbl_def, replace
+label values project_status project_status_lbl
+
 * Create total cost variable, costs are either gis, or nongis. 
 gen total_cost = nongis_totalcost 
 replace total_cost = gis_totalcost if total_cost == . 
@@ -177,21 +192,25 @@ label values system_code system_code_lbl
 gen interstate_functional = functional_system == 1
 gen interstate_syscode = system_code == 1
 
-* Reformat the date variables
-// gen detail_lastactiondate_temp = regexs(0) if regexm(detail_lastactiondate, "([0-9]{2}/[0-9]{2}/[0-9]{4})")
-// gen detail_lastactiondate_numeric = date(detail_lastactiondate_temp, "MDY")
-// format detail_lastactiondate_numeric %tdCCYY-NN-DD
-// drop detail_lastactiondate_temp detail_lastactiondate
-// rename detail_lastactiondate_numeric detail_lastactiondate
+* Process the date variables 
+* Pull years for relevant date variables
+gen completion_year = regexs(1) if regexm(completedate, "/([0-9]{4})$")
+destring completion_year, replace
+gen finalvoucher_year = regexs(1) if regexm(finalvoucherdate, "/([0-9]{4})")
+destring finalvoucher_year, replace
+gen latestpayment_year = regexs(1) if regexm(latestpaymentdate, "/([0-9]{4})")
+destring latestpayment_year, replace
+gen lastaction_year = regexs(1) if regexm(detail_lastactiondate, "/([0-9]{4})")
+destring lastaction_year, replace
 
-foreach d in authsprdate authpedate authrowdate authconstdate authotherdate completedate detail_lastactiondate {
+* Convert variables to date/numeric class instead of string
+foreach d in authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate detail_lastactiondate {
     gen `d'_temp = regexs(0) if regexm(`d', "([0-9]{2}/[0-9]{2}/[0-9]{4})")
     gen `d'_numeric = date(`d'_temp, "MDY")
     format `d'_numeric %tdCCYY-NN-DD
     drop `d'_temp `d'
     rename `d'_numeric `d'
 }
-
 
 * Add NEPA variables
 rename nepaclassofaction nepa_class
@@ -207,7 +226,7 @@ label variable nepa_decision_date "Decision date for NEPA class of action"
 
 
 * export 
-keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
+keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year lastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
