@@ -114,7 +114,7 @@ label define improvement_lbl $improvement_lbl_def, replace
 label values detail_improvementtype improvement_lbl
 
 * Define project status 
-global project_status_lbl_def ///
+global projectstatus_lbl_def ///
     1  "State Certification Signature needed" ///
     2  "Unsigned, State Certification Signature needed" ///
     3  "State Recommendation Signature needed" ///
@@ -129,8 +129,8 @@ global project_status_lbl_def ///
     13 "Withdrawn" ///
     14 "Withdrawn Pending Expenditures" ///
     16 "Rejected By Division"
-label define project_status_lbl $project_status_lbl_def, replace
-label values project_status project_status_lbl
+label define projectstatus_lbl $projectstatus_lbl_def, replace
+label values projectstatus projectstatus_lbl
 
 * Create total cost variable, costs are either gis, or nongis. 
 gen total_cost = nongis_totalcost 
@@ -200,17 +200,20 @@ gen finalvoucher_year = regexs(1) if regexm(finalvoucherdate, "/([0-9]{4})")
 destring finalvoucher_year, replace
 gen latestpayment_year = regexs(1) if regexm(latestpaymentdate, "/([0-9]{4})")
 destring latestpayment_year, replace
-gen lastaction_year = regexs(1) if regexm(detail_lastactiondate, "/([0-9]{4})")
-destring lastaction_year, replace
+gen detaillastaction_year = regexs(1) if regexm(detail_lastactiondate, "/([0-9]{4})")
+destring detaillastaction_year, replace
 
 * Convert variables to date/numeric class instead of string
-foreach d in authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate detail_lastactiondate {
+foreach d in authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate lastactiondate transactiondate detail_lastactiondate {
     gen `d'_temp = regexs(0) if regexm(`d', "([0-9]{2}/[0-9]{2}/[0-9]{4})")
     gen `d'_numeric = date(`d'_temp, "MDY")
     format `d'_numeric %tdCCYY-NN-DD
     drop `d'_temp `d'
     rename `d'_numeric `d'
 }
+label variable projectenddate "Expected end date"
+label variable finalvoucherdate "Date of final expenditure or date the final voucher was paid"
+label variable latestpaymentdate "Date of most recent expenditure against the project"
 
 * Add NEPA variables
 rename nepaclassofaction nepa_class
@@ -218,7 +221,8 @@ rename nepaclassofactiondecisiondate nepa_decision_date
 global nepa_class_lbl_def ///
     0  "Undefined" ///
     1  "Categorial Exclusions" ///
-    2  "Environmental Assessment"
+    2  "Environmental Assessment" ///
+    3  "Environmental Impact Statement"
 label define nepa_class_lbl $nepa_class_lbl_def, replace
 label values nepa_class nepa_class_lbl
 label variable nepa_class "NEPA Class of Action"
@@ -226,7 +230,7 @@ label variable nepa_decision_date "Decision date for NEPA class of action"
 
 
 * export 
-keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year lastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode
+keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode  
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
@@ -234,7 +238,6 @@ drop projecttitle projectdescription recipientremarks divisionremarks nongis_cou
 
 save "$intermediate_data/receipt_level_FMIS_lite.dta", replace
 
-exit
 
 * ==============================================================================
 * Project-level data
@@ -250,8 +253,8 @@ by federal_project_number recipientid: replace alltypes = alltypes[_N]
 	
 gen receipts = 1 // this is used for reciept counts
 
-* add interstate_functional and interstate_syscode to the project-level data
-collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription completedate authconstdate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
+* add interstate_functional and interstate_syscode to the project-level data(we take the max so that even if the project only has one interstate receipt, the entire project is classified as interstate)
+collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
 
 label variable interstate_functional "True if at least one receipt is interstate"
 label variable interstate_syscode "True if at least one receipt is interstate"
@@ -259,6 +262,6 @@ label variable interstate_syscode "True if at least one receipt is interstate"
 save "$data/Intermediate/project_level_FMIS.dta", replace
 
 * also export lite version
-drop projecttitle projectdescription completedate authconstdate recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid
+drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid
 
 save "$intermediate_data/project_level_FMIS_lite.dta", replace
