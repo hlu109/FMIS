@@ -215,22 +215,150 @@ label variable projectenddate "Expected end date"
 label variable finalvoucherdate "Date of final expenditure or date the final voucher was paid"
 label variable latestpaymentdate "Date of most recent expenditure against the project"
 
-* Add NEPA variables
-rename nepaclassofaction nepa_class
-rename nepaclassofactiondecisiondate nepa_decision_date
-global nepa_class_lbl_def ///
-    0  "Undefined" ///
-    1  "Categorial Exclusions" ///
-    2  "Environmental Assessment" ///
-    3  "Environmental Impact Statement"
-label define nepa_class_lbl $nepa_class_lbl_def, replace
-label values nepa_class nepa_class_lbl
-label variable nepa_class "NEPA Class of Action"
-label variable nepa_decision_date "Decision date for NEPA class of action"
+// * Add NEPA variables
+// rename nepaclassofaction nepa_class
+// rename nepaclassofactiondecisiondate nepa_decision_date
+// global nepa_class_lbl_def ///
+//     0  "Undefined" ///
+//     1  "Categorial Exclusions" ///
+//     2  "Environmental Assessment" ///
+//     3  "Environmental Impact Statement"
+// label define nepa_class_lbl $nepa_class_lbl_def, replace
+// label values nepa_class nepa_class_lbl
+// label variable nepa_class "NEPA Class of Action"
+// label variable nepa_decision_date "Decision date for NEPA class of action"
+
+* add variables related to formula or grant funding 
+label variable detail_programcode "Program Code"
+// label variable detail_fain "Federal Award Identification Number" // all empty
+// label variable detail_grantnumber "Discretionary Grant Award Number" // all empty
+
+* location variables 
+gen stateid = gis_stateid
+replace stateid = nongis_stateid if stateid == .
+gen countyid = gis_countyid
+replace countyid = nongis_countyid if countyid == .
+
+global stateid_lbl_def ///
+    1  "Alabama" ///
+    2  "Alaska" ///
+    4  "Arizona" ///
+    5  "Arkansas" ///
+    6  "California" ///
+    8  "Colorado" ///
+    9  "Connecticut" ///
+    10  "Delaware" ///
+    11  "District of Columbia" ///
+    12  "Florida" ///
+    13  "Georgia" ///
+    15  "Hawaii" ///
+    16  "Idaho" ///
+    17  "Illinois" ///
+    18  "Indiana" ///
+    19  "Iowa" ///
+    20  "Kansas" ///
+    21  "Kentucky" ///
+    22  "Louisiana" ///
+    23  "Maine" ///
+    24  "Maryland" ///
+    25  "Massachusetts" ///
+    26  "Michigan" ///
+    27  "Minnesota" ///
+    28  "Mississippi" ///
+    29  "Missouri" ///
+    30  "Montana" ///
+    31  "Nebraska" ///
+    32  "Nevada" ///
+    33  "New Hampshire" ///
+    34  "New Jersey" ///
+    35  "New Mexico" ///
+    36  "New York" ///
+    37  "North Carolina" ///
+    38  "North Dakota" ///
+    39  "Ohio" ///
+    40  "Oklahoma" ///
+    41  "Oregon" ///
+    42  "Pennsylvania" ///
+    44  "Rhode Island" ///
+    45  "South Carolina" ///
+    46  "South Dakota" ///
+    47  "Tennessee" ///
+    48  "Texas" ///
+    49  "Utah" ///
+    50  "Vermont" ///
+    51  "Virginia" ///
+    53  "Washington" ///
+    54  "West Virginia" ///
+    55  "Wisconsin" ///
+    56  "Wyoming" 
+label define stateid_lbl $stateid_lbl_def, replace
+label values stateid stateid_lbl
+
+global recipient_lbl_def ///
+    1  "Alabama" ///
+    2  "Alaska" ///
+    4  "Arizona" ///
+    5  "Arkansas" ///
+    6  "California" ///
+    8  "Colorado" ///
+    9  "Connecticut" ///
+    10  "Delaware" ///
+    11  "District Of Columbia" ///
+    12  "Florida" ///
+    13  "Georgia" ///
+    15  "Hawaii" ///
+    16  "Idaho" ///
+    17  "Illinois" ///
+    18  "Indiana" ///
+    19  "Iowa" ///
+    20  "Kansas" ///
+    21  "Kentucky" ///
+    22  "Louisiana" ///
+    23  "Maine" ///
+    24  "Maryland" ///
+    25  "Massachusetts" ///
+    26  "Michigan" ///
+    27  "Minnesota" ///
+    28  "Mississippi" ///
+    29  "Missouri" ///
+    30  "Montana" ///
+    31  "Nebraska" ///
+    32  "Nevada" ///
+    33  "New Hampshire" ///
+    34  "New Jersey" ///
+    35  "New Mexico" ///
+    36  "New York" ///
+    37  "North Carolina" ///
+    38  "North Dakota" ///
+    39  "Ohio" ///
+    40  "Oklahoma" ///
+    41  "Oregon" ///
+    42  "Pennsylvania" ///
+    44  "Rhode Island" ///
+    45  "South Carolina" ///
+    46  "South Dakota" ///
+    47  "Tennessee" ///
+    48  "Texas" ///
+    49  "Utah" ///
+    50  "Vermont" ///
+    51  "Virginia" ///
+    53  "Washington" ///
+    54  "West Virginia" ///
+    55  "Wisconsin" ///
+    56  "Wyoming" ///
+    60  "American Samoa" ///
+    66  "Guam" ///
+    72  "Puerto Rico" ///
+    75  "N Mariana" ///
+    78  "Virgin Islands" ///
+    81  "Canada" ///
+    91  "Port Authority of NY and NJ"
+label define recipient_lbl $recipient_lbl_def, replace
+label values recipientid recipient_lbl
 
 
 * export 
-keep recipientid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate nepa_class nepa_decision_date recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode  
+keep recipientid stateid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
