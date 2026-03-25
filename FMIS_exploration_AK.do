@@ -331,7 +331,7 @@ replace completion_decade = 8 if completion_year >= 2020 & completion_year <= 20
 
 preserve
 collapse (mean) unique_dates, by(num_receipts completion_decade)
-drop if num_receipts > 23
+drop if num_receipts > 23 // 95% of projs have less than 23 reciepts
 
 twoway (line unique_dates num_receipts if completion_decade == 1) ///
 	(line unique_dates num_receipts if completion_decade == 2) ///
@@ -513,6 +513,122 @@ graph twoway line projects_per_hun_thou year, sort ///
     ytitle("Number of Projects (Per 100,000 People)") ///
     xtitle("Completion Year")
 graph export "$output/num_projects_per_hundred_thousand_by_yr.png", replace	
+
+/*==========================
+ Project Duration by impvmtn
+===========================*/
+use "$data/Intermediate/project_level_FMIS.dta", clear
+keep if completion_year > 1950 & completion_year < 2025 
+
+* Improvement type groupings: 
+local Road = "1 2 3 4 5 6 7 60 66"
+local Bridge = "8 9 10 11 12 13 14 40 47 48 49 59" 
+local Tunnel = "50 51 52 53 54 55"
+
+local Construction "1 8 50"
+local Reconstruction "2 3 4 7 9 10 11 51"
+local Rehabilitation "6 12 13 14 52"
+local Maintenance "5 47 48 53 54 59 60"
+
+local typelist "Road Bridge Tunnel Construction Reconstruction Rehabilitation Maintenance"
+replace alltypes = subinstr(alltypes, ";", "", .)
+foreach t of local typelist{
+	gen `t' = 0
+	foreach i of local `t'{
+		replace `t' = 1 if regexm(alltypes, "(^| )`i'( |$)")
+	}	
+}
+
+foreach v of varlist authconstdate completedate {
+	gen `v'_numeric = date(`v', "MDY")
+}
+
+gen proj_duration_yrs = (completedate_numeric - authconstdate_numeric) / 365
+
+* Duration by improvement type groupings
+local nounlist "Road Bridge" // tunnel only has 35 obs
+local worklist "Construction Reconstruction Rehabilitation Maintenance"
+tempfile orig
+save `orig'
+foreach n of local nounlist {
+	use `orig', clear
+    keep if `n' == 1
+	
+    preserve
+        keep if Construction == 1
+        collapse (mean) proj_duration_yrs, by(completion_year)
+        rename proj_duration_yrs Construction_duration
+		tempfile `n'_Construction 
+        save ``n'_Construction', replace
+    restore
+
+    preserve
+        keep if Reconstruction == 1
+        collapse (mean) proj_duration_yrs, by(completion_year)
+        rename proj_duration_yrs Reconstruction_duration
+		tempfile `n'_Reconstruction
+        save ``n'_Reconstruction', replace
+    restore
+
+    preserve
+        keep if Rehabilitation == 1
+        collapse (mean) proj_duration_yrs, by(completion_year)
+        rename proj_duration_yrs Rehabilitation_duration
+		tempfile `n'_Rehabilitation
+        save ``n'_Rehabilitation', replace
+    restore
+
+    preserve
+        keep if Maintenance == 1
+        collapse (mean) proj_duration_yrs, by(completion_year)
+        rename proj_duration_yrs Maintenance_duration
+		tempfile `n'_Maintenance
+        save ``n'_Maintenance', replace
+    restore
+
+    use ``n'_Construction', clear
+    merge 1:1 completion_year using ``n'_Reconstruction', nogen
+    merge 1:1 completion_year using ``n'_Rehabilitation', nogen
+    merge 1:1 completion_year using ``n'_Maintenance', nogen
+
+    twoway ///
+        (line Construction_duration completion_year, sort) ///
+        (line Reconstruction_duration completion_year, sort) ///
+        (line Rehabilitation_duration completion_year, sort) ///
+        (line Maintenance_duration completion_year, sort), ///
+        legend(order(1 "Construction" 2 "Reconstruction" 3 "Rehabilitation" 4 "Maintenance")) ///
+        title("Average Project Duration Over Time: `n' Projects") ///
+        ytitle("Years") ///
+		xtitle("Completion Year") /// 
+		xscale(range(1950 2025) noextend) ///
+		xlabel(1950(10)2020)
+	graph export "$output/project_duration/proj_duration_by_work_type_`n'.png", replace	
+}
+
+use `orig', clear
+* Simple duraiton over time (use completion date for grouping)
+preserve
+collapse (mean) proj_duration_yrs, by(completion_year)
+twoway line proj_duration_yrs completion_year, ///
+	title("Project Duration by Completion Year") ///
+    ytitle("Years") ///
+    xtitle("Completion Year") ///
+    xscale(range(1950 2025) noextend) ///
+    xlabel(1950(10)2020)
+	graph export "$output/project_duration/proj_duration_by_comp_year.png", replace
+restore
+
+* Duraiton by the number of reciepts on project
+preserve 
+drop if receipts > 23 
+collapse (mean) proj_duration_yrs, by(receipts)
+twoway line proj_duration_yrs receipts, /// 
+	title("Project Duration by Number of Reciepts per Project") ///
+    ytitle("Years") ///
+    xtitle("Number of Reciepts") ///
+	note("Note: Projects with more than 23 recipets dropped")
+	graph export "$output/project_duration/proj_duration_by_receipts.png", replace
+restore
 
 *===============================================================================
 *	Match with Colorado data
