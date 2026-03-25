@@ -44,12 +44,89 @@ def parse_project_details(xml_file):
     for project in root.findall('.//Project'):
         # Extract all project-level fields
         project_data = {}
+
+        # Extract RecipientProjectNumber
+        rpn = project.find('RecipientProjectNumbers/RecipientProjectNumber')
+        if rpn is not None:
+            project_data['RecipientProjectNumber'] = clean_text(rpn.text)
+        else:
+            project_data['RecipientProjectNumber'] = ''
+
         for child in project:
             if child.tag not in ['Details', 'Expenditures', 'ProjectGroups', 'RelatedProjects', 
                                   'UserDefinedFields', 'LegacyBridgeInfo']:
                 project_data[child.tag] = clean_text(child.text)
 
-        # Process each Detail - ONE ROW PER DETAIL
+        # Extract ProjectGroups
+        project_groups = project.findall('ProjectGroups/ProjectGroup')
+        project_data['GroupCategory'] = '; '.join([
+            clean_text(pg.findtext('GroupCategory'))
+            for pg in project_groups
+            if clean_text(pg.findtext('GroupCategory')) != ''
+        ])
+        project_data['GroupCode'] = '; '.join([
+            clean_text(pg.findtext('GroupCode'))
+            for pg in project_groups
+            if clean_text(pg.findtext('GroupCode')) != ''
+        ])
+        project_data['GroupName'] = '; '.join([
+            clean_text(pg.findtext('GroupName'))
+            for pg in project_groups
+            if clean_text(pg.findtext('GroupName')) != ''
+        ])
+        project_data['IFP'] = '; '.join([
+            clean_text(pg.findtext('IFP'))
+            for pg in project_groups
+            if clean_text(pg.findtext('IFP')) != ''
+        ])
+
+        # Extract RelatedProjects
+        related_projects = project.findall('RelatedProjects/RelatedProject')
+        project_data['Related_RecipientId'] = '; '.join([
+            clean_text(rp.findtext('RecipientId'))
+            for rp in related_projects
+            if clean_text(rp.findtext('RecipientId')) != ''
+        ])
+        project_data['Related_FederalProjectNumber'] = '; '.join([
+            clean_text(rp.findtext('FederalProjectNumber'))
+            for rp in related_projects
+            if clean_text(rp.findtext('FederalProjectNumber')) != ''
+        ])
+        project_data['RelationshipType'] = '; '.join([
+            clean_text(rp.findtext('RelationshipType'))
+            for rp in related_projects
+            if clean_text(rp.findtext('RelationshipType')) != ''
+        ])
+        project_data['ReverseRelationshipType'] = '; '.join([
+            clean_text(rp.findtext('ReverseRelationshipType'))
+            for rp in related_projects
+            if clean_text(rp.findtext('ReverseRelationshipType')) != ''
+        ])
+
+        # Extract project-level UserDefinedFields
+        project_udfs = project.findall('UserDefinedFields/UserDefinedField')
+
+        project_data['ProjUDF_FieldName'] = '; '.join([
+            clean_text(udf.findtext('FieldName'))
+            for udf in project_udfs
+            if clean_text(udf.findtext('FieldName')) != ''
+        ])
+
+        project_data['ProjUDF_Value'] = '; '.join([
+            clean_text(udf.findtext('ValueText')) or
+            clean_text(udf.findtext('ValueNumber')) or
+            clean_text(udf.findtext('ValueDate')) or
+            clean_text(udf.findtext('ValueBoolean'))
+            for udf in project_udfs
+            if (
+                clean_text(udf.findtext('ValueText')) or
+                clean_text(udf.findtext('ValueNumber')) or
+                clean_text(udf.findtext('ValueDate')) or
+                clean_text(udf.findtext('ValueBoolean'))
+            ) != ''
+        ])
+
+        # Process each Detail - one row per detail
         for detail in project.findall('Details/Detail'):
             row = project_data.copy()
             
@@ -57,6 +134,29 @@ def parse_project_details(xml_file):
             for item in detail:
                 if item.tag not in ['Locations', 'UserDefinedFields']:
                     row[f'Detail_{item.tag}'] = clean_text(item.text)
+
+            # Extract detail-level UserDefinedFields
+            detail_udfs = detail.findall('UserDefinedFields/UserDefinedField')
+
+            row['DetailUDF_FieldName'] = '; '.join([
+                clean_text(udf.findtext('FieldName'))
+                for udf in detail_udfs
+                if clean_text(udf.findtext('FieldName')) != ''
+            ])
+
+            row['DetailUDF_Value'] = '; '.join([
+                clean_text(udf.findtext('ValueText')) or
+                clean_text(udf.findtext('ValueNumber')) or
+                clean_text(udf.findtext('ValueDate')) or
+                clean_text(udf.findtext('ValueBoolean'))
+                for udf in detail_udfs
+                if (
+                    clean_text(udf.findtext('ValueText')) or
+                    clean_text(udf.findtext('ValueNumber')) or
+                    clean_text(udf.findtext('ValueDate')) or
+                    clean_text(udf.findtext('ValueBoolean'))
+                ) != ''
+            ])
             
             # Initialize all location fields as empty
             # NonGIS fields
@@ -77,7 +177,7 @@ def parse_project_details(xml_file):
                          'SystemCode', 'GeneralOwnership', 'ACFunds', 'FederalFunds', 'StateFunds',
                          'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
                 row[f'GISBreakdown_{field}'] = ''
-            
+
             # Now populate with data if it exists
             locations = detail.find('Locations')
             if locations is not None:
@@ -100,22 +200,26 @@ def parse_project_details(xml_file):
             rows.append(row)
 
     return pd.DataFrame(rows)
+
 #%%
 # Create output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)
 combined_data = []
+
 # Loop through all XML files in the input directory
 for xml_file in glob.glob(os.path.join(input_dir, "*.xml")):
     if os.path.basename(xml_file).startswith('~$'):
-        #skip these, they are not real files
+        # skip these, they are not real files
         continue
     try:
         df = parse_project_details(xml_file)
         combined_data.append(df)
+
         # Generate CSV filename based on the XML filename
         base_name = os.path.basename(xml_file)
         csv_name = os.path.splitext(base_name)[0] + ".csv"
         output_path = os.path.join(output_dir, csv_name)
+
         df.to_csv(output_path, index=False)
         print(f"Converted {xml_file} to {output_path}")
 
