@@ -192,6 +192,128 @@ label values system_code system_code_lbl
 gen interstate_functional = functional_system == 1
 gen interstate_syscode = system_code == 1
 
+* add variables related to formula or grant funding 
+label variable detail_programcode "Program Code"
+// label variable detail_fain "Federal Award Identification Number" // all empty
+// label variable detail_grantnumber "Discretionary Grant Award Number" // all empty
+
+* location variables 
+gen state_fips = gis_stateid
+replace state_fips = nongis_stateid if state_fips == .
+* correct mariana islands because the state id is 75 in FMIS but FIPS code is 69 (all other state IDs match census FIPS codes)
+replace state_fips = 69 if state_fips == 75 
+
+gen countyid = gisbreakdown_countyid
+replace countyid = nongis_countyid if countyid == .
+gen county_fips = real(string(state_fips, "%02.0f") + string(countyid, "%03.0f")) ///
+    if !mi(state_fips) & !mi(countyid)
+
+global countyid_lbl_def ///
+    999  "statewide"
+label define countyid_lbl $countyid_lbl_def, replace
+label values countyid countyid_lbl
+
+* label county values using external csv mapping from FIPS to name 
+tempfile fmis_snap_countylbl
+save `fmis_snap_countylbl'
+import delimited using "$raw_data/census_county_FIPS_crosswalk.txt", ///
+    varnames(1) delimiter("|") stringcols(_all) clear
+gen long county_fips_num = real(strtrim(statefp) + strtrim(countyfp))
+keep county_fips_num countyname
+drop if mi(county_fips_num)
+duplicates drop county_fips_num, force
+quietly count
+local n_co = r(N)
+capture label drop county_fips_lbl
+label define county_fips_lbl, replace
+forvalues i = 1/`n_co' {
+    local v = county_fips_num[`i']
+    local t = strtrim(countyname[`i'])
+    local t_clean : subinstr local t `"""' "", all
+    local t80 = substr(`"`t_clean'"', 1, 80)
+    label define county_fips_lbl `v' `"`t80'"', add
+}
+local lbl_build "`c(tmpdir)'/st_county_fips_lbl.do"
+label save county_fips_lbl using "`lbl_build'", replace
+use `fmis_snap_countylbl', clear
+run "`lbl_build'"
+capture erase "`lbl_build'"
+label values county_fips county_fips_lbl
+
+* label state and recipientid values using external excel mappings
+
+* FMIS_stateid_map.xlsx: two columns (ID, name), no header row
+tempfile fmis_snap_state_lbl
+save `fmis_snap_state_lbl'
+
+import excel using "$intermediate_data/FMIS_stateid_map.xlsx", clear
+unab statecols : _all
+local c1 : word 1 of `statecols'
+local c2 : word 2 of `statecols'
+capture confirm numeric variable `c1'
+if _rc {
+    destring `c1', gen(_stateid_map) force
+    drop `c1'
+}
+else rename `c1' _stateid_map
+rename `c2' _state_lbl
+keep _stateid_map _state_lbl
+drop if missing(_stateid_map)
+duplicates drop _stateid_map, force
+quietly count
+local _nstate = r(N)
+capture label drop stateid_lbl
+label define stateid_lbl, replace
+forvalues _i = 1/`_nstate' {
+    local _v = _stateid_map[`_i']
+    local _t = strtrim(_state_lbl[`_i'])
+    local _t_clean : subinstr local _t `"""' "", all
+    local _t80 = substr(`"`_t_clean'"', 1, 80)
+    label define stateid_lbl `_v' `"`_t80'"', add
+}
+local lbl_state "`c(tmpdir)'/st_stateid_lbl.do"
+label save stateid_lbl using "`lbl_state'", replace
+use `fmis_snap_state_lbl', clear
+run "`lbl_state'"
+capture erase "`lbl_state'"
+label values state_fips stateid_lbl
+
+* FMIS_recipientid_map.xlsx: header row; col1 = Recipient ID, col2 = Name
+tempfile fmis_snap_recip_lbl
+save `fmis_snap_recip_lbl'
+import excel using "$intermediate_data/FMIS_recipientid_map.xlsx", firstrow clear
+unab reccols : _all
+local r1 : word 1 of `reccols'
+local r2 : word 2 of `reccols'
+capture confirm numeric variable `r1'
+if _rc {
+    destring `r1', gen(_recipid_map) force
+    drop `r1'
+}
+else rename `r1' _recipid_map
+rename `r2' _recip_lbl
+keep _recipid_map _recip_lbl
+drop if missing(_recipid_map)
+duplicates drop _recipid_map, force
+quietly count
+local _nrec = r(N)
+capture label drop recipient_lbl
+label define recipient_lbl, replace
+forvalues _j = 1/`_nrec' {
+    local _w = _recipid_map[`_j']
+    local _s = strtrim(_recip_lbl[`_j'])
+    local _s_clean : subinstr local _s `"""' "", all
+    local _s80 = substr(`"`_s_clean'"', 1, 80)
+    label define recipient_lbl `_w' `"`_s80'"', add
+}
+local lbl_recip "`c(tmpdir)'/st_recipientid_lbl.do"
+label save recipient_lbl using "`lbl_recip'", replace
+use `fmis_snap_recip_lbl', clear
+run "`lbl_recip'"
+capture erase "`lbl_recip'"
+label values recipientid recipient_lbl
+
+
 * Process the date variables 
 * Pull years for relevant date variables
 gen completion_year = regexs(1) if regexm(completedate, "/([0-9]{4})$")
@@ -228,141 +350,13 @@ label variable latestpaymentdate "Date of most recent expenditure against the pr
 // label variable nepa_class "NEPA Class of Action"
 // label variable nepa_decision_date "Decision date for NEPA class of action"
 
-* add variables related to formula or grant funding 
-label variable detail_programcode "Program Code"
-// label variable detail_fain "Federal Award Identification Number" // all empty
-// label variable detail_grantnumber "Discretionary Grant Award Number" // all empty
-
-* location variables 
-gen stateid = gis_stateid
-replace stateid = nongis_stateid if stateid == .
-gen countyid = gis_countyid
-replace countyid = nongis_countyid if countyid == .
-
-global stateid_lbl_def ///
-    1  "Alabama" ///
-    2  "Alaska" ///
-    4  "Arizona" ///
-    5  "Arkansas" ///
-    6  "California" ///
-    8  "Colorado" ///
-    9  "Connecticut" ///
-    10  "Delaware" ///
-    11  "District of Columbia" ///
-    12  "Florida" ///
-    13  "Georgia" ///
-    15  "Hawaii" ///
-    16  "Idaho" ///
-    17  "Illinois" ///
-    18  "Indiana" ///
-    19  "Iowa" ///
-    20  "Kansas" ///
-    21  "Kentucky" ///
-    22  "Louisiana" ///
-    23  "Maine" ///
-    24  "Maryland" ///
-    25  "Massachusetts" ///
-    26  "Michigan" ///
-    27  "Minnesota" ///
-    28  "Mississippi" ///
-    29  "Missouri" ///
-    30  "Montana" ///
-    31  "Nebraska" ///
-    32  "Nevada" ///
-    33  "New Hampshire" ///
-    34  "New Jersey" ///
-    35  "New Mexico" ///
-    36  "New York" ///
-    37  "North Carolina" ///
-    38  "North Dakota" ///
-    39  "Ohio" ///
-    40  "Oklahoma" ///
-    41  "Oregon" ///
-    42  "Pennsylvania" ///
-    44  "Rhode Island" ///
-    45  "South Carolina" ///
-    46  "South Dakota" ///
-    47  "Tennessee" ///
-    48  "Texas" ///
-    49  "Utah" ///
-    50  "Vermont" ///
-    51  "Virginia" ///
-    53  "Washington" ///
-    54  "West Virginia" ///
-    55  "Wisconsin" ///
-    56  "Wyoming" 
-label define stateid_lbl $stateid_lbl_def, replace
-label values stateid stateid_lbl
-
-global recipient_lbl_def ///
-    1  "Alabama" ///
-    2  "Alaska" ///
-    4  "Arizona" ///
-    5  "Arkansas" ///
-    6  "California" ///
-    8  "Colorado" ///
-    9  "Connecticut" ///
-    10  "Delaware" ///
-    11  "District Of Columbia" ///
-    12  "Florida" ///
-    13  "Georgia" ///
-    15  "Hawaii" ///
-    16  "Idaho" ///
-    17  "Illinois" ///
-    18  "Indiana" ///
-    19  "Iowa" ///
-    20  "Kansas" ///
-    21  "Kentucky" ///
-    22  "Louisiana" ///
-    23  "Maine" ///
-    24  "Maryland" ///
-    25  "Massachusetts" ///
-    26  "Michigan" ///
-    27  "Minnesota" ///
-    28  "Mississippi" ///
-    29  "Missouri" ///
-    30  "Montana" ///
-    31  "Nebraska" ///
-    32  "Nevada" ///
-    33  "New Hampshire" ///
-    34  "New Jersey" ///
-    35  "New Mexico" ///
-    36  "New York" ///
-    37  "North Carolina" ///
-    38  "North Dakota" ///
-    39  "Ohio" ///
-    40  "Oklahoma" ///
-    41  "Oregon" ///
-    42  "Pennsylvania" ///
-    44  "Rhode Island" ///
-    45  "South Carolina" ///
-    46  "South Dakota" ///
-    47  "Tennessee" ///
-    48  "Texas" ///
-    49  "Utah" ///
-    50  "Vermont" ///
-    51  "Virginia" ///
-    53  "Washington" ///
-    54  "West Virginia" ///
-    55  "Wisconsin" ///
-    56  "Wyoming" ///
-    60  "American Samoa" ///
-    66  "Guam" ///
-    72  "Puerto Rico" ///
-    75  "N Mariana" ///
-    78  "Virgin Islands" ///
-    81  "Canada" ///
-    91  "Port Authority of NY and NJ"
-label define recipient_lbl $recipient_lbl_def, replace
-label values recipientid recipient_lbl
-
 
 * export 
-keep recipientid stateid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode
+keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
-drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid gisbreakdown_countyid
+drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid
 
 save "$intermediate_data/receipt_level_FMIS_lite.dta", replace
 
@@ -378,18 +372,24 @@ tostring detail_improvementtype, gen(proj_improv_types)
 bysort federal_project_number recipientid: gen strL alltypes = proj_improv_types[1]
 bysort federal_project_number recipientid: replace alltypes = alltypes[_n-1] + "; " + proj_improv_types if _n>1 & proj_improv_types != ""
 by federal_project_number recipientid: replace alltypes = alltypes[_N]
+
 	
 gen receipts = 1 // this is used for reciept counts
 
 * add interstate_functional and interstate_syscode to the project-level data(we take the max so that even if the project only has one interstate receipt, the entire project is classified as interstate)
-collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
+collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
 
 label variable interstate_functional "True if at least one receipt is interstate"
 label variable interstate_syscode "True if at least one receipt is interstate"
 
+* relabel the state and county values (not sure why it disappeared)
+label values state_fips stateid_lbl
+label values county_fips county_fips_lbl
+label values countyid countyid_lbl
+
 save "$data/Intermediate/project_level_FMIS.dta", replace
 
 * also export lite version
-drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid
+drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid
 
 save "$intermediate_data/project_level_FMIS_lite.dta", replace
