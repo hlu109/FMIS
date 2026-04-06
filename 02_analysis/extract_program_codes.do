@@ -31,3 +31,10 @@ use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 contract detail_programcode, freq(discard)
 drop discard
 export delimited using "$intermediate_data/program_codes.csv", replace nolabel
+
+
+* also extract unique detail_prefix codes 
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+contract detail_prefix, freq(discard)
+drop discard
+export delimited using "$intermediate_data/detail_prefixes.csv", replace nolabel
