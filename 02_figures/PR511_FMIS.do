@@ -82,30 +82,31 @@ foreach p of local pages {
 
     twoway ///
         (line cost_bills_2025 year, ///
-            lcolor(navy) lwidth(medthick) yaxis(1)) ///
+            lcolor(navy) yaxis(1)) ///
         (line interstate_mi year, ///
-            lcolor(maroon) lpattern(dash) lwidth(medthick) yaxis(2)), ///
+            lcolor(maroon) lpattern(dash) yaxis(2)), ///
         by(state_fips, ///
             cols(3) ///
             compact ///
             legend(position(6)) ///
             note("FMIS data uses project completion year; PR-511 uses segment opening year.", size(vsmall) span) ///
             title("Interstate Spending vs Miles Opened, page `p'", size(small)) ///
-            b1title("Year", size(small)) ///
-            l1title("2025 USD, billions", size(small)) ///
-            r1title("Miles", size(medium)) ///
-            subtitle(, size(tiny) bcolor(none) lcolor(none) fcolor(none))) ///
-        graphregion(lcolor(none)) ///        
-        xlabel(1950(10)1995, labsize(tiny) angle(45)) ///
-        ylabel(, axis(1) labsize(small) angle(horizontal)) ///
-        ylabel(, axis(2) labsize(small) angle(horizontal)) ///
-        yscale(axis(1) range(0 .)) ///
-        yscale(axis(2) range(0 .)) ///
+            b1title("Year", size(vsmall)) ///
+            l1title("2025 USD, billions", size(vsmall)) ///
+            r1title("Miles", size(small)) ///
+            subtitle(, size(tiny) fcolor(white) lcolor(white))) ///
+        graphregion(fcolor(white) lcolor(none) margin(tiny)) ///
+        xlabel(1950(10)1995, labsize(small) angle(45) grid glcolor(gs14) glwidth(vthin) glpattern(solid)) ///
+        xmtick(1955(10)1995, tlength(0) grid glcolor(gs14) glwidth(vthin) glpattern(solid)) ///
+        ylabel(, axis(1) labsize(small) angle(horizontal) format(%9.1f) nogrid) ///
+        ylabel(, axis(2) labsize(small) angle(horizontal) format(%9.1f) nogrid) ///
+        yscale(axis(1) range(0 3)) ///
+        yscale(axis(2) range(0 400)) ///
         legend( ///
-            order(1 "FMIS interstate" "spending" 2 "PR-511 interstate" "miles opened") ///
+            order(1 "FMIS interstate spending" 2 "PR-511 interstate miles opened") ///
             rows(1) size(vsmall) ///
         ) ///
-        xsize(8) ysize(8)
+        xsize(16) ysize(12)
     graph export "$output/PR511_FMIS/interstate_spend_vs_mi_stategrid_`p'.png", replace width(3200)
     restore
 }
@@ -123,8 +124,8 @@ twoway ///
     ytitle("2025 USD, billions", axis(1) size(small)) ///
     ytitle("Miles", axis(2) size(small)) ///
     xlabel(1950(10)1995, labsize(small) angle(45)) ///
-    ylabel(, axis(1) labsize(small) angle(horizontal)) ///
-    ylabel(, axis(2) labsize(small) angle(horizontal)) ///
+    ylabel(, axis(1) labsize(small) angle(horizontal) format(%9.0f)) ///
+    ylabel(, axis(2) labsize(small) angle(horizontal) format(%9.0f)) ///
     yscale(axis(1) range(0 .)) ///
     yscale(axis(2) range(0 .)) ///
     legend(order(1 "FMIS interstate" "spending" 2 "PR-511 interstate" "miles opened") ///
