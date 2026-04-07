@@ -39,9 +39,9 @@ gen int route = rte / 10
 
 gen mp_start = mpdst / 100 // assuming data records 2 decimals, otherwise the scale would be unrealistic 
 label variable mp_start "milepost start"
-gen segment_length = seg / 100 // handwritten annotated documentation notes that seg records 2 decimals  
-label variable segment_length "segment length (miles)"
-gen mp_end = mp_start + segment_length
+gen seg_len = seg / 100 // handwritten annotated documentation notes that seg records 2 decimals  
+label variable seg_len "segment length (miles)"
+gen mp_end = mp_start + seg_len
 label variable mp_end "milepost end"
 
 * handle I-35 E/W which got coded as 351 and 352 in the rtereal variable 
@@ -65,11 +65,15 @@ drop chain_break
 egen long chain_id = group(st route open_year open_month _chain_seq)
 drop _chain_seq
 
-keep chain_id sh st state county region open_year open_month route mp_start mp_end segment_length lane paveway rte rtereal stgp 
+keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
 save "$intermediate_data/PR511_hubbardmazzeo.dta", replace
 
+* save another copy of just the chain-level data
+collapse (sum) chain_len = seg_len (first) sh st state county route region open_year open_month (min) mp_start (max) mp_end, by(chain_id)
+save "$intermediate_data/PR511_hubbardmazzeo_chained.dta", replace
 
 * ==============================================================================
+use "$intermediate_data/PR511_hubbardmazzeo.dta", clear
 keep if st == 6
 keep if county == 85 | county == 81 // santa clara and san mateo
 global county_lbl_def ///
