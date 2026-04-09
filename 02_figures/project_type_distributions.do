@@ -100,7 +100,8 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
 
 * load receipt-level data 
-use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+// use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite_program_codes.dta", clear
 
 * drop data before 1947 (no CPI data)
 * Note Andy drops data before 1950 to filter out years without much data
@@ -150,38 +151,38 @@ gen frequency = 1
 
 // collapse (sum) frequency (first) overall_rank, by(decade detail_improvementtype)
 
-* compute within-decade shares 
+// * compute within-decade shares 
 // bys decade: egen total_obs_decade = total(frequency)
 // gen percent_share_decade = 100 * frequency / total_obs_decade
 
 
-* plot top improvement types by decade
-levelsof decade, local(decades)
-foreach d of local decades {
-    if `d' < 1950 { // Andy drops data before 1950 to filter out years without much data
-        continue
-    }
-    display "Plotting decade `d'"
+// * plot top improvement types by decade
+// levelsof decade, local(decades)
+// foreach d of local decades {
+//     if `d' < 1950 { // Andy drops data before 1950 to filter out years without much data
+//         continue
+//     }
+//     display "Plotting decade `d'"
 
-    * plot share of top 10 improvement types
-    preserve
-        keep if decade == `d'
-        collapse (sum) frequency, by(detail_improvementtype)
-        egen total_obs = total(frequency)
-        gen percent_share = 100 * frequency / total_obs
-        gsort -percent_share
-        keep in 1/10
-        graph hbar percent_share, ///
-            over(detail_improvementtype, ///
-                sort(percent_share) descending ///
-                label(labsize(small))) ///
-            blabel(none) ///
-            ylabel(0(10)60) ///
-            title("Top Improvement Types in the `d's" "by Receipt Frequency") ///
-            ytitle("% of Receipts") ///
-            note("Top improvement codes are specific to this decade and may not match the top improvement codes across all years.", size(small) span)
-        graph export "$output/top_impvmt_types_freq_`d'.png", replace
-    restore
+//     * plot share of top 10 improvement types
+//     preserve
+//         keep if decade == `d'
+//         collapse (sum) frequency, by(detail_improvementtype)
+//         egen total_obs = total(frequency)
+//         gen percent_share = 100 * frequency / total_obs
+//         gsort -percent_share
+//         keep in 1/10
+//         graph hbar percent_share, ///
+//             over(detail_improvementtype, ///
+//                 sort(percent_share) descending ///
+//                 label(labsize(small))) ///
+//             blabel(none) ///
+//             ylabel(0(10)60) ///
+//             title("Top Improvement Types in the `d's" "by Receipt Frequency") ///
+//             ytitle("% of Receipts") ///
+//             note("Top improvement codes are specific to this decade and may not match the top improvement codes across all years.", size(small) span)
+//         graph export "$output/top_impvmt_types_freq_`d'.png", replace
+//     restore
 
 //     * repeat for interstate-only 
 //     preserve
@@ -248,8 +249,48 @@ foreach d of local decades {
 //                 )
 //         graph export "$output/top_impvmt_types_cost_interstate_`d'.png", replace
 //     restore
-}
+// }
 
+
+* plot top improvement types by cost for interstate between 1950-1993 
+preserve
+keep if interstate_syscode == 1
+keep if year >= 1950 & year <= 1993
+collapse (sum) total_cost_bills_adjusted, by(detail_improvementtype)
+gsort -total_cost_bills_adjusted
+keep in 1/20
+graph hbar total_cost_bills_adjusted, ///
+    over(detail_improvementtype, sort(total_cost_bills_adjusted) descending label(labsize(vsmall))) ///
+    title("Top Improvement Types by Cost for Interstate" "(System Code) Reimbursements") ///
+    subtitle("1950-1993", size(medium)) ///
+    ytitle("Billions of 2025 Dollars") ///
+    note( ///
+        "Interstate reimbursements identified by federal-aid system code.", ///
+        size(small) span ///
+    )
+graph export "$output/top_impvmt_types_cost_interstate_1950_1993.png", replace
+restore
+
+* plot top improvement types by cost for Interstate Construction funding stream between 1950-1993 
+preserve
+keep if funding_program == "Interstate Construction"
+keep if year >= 1950 & year <= 1993
+collapse (sum) total_cost_bills_adjusted, by(detail_improvementtype)
+gsort -total_cost_bills_adjusted
+keep in 1/20
+graph hbar total_cost_bills_adjusted, ///
+    over(detail_improvementtype, sort(total_cost_bills_adjusted) descending label(labsize(vsmall))) ///
+    title("Top Improvement Types by Cost for Reimbursements from the"  `""Interstate Construction" Funding Stream"', size(medium)) ///
+    subtitle("1950-1993", size(medium)) ///
+    ytitle("Billions of 2025 Dollars") ///
+    note( ///
+        "Interstate Construction reimbursements identified by funding program code.", ///
+        size(small) span ///
+    )
+graph export "$output/top_impvmt_types_cost_IC_1950_1993.png", replace
+restore
+
+exit
 
 * get distribution of project types pre 1956 (by adjusted cost)
 preserve 
