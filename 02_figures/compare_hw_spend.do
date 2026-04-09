@@ -25,63 +25,73 @@ else {
 if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
-// TODO add note that FMIS year data is all using completion year 
 
+// * load FMIS data
+// use "$intermediate_data/receipt_level_FMIS_lite_program_codes.dta", clear
+// rename completion_year year
+// rename total_cost_mills total_fmis_cost_mills
+// rename federal_funds fmis_fed
+// rename state_funds fmis_state
+// rename local_funds fmis_local
+// rename private_funds fmis_private
+// rename nonmonetary_funds fmis_nonmonetary
+// rename other_funds fmis_other
+// gen interstate_func_cost_mills = total_fmis_cost_mills if interstate_functional == 1
+// gen interstate_syscode_cost_mills = total_fmis_cost_mills if interstate_syscode == 1
+// gen fp_ic_cost_mills = total_fmis_cost_mills if funding_program == "Interstate Construction"
+// gen fp_im_cost_mills = total_fmis_cost_mills if funding_program == "Interstate Maintenance"
+// gen fp_imd_cost_mills = total_fmis_cost_mills if funding_program == "Interstate Maintenance Discretionary"
+// gen fp_nhpp_cost_mills = total_fmis_cost_mills if funding_program == "National Highway Performance Program"
+// collapse (sum) total_fmis_cost_mills interstate_func_cost_mills interstate_syscode_cost_mills fp_ic_cost_mills fp_im_cost_mills fp_imd_cost_mills fp_nhpp_cost_mills fmis_fed fmis_state fmis_local fmis_private fmis_nonmonetary fmis_other, by(year)
+// keep year total_fmis_cost_mills interstate_func_cost_mills interstate_syscode_cost_mills fp_ic_cost_mills fp_im_cost_mills fp_imd_cost_mills fp_nhpp_cost_mills fmis_fed fmis_state fmis_local fmis_private fmis_nonmonetary fmis_other
 
-* load FMIS data
-use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
-rename completion_year year
-rename total_cost_mills total_fmis_cost_mills
-rename federal_funds fmis_fed
-rename state_funds fmis_state
-rename local_funds fmis_local
-rename private_funds fmis_private
-rename nonmonetary_funds fmis_nonmonetary
-rename other_funds fmis_other
-gen interstate_func_cost_mills = total_fmis_cost_mills if interstate_functional == 1
-gen interstate_syscode_cost_mills = total_fmis_cost_mills if interstate_syscode == 1
-collapse (sum) total_fmis_cost_mills interstate_func_cost_mills interstate_syscode_cost_mills fmis_fed fmis_state fmis_local fmis_private fmis_nonmonetary fmis_other, by(year)
-keep year total_fmis_cost_mills interstate_func_cost_mills interstate_syscode_cost_mills fmis_fed fmis_state fmis_local fmis_private fmis_nonmonetary fmis_other
+// * merge in cpi data and adjust for inflation
+// merge 1:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
+// gen total_fmis_cost_mills_adj = total_fmis_cost_mills / cpi
+// gen fmis_fed_adj = fmis_fed / cpi
+// gen fmis_state_adj = fmis_state / cpi
+// gen fmis_local_adj = fmis_local / cpi
+// gen fmis_private_adj = fmis_private / cpi
+// gen fmis_nonmonetary_adj = fmis_nonmonetary / cpi
+// gen fmis_other_adj = fmis_other / cpi
 
-* merge in cpi data and adjust for inflation
-merge 1:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
-gen total_fmis_cost_mills_adj = total_fmis_cost_mills / cpi
-gen fmis_fed_adj = fmis_fed / cpi
-gen fmis_state_adj = fmis_state / cpi
-gen fmis_local_adj = fmis_local / cpi
-gen fmis_private_adj = fmis_private / cpi
-gen fmis_nonmonetary_adj = fmis_nonmonetary / cpi
-gen fmis_other_adj = fmis_other / cpi
+// gen int_func_cost_mills_adj = interstate_func_cost_mills / cpi
+// gen int_syscode_cost_mills_adj = interstate_syscode_cost_mills / cpi
+// gen fp_ic_cost_mills_adj = fp_ic_cost_mills / cpi
+// gen fp_im_cost_mills_adj = fp_im_cost_mills / cpi
+// gen fp_imd_cost_mills_adj = fp_imd_cost_mills / cpi
+// gen fp_nhpp_cost_mills_adj = fp_nhpp_cost_mills / cpi
 
-gen int_func_cost_mills_adj = interstate_func_cost_mills / cpi
-gen int_syscode_cost_mills_adj = interstate_syscode_cost_mills / cpi
+// * merge in total national highway spending data
+// merge 1:1 year using "$intermediate_data/FHWA_Highway_Statistics/total_hw_spend.dta", nogen
 
-* merge in total national highway spending data
-merge 1:1 year using "$intermediate_data/FHWA_Highway_Statistics/total_hw_spend.dta", nogen
+// * convert to billions
+// gen total_hw_spend_bills_adj = total_hw_spend_mills_adj / 1000
+// gen total_fmis_cost_bills_adj = total_fmis_cost_mills_adj / 1000
+// gen fmis_fed_bills_adj = fmis_fed_adj / 1000000000
+// gen fmis_state_bills_adj = fmis_state_adj / 1000000000
+// gen fmis_local_bills_adj = fmis_local_adj / 1000000000
+// gen fmis_private_bills_adj = fmis_private_adj / 1000000000
+// gen fmis_nonmonetary_bills_adj = fmis_nonmonetary_adj / 1000000000
+// gen fmis_other_bills_adj = fmis_other_adj / 1000000000
 
-* convert to billions
-gen total_hw_spend_bills_adj = total_hw_spend_mills_adj / 1000
-gen total_fmis_cost_bills_adj = total_fmis_cost_mills_adj / 1000
-gen fmis_fed_bills_adj = fmis_fed_adj / 1000000000
-gen fmis_state_bills_adj = fmis_state_adj / 1000000000
-gen fmis_local_bills_adj = fmis_local_adj / 1000000000
-gen fmis_private_bills_adj = fmis_private_adj / 1000000000
-gen fmis_nonmonetary_bills_adj = fmis_nonmonetary_adj / 1000000000
-gen fmis_other_bills_adj = fmis_other_adj / 1000000000
+// gen int_func_cost_bills_adj = int_func_cost_mills_adj / 1000
+// gen int_syscode_cost_bills_adj = int_syscode_cost_mills_adj / 1000
+// gen fp_ic_cost_bills_adj = fp_ic_cost_mills_adj / 1000
+// gen fp_im_cost_bills_adj = fp_im_cost_mills_adj / 1000
+// gen fp_imd_cost_bills_adj = fp_imd_cost_mills_adj / 1000
+// gen fp_nhpp_cost_bills_adj = fp_nhpp_cost_mills_adj / 1000
+// gen cap_bills_adj = cap_mills_adj / 1000
+// gen maint_bills_adj = maint_mills_adj / 1000
+// gen admin_law_int_bills_adj = admin_law_int_mills_adj / 1000
+// gen debt_retire_bills_adj = debt_retire_mills_adj / 1000
 
-gen int_func_cost_bills_adj = int_func_cost_mills_adj / 1000
-gen int_syscode_cost_bills_adj = int_syscode_cost_mills_adj / 1000
-gen cap_bills_adj = cap_mills_adj / 1000
-gen maint_bills_adj = maint_mills_adj / 1000
-gen admin_law_int_bills_adj = admin_law_int_mills_adj / 1000
-gen debt_retire_bills_adj = debt_retire_mills_adj / 1000
+// * drop data from early and late years 
+// drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 
-* drop data from early and late years 
-drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
-
-********************************************************************************
-* Figures 
-********************************************************************************
+// ********************************************************************************
+// * Figures 
+// ********************************************************************************
 
 
 // /*====
@@ -361,16 +371,45 @@ drop if total_hw_spend_bills_adj == . | total_fmis_cost_bills_adj == .
 // 	graphregion(margin(l=15 r=15))
 // graph export "$output/interstate_comparison.png", replace width(2500)
 
-/*====
- Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code) - single number 
-====*/
-preserve
-keep if year >= 1956 & year <= 1993 
-collapse (sum) FA3_interstate_adj_bills int_syscode_cost_bills_adj
-gen fmis_fhwa_interstate_ratio = int_syscode_cost_bills_adj / FA3_interstate_adj_bills
-summarize fmis_fhwa_interstate_ratio
-display "Ratio of FMIS to FHWA interstate spending between 1956 and 1993: " r(mean)
-restore
+
+// /*====
+//  Interstate construction by FMIS system code, FHWA Highway Statistics, and program codes 
+// ====*/
+// graph twoway ///
+//     (line FA3_interstate_adj_bills year) ///
+//     (line fp_ic_cost_bills_adj year) ///
+//     (line fp_im_cost_bills_adj year) ///
+//     (line fp_imd_cost_bills_adj year) ///
+//     (line int_syscode_cost_bills_adj year), ///
+//     title("Comparison of Interstate Spending Using Different Indicators") ///
+//     ytitle("Billions of 2025 USD", xoffset(-3)) ///
+//     xtitle("Year") ///
+//     legend(label(1 "FHWA Federal Interstate" "(FA3)") label(2 "Program Code" "Interstate Construction") label(3 "Program Code" "Interstate Maintenance") label(4 "Program Code" "Interstate Maintenance" "Discretionary") label(5 "FMIS Interstate" "System Code")) ///
+//     note( ///
+//         "Federal interstate expenditures from FHWA Table FA3." ///
+//         "FMIS data includes all project costs across multiple levels of government." ///
+// 		"Starting in 1992, FA3 data is reported in fiscal years. In 1990-1991, FA3 data is reported in calendar years." ///
+// 		"I have not verified calendar vs fiscal year for earlier years of FA3 data." ///
+// 		"Interstate projects are classified in multiple ways. The system code classification is likely an" ///
+// 		"administrative designation about funding eligibility." ///
+// 		"Program codes appear to be actual funding sources." ///
+// 		"FMIS data is plotted using project completion year while FHWA data is plotted using expenditure year.", ///
+// 		size(small) span ///
+// 	) ///
+// 	graphregion(margin(l=15 r=15))
+// graph export "$output/interstate_comparison_with_program_codes.png", replace width(2500)
+
+
+// /*====
+//  Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code) - single number 
+// ====*/
+// preserve
+// keep if year >= 1956 & year <= 1993 
+// collapse (sum) FA3_interstate_adj_bills int_syscode_cost_bills_adj
+// gen fmis_fhwa_interstate_ratio = int_syscode_cost_bills_adj / FA3_interstate_adj_bills
+// summarize fmis_fhwa_interstate_ratio
+// display "Ratio of FMIS to FHWA interstate spending between 1956 and 1993: " r(mean)
+// restore
 
 // /*====
 //  Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code)
@@ -428,6 +467,126 @@ restore
 // 	ysize(10) xsize(12) ///
 // 	graphregion(margin(l=10 r=10))
 // graph export "$output/total_hw_spend_by_category_vs_FMIS_vs_int.png", replace width(2500)
+
+
+* ==============================================================================
+* Improvement codes within Interstate Construction over time
+* ==============================================================================
+use "$intermediate_data/receipt_level_FMIS_lite_program_codes.dta", clear
+keep if funding_program == "Interstate Construction"
+drop if completion_year < 1950 | completion_year > 2000
+collapse (sum) total_cost_mills, by(detail_improvementtype completion_year)
+
+* adjust for inflation
+rename completion_year year
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keep(3) keepusing(cpi) nogen
+gen total_cost_bills_adj = total_cost_mills / cpi / 1000
+
+graph twoway ///
+    (line total_cost_bills_adj year if detail_improvementtype == 1) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 8) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 16) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 7) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 2) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 15) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 21) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 5) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 3) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 43) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 12) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 17) ///
+    (line total_cost_bills_adj year if detail_improvementtype == 40), ///
+    title("Interstate Construction Reimbursements by Improvement Type", size(medium)) ///
+    ytitle("Billions of 2025 USD") ///
+    xtitle("Completion Year") ///
+    xlabel(1960(10)2000) ///
+    legend( ///
+        label(1 "New Construction Roadway") ///
+        label(2 "Bridge New Construction") ///
+        label(3 "Right of Way") ///
+        label(4 "4R Maintenance Relocation") ///
+        label(5 "4R Reconstruction (Obsolete)") ///
+        label(6 "Preliminary Engineering") ///
+        label(7 "Safety") ///
+        label(8 "4R Maintenance Resurfacing") ///
+        label(9 "4R Added Capacity") ///
+        label(10 "Utilities") ///
+        label(11 "Bridge Rehabilitation (Obsolete)") ///
+        label(12 "Construction Engineering") ///
+        label(13 "Special Bridge") ///
+    ) ///
+    note( ///
+        `"Interstate Construction reimbursements are identified by the "Interstate Construction" funding program code."', ///
+        size(small) span ///
+    ) ///
+    graphregion(margin(r=15))
+graph export "$output/IC_impvmt_codes.png", replace width(2500)
+
+
+* ==============================================================================
+* Compare share of interstate spending that is part of a project that does not include construction
+* ==============================================================================
+use "$intermediate_data/receipt_level_FMIS_lite_program_codes.dta", clear
+keep if funding_program == "Interstate Construction"
+drop if detail_improvementtype == 5 | detail_improvementtype == 59 // drop maintenance resurfacing and bridge resurfacing
+gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 17 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, construction engineering, new tunnel
+
+gen new_const_cost_mills = total_cost_mills if new_construction == 1
+
+* collapse to project level with an indicator for whether there is at least one new construction receipt
+collapse (sum) total_cost_mills new_const_cost_mills (max) new_construction (firstnm) completedate completion_year, by(recipientid federal_project_number)
+
+gen proj_cost_w_new_constr = total_cost_mills if new_construction == 1
+gen proj_cost_wo_new_constr = total_cost_mills if new_construction == 0
+
+collapse (sum) total_cost_mills proj_cost_w_new_constr proj_cost_wo_new_constr, by(completion_year)
+
+* adjust for inflation
+rename completion_year year
+drop if year > 2025
+merge 1:1 year using "$intermediate_data/CPI_2025.dta", keep(3) keepusing(cpi) nogen
+gen total_cost_bills_adj = total_cost_mills / cpi / 1000
+gen proj_cost_w_new_constr_b_adj = proj_cost_w_new_constr / cpi / 1000
+gen proj_cost_wo_new_constr_b_adj = proj_cost_wo_new_constr / cpi / 1000
+
+graph twoway line total_cost_bills_adj proj_cost_w_new_constr_b_adj year, sort /// 
+    title("Cost Share of Interstate Projects With At Least One New Construction Receipt", size(medium)) ///
+    subtitle("Excluding Resurfacing Receipts", size(small)) ///
+    ytitle("Billions of 2025 USD") ///
+    xtitle("Completion Year") ///
+    legend( ///
+        label(1 "Total Interstate" "Construction") ///
+        label(2 "Projects with" "New Construction") ///
+        size(small) ///
+    ) ///
+    xlabel(1950(10)2025) ///
+	note( ///
+		`"Interstate projects are identified by the "Interstate Construction" funding program code."' ///
+        "Both variables exclude receipts with an improvement type of maintenance resurfacing or bridge resurfacing." ///
+        "Projects with new constructiion are defined as those with at least one receipt with an improvement type of new" "construction roadway, maintenance relocation, bridge new construction, construction engineering, or new tunnel.", ///
+		size(small) span ///
+	)
+graph export "$output/share_interstate_proj_w_newconstr.png", replace width(2500)
+
+
+graph twoway line total_cost_bills_adj proj_cost_wo_new_constr_b_adj year, sort /// 
+    title("Cost Share of Interstate Projects Without New Construction Receipt", size(medium)) ///
+    subtitle("Excluding Resurfacing Receipts", size(small)) ///
+    ytitle("Billions of 2025 USD") ///
+    xtitle("Completion Year") ///
+    legend( ///
+        label(1 "Total Interstate" "Construction") ///
+        label(2 "Projects without" "New Construction") ///
+        size(small) ///
+    ) ///
+    xlabel(1950(10)2025) ///
+	note( ///
+		`"Interstate projects are identified by the "Interstate Construction" funding program code."' ///
+        "Both variables exclude receipts with an improvement type of maintenance resurfacing or bridge resurfacing." ///
+        "Projects without new constructiion are defined as those with no receipts with an improvement type of new" "construction roadway, maintenance relocation, bridge new construction, construction engineering, or new tunnel.", ///
+		size(small) span ///
+	)
+graph export "$output/share_interstate_proj_wo_newconstr.png", replace width(2500)
 
 
 * ==============================================================================
