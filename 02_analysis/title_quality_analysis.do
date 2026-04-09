@@ -26,6 +26,10 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
+global out_dir "$output/PR511_FMIS"
+if !direxists("$out_dir") mkdir "$out_dir"
+
+
 * load FMIS data
 import delimited using "$data/Hannah sandbox/FMIS_title_quality_claude.csv", clear
 
@@ -131,7 +135,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=30 r=15))
-graph export "$output/interstate_title_endpoint_count.png", replace width(2500)
+graph export "$out_dir/interstate_title_endpoint_count.png", replace width(2500)
 
 * plot comparison of interstate spending by project title quality 
 * plot costs 
@@ -168,7 +172,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_title_endpoint_quality.png", replace width(2500)
+graph export "$out_dir/interstate_title_endpoint_quality.png", replace width(2500)
 
 * plot what can be matched 
 gen maybe_match = cost_2_endp_prec46x2 
@@ -196,7 +200,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_title_match_quality.png", replace width(2500)
+graph export "$out_dir/interstate_title_match_quality.png", replace width(2500)
 
 * plot comparison of interstate spending by title existence
 * plot share 
@@ -208,7 +212,7 @@ graph twoway ///
 	xlabel(1950(10)2025) ///
 	xmlabel(1950(5)2025, grid glcolor(gs14) glwidth(vthin) noticks nolabel) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_share_title_by_cost.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_by_cost.png", replace width(2500)
 
 * same graph but zoomed in to 1955-1965 
 preserve
@@ -218,7 +222,7 @@ graph twoway line share_has_title year, ///
 	ytitle("Share of Annual Costs") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(1)1965)
-graph export "$output/interstate_share_title_by_cost_55_65.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_by_cost_55_65.png", replace width(2500)
 restore
 
 * plot comparison of interstate spending by project title quality 
@@ -247,7 +251,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_share_title_endpoint_count.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_endpoint_count.png", replace width(2500)
 
 * plot comparison of interstate spending by project title quality 
 * plot share 
@@ -286,7 +290,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_share_title_endpoint_precision.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_endpoint_precision.png", replace width(2500)
 
 * same match-quality breakdown as interstate_title_match_quality.png, but as shares of annual cost
 gen share_maybe_match = share_2_endp_prec46x2
@@ -314,7 +318,7 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$output/interstate_share_title_match_quality.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_match_quality.png", replace width(2500)
 
 // * ------------------------------------------------------------------------------
 // * horizontal stacked bars by state (match buckets as % of state interstate cost)
@@ -344,6 +348,6 @@ graph export "$output/interstate_share_title_match_quality.png", replace width(2
 // 		size(vsmall) span ///
 // 	) ///
 // 	graphregion(color(white) margin(r=15)) plotregion(margin(zero))
-// graph export "$output/interstate_match_quality_by_state_hbar.png", replace width(1400) height(3200)
+// graph export "$out_dir/interstate_match_quality_by_state_hbar.png", replace width(1400) height(3200)
 
 
