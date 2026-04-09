@@ -28,8 +28,9 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
 global out_dir "$output/PR511_FMIS"
 if !direxists("$out_dir") mkdir "$out_dir"
+global match_dir "$intermediate_data/PR511_FMIS_match_by_state"
 
-* ==============================================================================
+/* * ==============================================================================
 * compare FMIS and PR-511 interstate spending to miles opened to check alignment
 * ==============================================================================
 * load receipt-level FMIS data
@@ -52,7 +53,7 @@ save `fmis_state_year'
 use "$intermediate_data/PR511_hubbardmazzeo.dta", clear
 rename st state_fips
 rename open_year year
-collapse (sum) interstate_mi = segment_length, by(state_fips year)
+collapse (sum) interstate_mi = seg_len, by(state_fips year)
 tempfile pr511_state_year
 save `pr511_state_year'
 
@@ -139,7 +140,200 @@ twoway ///
     xsize(8) ysize(6)
 
 graph export "$out_dir/interstate_spend_vs_mi_all_states.png", replace width(2400)
-restore
+restore */
+
+* ==============================================================================
+* plot count of PR-511/FMIS matches over time
+* ==============================================================================
+
+use "$intermediate_data/PR511_FMIS_match_all.dta", clear
+
+* count matched FMIS rows per PR-511 chain/project
+bysort chain_id: gen int match_count = _N
+
+collapse (firstnm) match_count state_fips countyid route open_year chain_len urban_rural region, by(chain_id)
+
+// collapse by year
+preserve
+* average number of FMIS matches per PR-511 project by completion year
+collapse (mean) avg_match_count = match_count, by(open_year)
+drop if mi(open_year)
+sort open_year
+
+twoway ///
+    (line avg_match_count open_year), ///
+    title("Average Number of FMIS Project Matches per PR-511 Chain", size(medsmall)) ///
+    subtitle("(0-2 year match window)", size(vsmall)) ///
+    xtitle("Opening Year") ///
+    ytitle("Project Count") ///
+    xlabel(1950(5)2000, labsize(small)) ///
+    note( ///
+        "Matches are any pair of FMIS projects and PR-511 chains that share the same state, county, route, and time window." ///
+        "FMIS project route is crudely inferred from the first three characters of the federal project number." ///
+        "Match allows for FMIS project completion year to be 0-2 years after PR-511 open year." ///
+        "PR-511 chains are consecutive segments of the same route opened in the same month." ///
+        "No filters for detail improvement type used.", ///
+        size(vsmall) span ///
+    )
+graph export "$out_dir/pr511_fmis_avg_matches.png", replace width(2400)
+restore 
+
+// preserve
+// collapse (mean) avg_match_count = match_count, by(urban_rural open_year)
+// drop if mi(open_year) | mi(urban_rural)
+// sort urban_rural open_year
+
+// twoway ///
+//     (line avg_match_count open_year), ///
+//     by(urban_rural, ///
+//         compact ///
+//         cols(2)) ///
+//     title("Average FMIS matches per PR-511 chain by urban/rural status", size(medsmall)) ///
+//     subtitle("(0-2 year match window)", size(vsmall)) ///
+//     xtitle("Opening Year", size(small)) ///
+//     ytitle("Project Count", size(small)) ///
+//     xlabel(1950(5)2000, labsize(vsmall)) ///
+//     ylabel(, labsize(vsmall) format(%9.2f)) ///
+//     note( ///
+//         "Matches are any pair of FMIS projects and PR-511 chains that share the same state, county, route, and time window." ///
+//         "FMIS project route is crudely inferred from the first three characters of the federal project number." ///
+//         "Match allows for FMIS project completion year to be 0-2 years after PR-511 open year." ///
+//         "PR-511 chains are consecutive segments of the same route opened in the same month." ///
+//         "No filters for detail improvement type used.", ///
+//         size(vsmall) span ///
+//     )
+// // TODO: add legend 
+// graph export "$out_dir/pr511_fmis_avg_matches_by_urbanrural.png", replace width(2400)
+// restore
+
+// preserve
+// collapse (mean) avg_match_count = match_count, by(region open_year)
+// drop if mi(open_year)
+// sort region open_year
+
+// // TODO: handle missing regions 
+// twoway ///
+//     (line avg_match_count open_year), ///
+//     by(region, ///
+//         compact ///
+//         cols(3)) ///
+//     title("Average FMIS matches per PR-511 chain by geographic region", size(medsmall)) ///
+//     subtitle("(0-2 year match window)", size(vsmall)) ///
+//     xtitle("Opening Year", size(small)) ///
+//     ytitle("Project Count", size(small)) ///
+//     xlabel(1950(5)2000, labsize(vsmall)) ///
+//     ylabel(, labsize(vsmall) format(%9.2f)) ///
+//     note( ///
+//         "Matches are any pair of FMIS projects and PR-511 chains that share the same state, county, route, and time window." ///
+//         "FMIS project route is crudely inferred from the first three characters of the federal project number." ///
+//         "Match allows for FMIS project completion year to be 0-2 years after PR-511 open year." ///
+//         "PR-511 chains are consecutive segments of the same route opened in the same month." ///
+//         "No filters for detail improvement type used.", ///
+//         size(vsmall) span ///
+//     )
+// // TODO: add legend 
+// graph export "$out_dir/pr511_fmis_avg_matches_by_region.png", replace width(2400)
+// restore
+
+* ==============================================================================
+* Share of PR-511 mileage and FMIS spending matched vs unmatched (time series)
+* ==============================================================================
+
+* PR-511 share of mileage, matched vs unmatched
+use "$intermediate_data/PR511_FMIS_match_all.dta", clear
+bysort chain_id: keep if _n == 1
+collapse (sum) mi_matched = chain_len, by(open_year)
+tempfile pr_matched
+save `pr_matched'
+
+use "$match_dir/unmatched_PR511.dta", clear
+collapse (sum) mi_unmatched = chain_len, by(open_year)
+tempfile pr_unmatched
+save `pr_unmatched'
+
+use `pr_matched', clear
+merge 1:1 open_year using `pr_unmatched', nogen
+replace mi_matched = 0 if mi(mi_matched)
+replace mi_unmatched = 0 if mi(mi_unmatched)
+gen double mi_total = mi_matched + mi_unmatched
+drop if mi(open_year)
+sort open_year
+gen zero = 0
+// gen double share_mi_matched = mi_matched / mi_total
+// gen double share_mi_unmatched = mi_unmatched / mi_total
+// gen double share_max = 1 // used for area chart
+
+twoway ///
+    (rarea zero mi_matched open_year) ///
+    (rarea mi_matched mi_total open_year), ///
+    title("Share of PR-511 chain mileage with coarse FMIS match", size(medsmall)) ///
+    ytitle("Miles", size(small)) ///
+    xtitle("Opening Year", size(small)) ///
+    legend(order(1 "Matched" 2 "Unmatched") rows(1) size(small) position(6)) ///
+    note( ///
+        "Matches are any pair of FMIS projects and PR-511 chains that share the same state, county, route, and time window." ///
+        "FMIS project route is crudely inferred from the first three characters of the federal project number." ///
+        "Match allows for FMIS project completion year to be 0-2 years after PR-511 open year." ///
+        "PR-511 chains are consecutive segments of the same route opened in the same month." ///
+        "No filters for detail improvement type used.", ///
+        size(vsmall) span ///
+    )
+graph export "$out_dir/pr511_mi_share_matched.png", replace width(2400)
+
+* FMIS spending share of spending, matched vs unmatched
+use "$intermediate_data/PR511_FMIS_match_all.dta", clear
+bysort recipientid federal_project_number: keep if _n == 1
+rename completion_year year
+collapse (sum) cost_matched = total_cost_mills, by(year)
+tempfile fmis_matched
+save `fmis_matched'
+
+use "$match_dir/unmatched_FMIS.dta", clear
+rename completion_year year
+collapse (sum) cost_unmatched = total_cost_mills, by(year)
+tempfile fmis_unmatched
+save `fmis_unmatched'
+
+use `fmis_matched', clear
+merge 1:1 year using `fmis_unmatched', nogen
+replace cost_matched = 0 if mi(cost_matched)
+replace cost_unmatched = 0 if mi(cost_unmatched)
+
+* adjust for inflation
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
+drop if mi(cpi)
+gen cost_matched_bills_adj = cost_matched / cpi / 1000
+gen cost_unmatched_bills_adj = cost_unmatched / cpi / 1000
+drop cpi cost_matched cost_unmatched
+gen cost_total_bills_adj = cost_matched_bills_adj + cost_unmatched_bills_adj
+drop if mi(year) | year > 2001 // 2 years past last PR-511 open year
+sort year
+gen zero = 0
+// gen double sh_fmis_matched = fmis_m_y / fmis_tot
+// gen double sh_fmis_unmatched = fmis_u_y / fmis_tot
+// gen double cum_fmis_matched = sh_fmis_matched
+// gen double cum_fmis_top = 1
+
+twoway ///
+    (rarea zero cost_matched_bills_adj year) ///
+    (rarea cost_matched_bills_adj cost_total_bills_adj year), ///
+    title("Share of FMIS interstate project spending matched to PR-511", size(medsmall)) ///
+    ytitle("Billions of 2025 USD", size(small)) ///
+    xtitle("Completion Year", size(small)) ///
+    xlabel(, labsize(small)) ///
+    legend(order(1 "Matched" 2 "Unmatched")) ///
+    note( ///
+        "Matches are any pair of FMIS projects and PR-511 chains that share the same state, county, route, and time window." ///
+        "FMIS project route is crudely inferred from the first three characters of the federal project number." ///
+        "Match allows for FMIS project completion year to be 0-2 years after PR-511 open year." ///
+        "PR-511 chains are consecutive segments of the same route opened in the same month." ///
+        "No filters for detail improvement type used.", ///
+        size(vsmall) span ///
+    )
+graph export "$out_dir/fmis_spend_share_matched.png", replace width(2400)
+
+exit 
+
 
 * ==============================================================================
 * merge FMIS and PR-511 data at county and year level (treating FMIS as a lagged year) and compare spend/mi and mi/spend 
@@ -341,6 +535,20 @@ twoway (bar mi_per_dollar yr_block), ///
 
 graph export "$out_dir/avg_mi_per_dollar_yr_block.png", replace width(2400)
 
+twoway (bar spend_per_mi yr_block), ///
+    title("Mean interstate spending per mile", size(medsmall)) ///
+    subtitle("(Balanced panel of county x 5-year blocks)", size(vsmall)) ///
+    xtitle("PR-511 opening year", size(small)) ///
+    ytitle("Mean spending per mile (millions of 2025 USD)", size(small)) ///
+    legend(off) ///
+    xlabel(`xlab', labsize(small) angle(45)) ylabel(, labsize(small) format(%9.3g)) ///
+    note( ///
+        "FMIS completion year is treated as if lagged one year behind PR-511 opening year.", ///
+        size(vsmall) span ///
+    )
+
+graph export "$out_dir/avg_spend_per_mi_yr_block.png", replace width(2400)
+
 
 * ===============
 * county x year means
@@ -361,6 +569,17 @@ twoway (line mi_per_dollar pr_year), ///
     note("FMIS completion year is treated as if lagged one year behind PR-511 opening year.", size(vsmall) span)
 
 graph export "$out_dir/avg_mi_per_dollar_year.png", replace width(2400)
+
+twoway (line spend_per_mi pr_year), ///
+    title("Mean interstate spending per mile", size(medsmall)) ///
+    subtitle("Panel of county x calendar year", size(vsmall)) ///
+    xtitle("PR-511 segment opening year", size(small)) ///
+    ytitle("Mean spending per mile (millions of 2025 USD)", size(small)) ///
+    xlabel(1950(5)1995, labsize(small) angle(45)) ///
+    legend(off) ///
+    note("FMIS completion year is treated as if lagged one year behind PR-511 opening year.", size(vsmall) span)
+
+graph export "$out_dir/avg_spend_per_mi_year.png", replace width(2400)
 
 
 * ===============
