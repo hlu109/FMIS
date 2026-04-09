@@ -213,6 +213,15 @@ global countyid_lbl_def ///
 label define countyid_lbl $countyid_lbl_def, replace
 label values countyid countyid_lbl
 
+gen urban_rural = nongis_urbanorrural
+replace urban_rural = gisbreakdown_urbanorrural if urban_rural == .
+global urban_rural_lbl_def ///
+    0  "Statewide" ///
+    1  "Rural" ///
+    2  "Urban"
+label define urban_rural_lbl $urban_rural_lbl_def, replace
+label values urban_rural urban_rural_lbl
+
 * label county values using external csv mapping from FIPS to name 
 tempfile fmis_snap_countylbl
 save `fmis_snap_countylbl'
@@ -352,7 +361,7 @@ label variable latestpaymentdate "Date of most recent expenditure against the pr
 
 
 * export 
-keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode
+keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
@@ -377,7 +386,8 @@ by federal_project_number recipientid: replace alltypes = alltypes[_N]
 gen receipts = 1 // this is used for reciept counts
 
 * add interstate_functional and interstate_syscode to the project-level data(we take the max so that even if the project only has one interstate receipt, the entire project is classified as interstate)
-collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
+// TODO: should verify that the location variables (county, urban_rural, etc) are consistent across receipts within a project 
+collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid urban_rural (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
 
 label variable interstate_functional "True if at least one receipt is interstate"
 label variable interstate_syscode "True if at least one receipt is interstate"
