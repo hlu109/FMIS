@@ -289,14 +289,14 @@ graph export "$output/ave_adjusted_receipt_cost_by_region_over_time.png", replac
 ================================*/
 use "$data/Intermediate/receipt_level_FMIS", clear
 gen n_obs = 1
-keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
+keep if completion_year >= 1945 & completion_year < 2025 // filter out years without much data
 collapse (sum) n_obs, by(completion_year)
 rename completion_year year
 merge 1:1 year using "$data/Intermediate/US_population_by_year.dta"
 gen receipts_per_hun_thou = n_obs / population_hun_thous
 graph twoway line n_obs year, sort /// 
-    title("Number of Receipts by Completion Year") ///
-    ytitle("Number of Receipts") ///
+    title("Number of Reimbursements by Completion Year") ///
+    ytitle("Number of Reimbursements") ///
     xtitle("Completion Year")
 graph export "$output/num_receipts_by_yr.png", replace	
 
