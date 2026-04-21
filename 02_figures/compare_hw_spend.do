@@ -526,12 +526,10 @@ graph export "$output/IC_impvmt_codes.png", replace width(2500)
 * ==============================================================================
 * Compare share of interstate spending that is part of a project that does not include construction
 * ==============================================================================
-use "$intermediate_data/receipt_level_FMIS_lite_program_codes.dta", clear
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if funding_program == "Interstate Construction"
 drop if detail_improvementtype == 5 | detail_improvementtype == 59 // drop maintenance resurfacing and bridge resurfacing
-gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 17 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, construction engineering, new tunnel
-
-gen new_const_cost_mills = total_cost_mills if new_construction == 1
+gen new_const_cost_mills = total_cost_mills if new_construction
 
 * collapse to project level with an indicator for whether there is at least one new construction receipt
 collapse (sum) total_cost_mills new_const_cost_mills (max) new_construction (firstnm) completedate completion_year, by(recipientid federal_project_number)

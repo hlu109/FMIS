@@ -266,9 +266,8 @@ use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
 gen fp_ic = funding_program == "Interstate Construction"
 
-gen new_constr = detail_improvementtype == 1 | detail_improvementtype == 8 | detail_improvementtype == 50 // new construction roadway, bridge new construction, and new tunnel
 gen receipts = 1
-gen receipts_newconstr = 1 if new_constr == 1
+gen receipts_newconstr = 1 if new_construction
 
 * adjust for inflation
 rename completion_year year
@@ -298,13 +297,56 @@ restore
 
 
 /*===============================
- Num projects by year (IC only)
+ Average receipt cost over time (IC only)
 ================================*/
 preserve 
-collapse (max) fp_ic new_constr, by(federal_project_number recipientid completion_year)
+keep if fp_ic
+gen total_cost_mills_adj_newconstr = total_cost_mills_adj if new_construction
+collapse (mean) total_cost_mills_adj total_cost_mills_adj_newconstr, by(completion_year)
+
+graph twoway line total_cost_mills_adj total_cost_mills_adj_newconstr completion_year, sort /// 
+    title("Average Adjusted Receipt Cost Over Time") ///
+	subtitle("Interstate Construction Funding Only") ///
+    ytitle("Millions of 2025 USD") ///
+    xtitle("Completion Year") ///
+	xlabel(1960(10)2020) ///
+    legend(label(1 "All") label(2 "New Construction")) ///
+    note( ///
+        "Reimbursements are identified by the 'Interstate Construction' funding program code." ///
+		`"New construction is identified by the improvement type code "new construction roadway", "bridge new construction", and "new tunnel"."' ///
+		"Projects are considered to be new construction if at least one reimbursement is classified as new construction.", ///
+        size(small) span ///
+    )
+graph export "$output/avg_receipt_cost_by_yr_IC.png", replace width(2500)
+
+keep if completion_year <= 2000
+graph twoway line total_cost_mills_adj total_cost_mills_adj_newconstr completion_year, sort /// 
+    title("Average Adjusted Receipt Cost Over Time") ///
+	subtitle("Interstate Construction Funding Only; Completion Year <= 2000") ///
+    ytitle("Millions of 2025 USD") ///
+    xtitle("Completion Year") ///
+	xlabel(1960(10)2000) ///
+    legend(label(1 "All") label(2 "New Construction")) ///
+    note( ///
+        "Reimbursements are identified by the 'Interstate Construction' funding program code." ///
+		`"New construction is identified by the improvement type code "new construction roadway", "bridge new construction", and "new tunnel"."' ///
+		"Projects are considered to be new construction if at least one reimbursement is classified as new construction." ///
+		"Series restricted to completion years 2000 and earlier.", ///
+        size(small) span ///
+    )
+graph export "$output/avg_receipt_cost_by_yr_IC_pre2000.png", replace width(2500)
+restore 
+
+
+/*===============================
+ Num projects by year (IC only)
+================================*/
+use "$intermediate_data/project_level_FMIS_lite.dta", clear
 keep if fp_ic
 gen n_proj = 1
-gen n_proj_newconstr = 1 if new_constr == 1
+gen n_proj_newconstr = 1 if has_new_construction
+
+preserve 
 collapse (sum) n_proj n_proj_newconstr, by(completion_year)
 
 graph twoway line n_proj n_proj_newconstr completion_year, sort /// 
@@ -327,11 +369,9 @@ restore
 /*=======================
  Num receipts per project (IC only)
 ========================*/
-preserve 
-collapse (sum) receipts (max) fp_ic new_constr, by(federal_project_number recipientid completion_year)
-keep if fp_ic
-gen receipts_new_constr = receipts if new_constr
+gen receipts_new_constr = receipts if has_new_construction
 
+preserve 
 collapse (mean) receipts receipts_new_constr, by(completion_year)
 graph twoway line receipts receipts_new_constr completion_year, sort /// 
     title("Average Reimbursements per Project by Completion Year") ///
@@ -368,55 +408,13 @@ graph twoway line receipts receipts_new_constr completion_year, sort ///
 graph export "$output/receipts_per_proj_by_yr_IC_pre2000.png", replace width(2500)
 restore 
 
-/*===============================
- Average receipt cost over time (IC only)
-================================*/
-preserve 
-keep if fp_ic
-gen total_cost_mills_adj_newconstr = total_cost_mills_adj if new_constr
-collapse (mean) total_cost_mills_adj total_cost_mills_adj_newconstr, by(completion_year)
-
-graph twoway line total_cost_mills_adj total_cost_mills_adj_newconstr completion_year, sort /// 
-    title("Average Adjusted Receipt Cost Over Time") ///
-	subtitle("Interstate Construction Funding Only") ///
-    ytitle("Millions of 2025 USD") ///
-    xtitle("Completion Year") ///
-	xlabel(1960(10)2020) ///
-    legend(label(1 "All") label(2 "New Construction")) ///
-    note( ///
-        "Reimbursements are identified by the 'Interstate Construction' funding program code." ///
-		`"New construction is identified by the improvement type code "new construction roadway", "bridge new construction", and "new tunnel"."' ///
-		"Projects are considered to be new construction if at least one reimbursement is classified as new construction.", ///
-        size(small) span ///
-    )
-graph export "$output/avg_receipt_cost_by_yr_IC.png", replace width(2500)
-
-keep if completion_year <= 2000
-graph twoway line total_cost_mills_adj total_cost_mills_adj_newconstr completion_year, sort /// 
-    title("Average Adjusted Receipt Cost Over Time") ///
-	subtitle("Interstate Construction Funding Only; Completion Year <= 2000") ///
-    ytitle("Millions of 2025 USD") ///
-    xtitle("Completion Year") ///
-	xlabel(1960(10)2000) ///
-    legend(label(1 "All") label(2 "New Construction")) ///
-    note( ///
-        "Reimbursements are identified by the 'Interstate Construction' funding program code." ///
-		`"New construction is identified by the improvement type code "new construction roadway", "bridge new construction", and "new tunnel"."' ///
-		"Projects are considered to be new construction if at least one reimbursement is classified as new construction." ///
-		"Series restricted to completion years 2000 and earlier.", ///
-        size(small) span ///
-    )
-graph export "$output/avg_receipt_cost_by_yr_IC_pre2000.png", replace width(2500)
-restore 
 
 /*===============================
  Average project cost over time (IC only)
 ================================*/
-preserve 
-collapse (sum) total_cost_mills_adj (max) fp_ic new_constr, by(federal_project_number recipientid completion_year)
-keep if fp_ic
-gen total_cost_mills_adj_newconstr = total_cost_mills_adj if new_constr
+gen total_cost_mills_adj_newconstr = total_cost_mills_adj if has_new_construction
 
+preserve 
 collapse (mean) total_cost_mills_adj total_cost_mills_adj_newconstr, by(completion_year)
 graph twoway line total_cost_mills_adj total_cost_mills_adj_newconstr completion_year, sort /// 
     title("Average Adjusted Project Cost Over Time") ///

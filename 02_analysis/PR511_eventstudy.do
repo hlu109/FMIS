@@ -68,8 +68,7 @@ keep if completion_year <= 2000 & completion_year >= 1950
 keep state_fips countyid county_fips federal_project_number completedate completion_year total_cost_mills detail_improvementtype
 
 drop if detail_improvementtype == 5 | detail_improvementtype == 59 // drop maintenance resurfacing and bridge resurfacing
-gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 17 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, construction engineering, new tunnel
-gen new_construction_cost = total_cost_mills if new_construction == 1
+gen new_construction_cost = total_cost_mills if new_construction
 gen row_cost = total_cost_mills if detail_improvementtype == 16 
 gen pe_cost = total_cost_mills if detail_improvementtype == 15
 
@@ -304,8 +303,7 @@ keep if completion_year <= 2000 & completion_year >= 1950
 keep state_fips countyid county_fips federal_project_number completedate completion_year total_cost_mills detail_improvementtype
 
 drop if detail_improvementtype == 5 | detail_improvementtype == 59 // drop maintenance resurfacing and bridge resurfacing
-gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 17 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, construction engineering, new tunnel
-gen new_construction_cost = total_cost_mills if new_construction == 1
+gen new_construction_cost = total_cost_mills if new_construction
 gen row_cost = total_cost_mills if detail_improvementtype == 16
 gen pe_cost = total_cost_mills if detail_improvementtype == 15
 

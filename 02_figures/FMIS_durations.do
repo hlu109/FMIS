@@ -46,21 +46,6 @@ gen total_cost_bills_adj = total_cost_mills / cpi / 1000
 rename year completion_year
 drop cpi total_cost_mills
 
-// classify work type (follow Andy's coding)
-gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, new tunnel
-gen reconstruction = detail_improvementtype == 2 | detail_improvementtype == 3 | detail_improvementtype == 4 | detail_improvementtype == 9 | detail_improvementtype == 10 | detail_improvementtype == 11 | detail_improvementtype == 51 // 4R reconstruction (obsolete), 4R added capacity, 4R no added capacity, bridge replacement (obsolete), bridge replacement (added capacity), bridge replacement (no added capacity), tunnel replacement
-gen rehabilitation = detail_improvementtype == 6 | detail_improvementtype == 12 | detail_improvementtype == 13 | detail_improvementtype == 14 | detail_improvementtype == 52 // 4R restoration and rehabilitation, rehabilitation (added capacity), bridge rehabilitation (obsolete), bridge rehabilitation (added capacity), bridge rehabilitation (no added capacity), tunnel rehabilitation
-gen maintenance = detail_improvementtype == 5 | detail_improvementtype == 47 | detail_improvementtype == 48 | detail_improvementtype == 53 | detail_improvementtype == 54 | detail_improvementtype == 59 | detail_improvementtype == 60 // maintenance resurfacing, bridge preventive maintenance, bridge protection, tunnel preventive maintenance, tunnel protection, bridge resurfacing, highway infrastructure preventive maintenance
-gen work_type = .
-replace work_type = 1 if new_construction
-replace work_type = 2 if reconstruction
-replace work_type = 3 if rehabilitation
-replace work_type = 4 if maintenance
-label define work_type_lbl 1 "New Construction" 2 "Reconstruction" 3 "Rehabilitation" 4 "Maintenance"
-label values work_type work_type_lbl
-gen is_construction = new_construction | reconstruction | rehabilitation
-label variable is_construction "Construction work includes new construction, reconstruction, and rehabilitation"
-
 * ==============================================================================
 * look at outliers with really long durations of construction stage 
 // preserve
