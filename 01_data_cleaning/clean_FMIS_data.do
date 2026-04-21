@@ -113,6 +113,21 @@ global improvement_lbl_def ///
 label define improvement_lbl $improvement_lbl_def, replace
 label values detail_improvementtype improvement_lbl
 
+* classify construction work types 
+gen new_construction = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 8 | detail_improvementtype == 50 // new construction roadway, maintenance relocation, bridge new construction, new tunnel
+gen reconstruction = detail_improvementtype == 2 | detail_improvementtype == 3 | detail_improvementtype == 4 | detail_improvementtype == 9 | detail_improvementtype == 10 | detail_improvementtype == 11 | detail_improvementtype == 51 // 4R reconstruction (obsolete), 4R added capacity, 4R no added capacity, bridge replacement (obsolete), bridge replacement (added capacity), bridge replacement (no added capacity), tunnel replacement
+gen rehabilitation = detail_improvementtype == 6 | detail_improvementtype == 12 | detail_improvementtype == 13 | detail_improvementtype == 14 | detail_improvementtype == 52 // 4R restoration and rehabilitation, rehabilitation (added capacity), bridge rehabilitation (obsolete), bridge rehabilitation (added capacity), bridge rehabilitation (no added capacity), tunnel rehabilitation
+gen maintenance = detail_improvementtype == 5 | detail_improvementtype == 47 | detail_improvementtype == 48 | detail_improvementtype == 53 | detail_improvementtype == 54 | detail_improvementtype == 59 | detail_improvementtype == 60 // maintenance resurfacing, bridge preventive maintenance, bridge protection, tunnel preventive maintenance, tunnel protection, bridge resurfacing, highway infrastructure preventive maintenance
+gen work_type = .
+replace work_type = 1 if new_construction
+replace work_type = 2 if reconstruction
+replace work_type = 3 if rehabilitation
+replace work_type = 4 if maintenance
+label define work_type_lbl 1 "New Construction" 2 "Reconstruction" 3 "Rehabilitation" 4 "Maintenance"
+label values work_type work_type_lbl
+gen is_construction = new_construction | reconstruction | rehabilitation
+label variable is_construction "Construction work includes new construction, reconstruction, and rehabilitation"
+
 * Define project status 
 global projectstatus_lbl_def ///
     1  "State Certification Signature needed" ///
@@ -205,7 +220,7 @@ replace state_fips = 69 if state_fips == 75
 
 gen countyid = gisbreakdown_countyid
 replace countyid = nongis_countyid if countyid == .
-gen county_fips = real(string(state_fips, "%02.0f") + string(countyid, "%03.0f")) ///
+gen long county_fips = real(string(state_fips, "%02.0f") + string(countyid, "%03.0f")) ///
     if !mi(state_fips) & !mi(countyid)
 
 global countyid_lbl_def ///
@@ -225,11 +240,10 @@ label values urban_rural urban_rural_lbl
 * label county values using external csv mapping from FIPS to name 
 tempfile fmis_snap_countylbl
 save `fmis_snap_countylbl'
-import delimited using "$raw_data/census_county_FIPS_crosswalk.txt", ///
-    varnames(1) delimiter("|") stringcols(_all) clear
-gen long county_fips_num = real(strtrim(statefp) + strtrim(countyfp))
+import delimited using "$intermediate_data/census_county_FIPS_crosswalk.csv", ///
+    varnames(1) encoding(UTF-8) bindquote(strict) clear stringcols(5 8)
+gen long county_fips_num = real(strtrim(county_fips_full))
 keep county_fips_num countyname
-drop if mi(county_fips_num)
 duplicates drop county_fips_num, force
 quietly count
 local n_co = r(N)
@@ -249,78 +263,123 @@ run "`lbl_build'"
 capture erase "`lbl_build'"
 label values county_fips county_fips_lbl
 
-* label state and recipientid values using external excel mappings
+* label state and recipientid values 
+// we hard-code this here because it's not too long, and this makes the script run faster than if we referenced another external file 
 
-* FMIS_stateid_map.xlsx: two columns (ID, name), no header row
-tempfile fmis_snap_state_lbl
-save `fmis_snap_state_lbl'
+// state_fips 
+global state_fips_lbl_def ///
+    1  "Alabama" ///
+    2  "Alaska" ///
+    4  "Arizona" ///
+    5  "Arkansas" ///
+    6  "California" ///
+    8  "Colorado" ///
+    9  "Connecticut" ///
+    10  "Delaware" ///
+    11  "District of Columbia" ///
+    12  "Florida" ///
+    13  "Georgia" ///
+    15  "Hawaii" ///
+    16  "Idaho" ///
+    17  "Illinois" ///
+    18  "Indiana" ///
+    19  "Iowa" ///
+    20  "Kansas" ///
+    21  "Kentucky" ///
+    22  "Louisiana" ///
+    33  "New Hampshire" ///
+    34  "New Jersey" ///
+    35  "New Mexico" ///
+    36  "New York" ///
+    37  "North Carolina" ///
+    38  "North Dakota" ///
+    39  "Ohio" ///
+    40  "Oklahoma" ///
+    41  "Oregon" ///
+    42  "Pennsylvania" ///
+    44  "Rhode Island" ///
+    45  "South Carolina" ///
+    46  "South Dakota" ///
+    47  "Tennessee" ///
+    48  "Texas" ///
+    49  "Utah" ///
+    50  "Vermont" ///
+    51  "Virginia" ///
+    53  "Washington" ///
+    54  "West Virginia" ///
+    55  "Wisconsin" ///
+    56  "Wyoming" ///
+    60  "American Samoa" ///
+    66  "Guam" ///
+    69  "N Mariana" ///
+    72  "Puerto Rico" ///
+    78  "United States Virgin Islands" ///
+    81  "Canada" ///
+label define state_fips_lbl $state_fips_lbl_def, replace
+label values state_fips state_fips_lbl
 
-import excel using "$intermediate_data/FMIS_stateid_map.xlsx", clear
-unab statecols : _all
-local c1 : word 1 of `statecols'
-local c2 : word 2 of `statecols'
-capture confirm numeric variable `c1'
-if _rc {
-    destring `c1', gen(_stateid_map) force
-    drop `c1'
-}
-else rename `c1' _stateid_map
-rename `c2' _state_lbl
-keep _stateid_map _state_lbl
-drop if missing(_stateid_map)
-duplicates drop _stateid_map, force
-quietly count
-local _nstate = r(N)
-capture label drop stateid_lbl
-label define stateid_lbl, replace
-forvalues _i = 1/`_nstate' {
-    local _v = _stateid_map[`_i']
-    local _t = strtrim(_state_lbl[`_i'])
-    local _t_clean : subinstr local _t `"""' "", all
-    local _t80 = substr(`"`_t_clean'"', 1, 80)
-    label define stateid_lbl `_v' `"`_t80'"', add
-}
-local lbl_state "`c(tmpdir)'/st_stateid_lbl.do"
-label save stateid_lbl using "`lbl_state'", replace
-use `fmis_snap_state_lbl', clear
-run "`lbl_state'"
-capture erase "`lbl_state'"
-label values state_fips stateid_lbl
-
-* FMIS_recipientid_map.xlsx: header row; col1 = Recipient ID, col2 = Name
-tempfile fmis_snap_recip_lbl
-save `fmis_snap_recip_lbl'
-import excel using "$intermediate_data/FMIS_recipientid_map.xlsx", firstrow clear
-unab reccols : _all
-local r1 : word 1 of `reccols'
-local r2 : word 2 of `reccols'
-capture confirm numeric variable `r1'
-if _rc {
-    destring `r1', gen(_recipid_map) force
-    drop `r1'
-}
-else rename `r1' _recipid_map
-rename `r2' _recip_lbl
-keep _recipid_map _recip_lbl
-drop if missing(_recipid_map)
-duplicates drop _recipid_map, force
-quietly count
-local _nrec = r(N)
-capture label drop recipient_lbl
-label define recipient_lbl, replace
-forvalues _j = 1/`_nrec' {
-    local _w = _recipid_map[`_j']
-    local _s = strtrim(_recip_lbl[`_j'])
-    local _s_clean : subinstr local _s `"""' "", all
-    local _s80 = substr(`"`_s_clean'"', 1, 80)
-    label define recipient_lbl `_w' `"`_s80'"', add
-}
-local lbl_recip "`c(tmpdir)'/st_recipientid_lbl.do"
-label save recipient_lbl using "`lbl_recip'", replace
-use `fmis_snap_recip_lbl', clear
-run "`lbl_recip'"
-capture erase "`lbl_recip'"
-label values recipientid recipient_lbl
+global recipientid_lbl_def ///
+    0	"Headquarters" ///
+    1	"Alabama" ///
+    2	"Alaska" ///
+    4	"Arizona" ///
+    5  "Arkansas" ///
+    6  "California" ///
+    8  "Colorado" ///
+    9	"Connecticut" ///
+    10	"Delaware" ///
+    11	"District Of Columbia" ///
+    12	"Florida" ///
+    13	"Georgia" ///
+    15	"Hawaii" ///
+    16	"Idaho" ///
+    17	"Illinois" ///
+    18	"Indiana" ///
+    19	"Iowa" ///
+    20	"Kansas" ///
+    21	"Kentucky" ///
+    22	"Louisiana" ///
+    23	"Maine" ///
+    24	"Maryland" ///
+    25	"Massachusetts" ///
+    26	"Michigan" ///
+    27	"Minnesota" ///
+    28	"Mississippi" ///
+    29	"Missouri" ///
+    30	"Montana" ///
+    31	"Nebraska" ///
+    32	"Nevada" ///
+    33	"New Hampshire" ///
+    34	"New Jersey" ///
+    35	"New Mexico" ///
+    36	"New York" ///
+    37	"North Carolina" ///
+    38	"North Dakota" ///
+    39	"Ohio" ///
+    40	"Oklahoma" ///
+    41	"Oregon" ///
+    42	"Pennsylvania" ///
+    44	"Rhode Island" ///
+    45	"South Carolina" ///
+    46	"South Dakota" ///
+    47	"Tennessee" ///
+    48	"Texas" ///
+    49	"Utah" ///
+    50	"Vermont" ///
+    51	"Virginia" ///
+    53	"Washington" ///
+    54	"West Virginia" ///
+    55	"Wisconsin" ///
+    56	"Wyoming" ///
+    60	"American Samoa" ///
+    66	"Guam" ///
+    72	"Puerto Rico" ///
+    75	"N Mariana" ///
+    78	"United States Virgin Islands" ///
+    81	"Canada" ///
+    91	"Port Authority of NY and NJ"
+label define recipientid_lbl $recipientid_lbl_def, replace
+label values recipientid recipientid_lbl
 
 
 * Process the date variables 
@@ -359,9 +418,20 @@ label variable latestpaymentdate "Date of most recent expenditure against the pr
 // label variable nepa_class "NEPA Class of Action"
 // label variable nepa_decision_date "Decision date for NEPA class of action"
 
+* parse funding streams  
+gen funding_program = ""
+replace funding_program = "Interstate Construction" if inlist(detail_programcode, "0420", "0430", "04C0", "04P0", "0500", "0550", "05C0", "0590", "17A0")
+replace funding_program = "Interstate Construction" if inlist(detail_programcode, "1870", "1880", "8230", "A510", "EC20", "EG20", "X420")
+replace funding_program = "Interstate Maintenance" if inlist(detail_programcode, "04M0", "04L0", "Q010", "Q440", "0AB0")
+replace funding_program = "Interstate Maintenance" if inlist(detail_programcode, "H010", "L010", "L01E", "L01R")
+replace funding_program = "Interstate Maintenance Discretionary" if inlist(detail_programcode, "0560", "31B0", "31D0", "Q020")
+replace funding_program = "Interstate Maintenance Discretionary" if inlist(detail_programcode, "H020", "L020", "L02E")
+replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z0E1", "Z0E2", "Z51E", "Z53E", "Z001", "Z002")
+replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z510", "Z530", "M0E1", "M0E2", "M001", "M002")
+
 
 * export 
-keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural
+keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 * also export lite version 
@@ -382,15 +452,33 @@ bysort federal_project_number recipientid: gen strL alltypes = proj_improv_types
 bysort federal_project_number recipientid: replace alltypes = alltypes[_n-1] + "; " + proj_improv_types if _n>1 & proj_improv_types != ""
 by federal_project_number recipientid: replace alltypes = alltypes[_N]
 
-	
+* identify funding programs (indicators are true if at least one receipt is funded by the program)
+gen fp_ic = funding_program == "Interstate Construction"
+gen fp_im = funding_program == "Interstate Maintenance"
+gen fp_imd = funding_program == "Interstate Maintenance Discretionary"
+gen fp_nhpp = funding_program == "National Highway Performance Program"
+
 gen receipts = 1 // this is used for reciept counts
 
-* add interstate_functional and interstate_syscode to the project-level data(we take the max so that even if the project only has one interstate receipt, the entire project is classified as interstate)
 // TODO: should verify that the location variables (county, urban_rural, etc) are consistent across receipts within a project 
-collapse (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid urban_rural (lastnm) alltypes completion_year (max) interstate_functional interstate_syscode, by(federal_project_number recipientid)
+collapse ///
+    (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds ///
+    (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid urban_rural ///
+    (lastnm) alltypes completion_year ///
+    (max) interstate_functional interstate_syscode fp_ic fp_im fp_imd fp_nhpp (max) has_new_construction = new_construction ///
+    (max) has_reconstruction = reconstruction ///
+    (max) has_rehabilitation = rehabilitation ///
+    (max) has_maintenance = maintenance ///
+    (max) has_construction = is_construction ///
+    , by(federal_project_number recipientid)
+// note the max codes for indicator variables so that the project adopts the feature if at least one reimbursement has the feature
 
 label variable interstate_functional "True if at least one receipt is interstate"
 label variable interstate_syscode "True if at least one receipt is interstate"
+label variable fp_ic "True if at least one receipt is funded by Interstate Construction"
+label variable fp_im "True if at least one receipt is funded by Interstate Maintenance"
+label variable fp_imd "True if at least one receipt is funded by Interstate Maintenance Discretionary"
+label variable fp_nhpp "True if at least one receipt is funded by National Highway Performance Program"
 
 * relabel the state and county values (not sure why it disappeared)
 label values state_fips stateid_lbl
