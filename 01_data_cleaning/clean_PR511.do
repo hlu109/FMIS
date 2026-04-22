@@ -68,10 +68,16 @@ drop _chain_seq
 keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
 save "$intermediate_data/PR511_hubbardmazzeo.dta", replace
 
+* also save as csv 
+export delimited using "$intermediate_data/PR511_hubbardmazzeo.csv", replace
+
 * save another copy of just the chain-level data
 collapse (sum) chain_len = seg_len (first) sh st state county route region open_year open_month (min) mp_start (max) mp_end, by(chain_id)
 save "$intermediate_data/PR511_hubbardmazzeo_chained.dta", replace
 
+* also save as csv 
+export delimited using "$intermediate_data/PR511_hubbardmazzeo_chained.csv", replace
+exit 
 
 * ==============================================================================
 * Nate Baum PR-511 data
