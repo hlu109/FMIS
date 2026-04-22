@@ -1,8 +1,5 @@
 /*==============================================================================
  	FMIS data exploration
- 	Hannah Lu 
-	02/24/2026
-
 	This script generates exploratory figures on highway spending costs.
 ==============================================================================*/
 * Set user
@@ -399,6 +396,21 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 // 	graphregion(margin(l=15 r=15))
 // graph export "$output/interstate_comparison_with_program_codes.png", replace width(2500)
 
+/*====
+ Interstate Construction program code costs over time  
+====*/
+graph twoway ///
+    (line fp_ic_cost_bills_adj year), ///
+    title("Interstate Construction Funding Program Spending Over Time") ///
+    ytitle("Billions of 2025 USD", xoffset(-3)) ///
+    xtitle("Year") ///
+    legend(off) ///
+    note( ///
+		"Interstate projects are identified by the 'Interstate Construction' funding program code.", ///
+		size(small) span ///
+	)
+graph export "$output/costs_over_time_IC.png", replace width(2500)
+
 
 // /*====
 //  Ratio of FHWA federal interstate spending to FMIS interstate spending (federal aid system code) - single number 
@@ -522,6 +534,50 @@ graph twoway ///
     graphregion(margin(r=15))
 graph export "$output/IC_impvmt_codes.png", replace width(2500)
 
+* same but plot cost share as pct out of 100 
+bysort year: egen double total_cost_bills_adj_year = total(total_cost_bills_adj)
+gen double cost_share_pct = 100 * total_cost_bills_adj / total_cost_bills_adj_year
+
+graph twoway ///
+    (line cost_share_pct year if detail_improvementtype == 1) ///
+    (line cost_share_pct year if detail_improvementtype == 8) ///
+    (line cost_share_pct year if detail_improvementtype == 16) ///
+    (line cost_share_pct year if detail_improvementtype == 7) ///
+    (line cost_share_pct year if detail_improvementtype == 2) ///
+    (line cost_share_pct year if detail_improvementtype == 15) ///
+    (line cost_share_pct year if detail_improvementtype == 21) ///
+    (line cost_share_pct year if detail_improvementtype == 5) ///
+    (line cost_share_pct year if detail_improvementtype == 3) ///
+    (line cost_share_pct year if detail_improvementtype == 43) ///
+    (line cost_share_pct year if detail_improvementtype == 12) ///
+    (line cost_share_pct year if detail_improvementtype == 17) ///
+    (line cost_share_pct year if detail_improvementtype == 40), ///
+    title("Interstate Construction Reimbursement Shares by Improvement Type", size(medium)) ///
+    ytitle("Percent share of annual spending", size(small)) ///
+    xtitle("Completion Year", size(small)) ///
+    xlabel(1960(10)2000) ///
+    legend( ///
+        label(1 "New Construction Roadway") ///
+        label(2 "Bridge New Construction") ///
+        label(3 "Right of Way") ///
+        label(4 "4R Maintenance Relocation") ///
+        label(5 "4R Reconstruction (Obsolete)") ///
+        label(6 "Preliminary Engineering") ///
+        label(7 "Safety") ///
+        label(8 "4R Maintenance Resurfacing") ///
+        label(9 "4R Added Capacity") ///
+        label(10 "Utilities") ///
+        label(11 "Bridge Rehabilitation (Obsolete)") ///
+        label(12 "Construction Engineering") ///
+        label(13 "Special Bridge") ///
+        size(small) ///
+    ) ///
+    note( ///
+        `"Interstate Construction reimbursements are identified by the "Interstate Construction" funding program code."', ///
+        size(small) span ///
+    ) ///
+    graphregion(margin(r=15))
+graph export "$output/IC_impvmt_codes_share.png", replace width(2500)
 
 * ==============================================================================
 * Compare share of interstate spending that is part of a project that does not include construction
