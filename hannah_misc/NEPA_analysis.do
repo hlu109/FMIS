@@ -27,6 +27,11 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
 use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 
+summarize nepa_class
+summarize nepa_decision_date
+
+exit
+
 * get table of NEPA class of action before and after 1970 (there should be nothing before 1970)
 preserve
 keep if completion_year < 1970
