@@ -26,7 +26,7 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
-global out_dir "$output/PR511_FMIS"
+global out_dir "$output/FMIS_title_quality"
 if !direxists("$out_dir") mkdir "$out_dir"
 
 
@@ -35,75 +35,89 @@ import delimited using "$data/Hannah sandbox/FMIS_title_quality_claude.csv", cle
 
 * useful indicator variables for project quality 
 gen has_title = !missing(projecttitle)
-gen endpoint_count = (endpoint_a_raw != "") + (endpoint_b_raw != "")
-gen has_2_endpoints = endpoint_count == 2
-gen has_1_endpoint = endpoint_count == 1
+gen endp_count = (endpoint_a_raw != "" & precision_a >= 2) + (endpoint_b_raw != "" & precision_b >= 2)
+gen has_2_endps = endp_count == 2
+gen has_1_endp = endp_count == 1
 
+* generate max and min precisions 
+gen max_precision = max(precision_a, precision_b)
+gen min_precision = .
+replace min_precision = min(precision_a, precision_b) if has_2_endps
+
+preserve 
+keep if has_1_endp
+tab max_precision, m
+restore
+preserve 
+keep if has_2_endps
+tab max_precision, m
+tab min_precision, m
+restore
 
 
 * compute share (by cost) of projects by title quality 
 gen cost_has_title = has_title * total_cost_bills_adjusted
-gen cost_has_2_endpoints = has_2_endpoints * total_cost_bills_adjusted
-gen cost_has_1_endpoint = has_1_endpoint * total_cost_bills_adjusted
-gen cost_has_endpoints = cost_has_2_endpoints + cost_has_1_endpoint
+gen cost_has_2_endps = has_2_endps * total_cost_bills_adjusted
+gen cost_has_1_endp = has_1_endp * total_cost_bills_adjusted
+gen cost_has_endps = cost_has_2_endps + cost_has_1_endp
 
-* has 2 endpoints and precision >= 4 for both - most likely we can match 
-gen cost_2_endp_prec46x2 = (has_2_endpoints & precision_a >= 4 & precision_b >= 4) * total_cost_bills_adjusted
-* has 2 endpoints and precision >= 4 for one - maybe match 
-gen cost_2_endp_prec46x1 = (has_2_endpoints & precision_a >= 4 & precision_b <= 3) * total_cost_bills_adjusted
-* has 1 endpoint and precision >= 4 - maybe match (e.g. as point-type project geometry, like intersection, bridge, ramp, etc.)
-gen cost_1_endp_prec46 = (has_1_endpoint & precision_a >= 4) * total_cost_bills_adjusted
-* has 2 endpoints and precision <= 3 for both - unlikely to match
-gen cost_2_endp_prec3x2 = (has_2_endpoints & precision_a <= 3 & precision_b <= 3) * total_cost_bills_adjusted
-* has 1 endpoint and precision <= 3 - unlikely to match
-gen cost_1_endp_prec3 = (has_1_endpoint & precision_a <= 3) * total_cost_bills_adjusted
+* has 2 endpoints and precision 4-6 for both
+gen cost_2_endp_prec46x2 = (has_2_endps & min_precision >= 4) * total_cost_bills_adjusted
+* has 2 endpoints with one precision 4-6 and one precision 2-3
+gen cost_2_endp_prec46x1 = (has_2_endps & max_precision >= 4 & min_precision >= 2 & min_precision <= 3) * total_cost_bills_adjusted
+* has 1 endpoint and precision 4-6
+gen cost_1_endp_prec46 = (has_1_endp & max_precision >= 4) * total_cost_bills_adjusted
+* has 2 endpoints and precision 2-3 for both
+gen cost_2_endp_prec3x2 = (has_2_endps & min_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
+* has 1 endpoint and precision 2-3
+gen cost_1_endp_prec3 = (has_1_endp & max_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
 
 keep if year >= 1950 & year < 2025
 
-* state-level totals for horizontal stacked bar (match buckets); used at end of script
-* TODO: review 
-tempfile fmis_state_match_bars
-preserve
-	collapse (sum) total_cost_bills_adjusted cost_2_endp_prec46x2 cost_2_endp_prec46x1 cost_1_endp_prec46, by(state_fips)
-	drop if missing(state_fips)
-	replace state_fips = int(round(state_fips))
-	gen double maybe_match_cost = cost_2_endp_prec46x2
-	gen double hard_match_cost = cost_2_endp_prec46x2 + cost_2_endp_prec46x1 + cost_1_endp_prec46
-	gen double pct_maybe_match = 100 * maybe_match_cost / total_cost_bills_adjusted
-	gen double pct_hard_match = 100 * (hard_match_cost - maybe_match_cost) / total_cost_bills_adjusted
-	gen double pct_unlikely = 100 - pct_maybe_match - pct_hard_match
-	replace pct_maybe_match = 0 if total_cost_bills_adjusted == 0
-	replace pct_hard_match = 0 if total_cost_bills_adjusted == 0
-	replace pct_unlikely = 0 if total_cost_bills_adjusted == 0
-	capture label drop stfips_match_lbl
-	#delimit ;
-	label define stfips_match_lbl
-		1 "Alabama" 2 "Alaska" 4 "Arizona" 5 "Arkansas" 6 "California"
-		8 "Colorado" 9 "Connecticut" 10 "Delaware" 11 "District of Columbia"
-		12 "Florida" 13 "Georgia" 15 "Hawaii" 16 "Idaho" 17 "Illinois"
-		18 "Indiana" 19 "Iowa" 20 "Kansas" 21 "Kentucky" 22 "Louisiana"
-		23 "Maine" 24 "Maryland" 25 "Massachusetts" 26 "Michigan" 27 "Minnesota"
-		28 "Mississippi" 29 "Missouri" 30 "Montana" 31 "Nebraska" 32 "Nevada"
-		33 "New Hampshire" 34 "New Jersey" 35 "New Mexico" 36 "New York"
-		37 "North Carolina" 38 "North Dakota" 39 "Ohio" 40 "Oklahoma" 41 "Oregon"
-		42 "Pennsylvania" 44 "Rhode Island" 45 "South Carolina" 46 "South Dakota"
-		47 "Tennessee" 48 "Texas" 49 "Utah" 50 "Vermont" 51 "Virginia"
-		53 "Washington" 54 "West Virginia" 55 "Wisconsin" 56 "Wyoming"
-		69 "Northern Mariana Islands" 72 "Puerto Rico", replace ;
-	#delimit cr
-	label values state_fips stfips_match_lbl
-	decode state_fips, gen(state_name)
-	replace state_name = "FIPS " + string(state_fips) if missing(state_name) | state_name == ""
-	save `fmis_state_match_bars', replace
-restore
+// * state-level totals 
+// * TODO: @HANNAH review 
+// tempfile fmis_state_match_bars
+// preserve
+// 	collapse (sum) total_cost_bills_adjusted cost_2_endp_prec46x2 cost_2_endp_prec46x1 cost_1_endp_prec46, by(state_fips)
+// 	drop if missing(state_fips)
+// 	replace state_fips = int(round(state_fips))
+// 	gen double maybe_match_cost = cost_2_endp_prec46x2
+// 	gen double hard_match_cost = cost_2_endp_prec46x2 + cost_2_endp_prec46x1 + cost_1_endp_prec46
+// 	gen double pct_maybe_match = 100 * maybe_match_cost / total_cost_bills_adjusted
+// 	gen double pct_hard_match = 100 * (hard_match_cost - maybe_match_cost) / total_cost_bills_adjusted
+// 	gen double pct_unlikely = 100 - pct_maybe_match - pct_hard_match
+// 	replace pct_maybe_match = 0 if total_cost_bills_adjusted == 0
+// 	replace pct_hard_match = 0 if total_cost_bills_adjusted == 0
+// 	replace pct_unlikely = 0 if total_cost_bills_adjusted == 0
+// 	capture label drop stfips_match_lbl
+// 	#delimit ;
+// 	label define stfips_match_lbl
+// 		1 "Alabama" 2 "Alaska" 4 "Arizona" 5 "Arkansas" 6 "California"
+// 		8 "Colorado" 9 "Connecticut" 10 "Delaware" 11 "District of Columbia"
+// 		12 "Florida" 13 "Georgia" 15 "Hawaii" 16 "Idaho" 17 "Illinois"
+// 		18 "Indiana" 19 "Iowa" 20 "Kansas" 21 "Kentucky" 22 "Louisiana"
+// 		23 "Maine" 24 "Maryland" 25 "Massachusetts" 26 "Michigan" 27 "Minnesota"
+// 		28 "Mississippi" 29 "Missouri" 30 "Montana" 31 "Nebraska" 32 "Nevada"
+// 		33 "New Hampshire" 34 "New Jersey" 35 "New Mexico" 36 "New York"
+// 		37 "North Carolina" 38 "North Dakota" 39 "Ohio" 40 "Oklahoma" 41 "Oregon"
+// 		42 "Pennsylvania" 44 "Rhode Island" 45 "South Carolina" 46 "South Dakota"
+// 		47 "Tennessee" 48 "Texas" 49 "Utah" 50 "Vermont" 51 "Virginia"
+// 		53 "Washington" 54 "West Virginia" 55 "Wisconsin" 56 "Wyoming"
+// 		69 "Northern Mariana Islands" 72 "Puerto Rico", replace ;
+// 	#delimit cr
+// 	label values state_fips stfips_match_lbl
+// 	decode state_fips, gen(state_name)
+// 	replace state_name = "FIPS " + string(state_fips) if missing(state_name) | state_name == ""
+// 	save `fmis_state_match_bars', replace
+// restore
 
-collapse (sum) total_cost_bills_adjusted cost_has_title cost_has_endpoints cost_has_2_endpoints cost_has_1_endpoint cost_2_endp_prec46x2 cost_2_endp_prec46x1 cost_1_endp_prec46 cost_2_endp_prec3x2 cost_1_endp_prec3, by(year)
+collapse (sum) total_cost_bills_adjusted cost_has_title cost_has_endps cost_has_2_endps cost_has_1_endp cost_2_endp_prec46x2 cost_2_endp_prec46x1 cost_1_endp_prec46 cost_2_endp_prec3x2 cost_1_endp_prec3, by(year)
 
 * compute shares
 gen share_has_title = cost_has_title / total_cost_bills_adjusted
-gen share_has_2_endpoints = cost_has_2_endpoints / total_cost_bills_adjusted
-gen share_has_1_endpoint = cost_has_1_endpoint / total_cost_bills_adjusted
-gen share_has_endpoints = cost_has_endpoints / total_cost_bills_adjusted
+gen share_has_2_endps = cost_has_2_endps / total_cost_bills_adjusted
+gen share_has_1_endp = cost_has_1_endp / total_cost_bills_adjusted
+gen share_has_endps = cost_has_endps / total_cost_bills_adjusted
 gen share_2_endp_prec46x2 = cost_2_endp_prec46x2 / total_cost_bills_adjusted
 gen share_2_endp_prec46x1 = cost_2_endp_prec46x1 / total_cost_bills_adjusted
 gen share_1_endp_prec46 = cost_1_endp_prec46 / total_cost_bills_adjusted
@@ -116,10 +130,10 @@ gen share_1_endp_prec3 = cost_1_endp_prec3 / total_cost_bills_adjusted
 gen endcnt_b0 = 0
 
 graph twoway ///
-    (rarea endcnt_b0 cost_has_2_endpoints year, lwidth(none)) ///
-    (rarea cost_has_2_endpoints cost_has_endpoints year, lwidth(none)) ///
+    (rarea endcnt_b0 cost_has_2_endps year, lwidth(none)) ///
+    (rarea cost_has_2_endps cost_has_endps year, lwidth(none)) ///
     (line total_cost_bills_adjusted year, lcolor(black) lwidth(medthin)), ///
-    title("Comparison of Interstate Spending by Project Title Quality (Endpoint Count)", size(medium)) ///
+    title("Interstate Spending by Endpoint Count", size(medium)) ///
 	ytitle("Billions of 2025 USD") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(10)2025) ///
@@ -131,11 +145,11 @@ graph twoway ///
 		label(3 "All Interstate Projects") ///
 	) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
-	) ///
-	graphregion(margin(l=30 r=15))
-graph export "$out_dir/interstate_title_endpoint_count.png", replace width(2500)
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		, size(small) span ///
+	)
+graph export "$out_dir/interstate_title_endp_count.png", replace width(2500)
 
 * plot comparison of interstate spending by project title quality 
 * plot costs 
@@ -155,45 +169,52 @@ graph twoway ///
     (rarea epq_s3 epq_s4 year, lwidth(none)) ///
     (rarea epq_s4 epq_s5 year, lwidth(none)) ///
     (line total_cost_bills_adjusted year, lcolor(black) lwidth(medthin)), ///
-    title("Comparison of Interstate Spending by Project Title Quality (Endpoint Quality)", size(medium)) ///
+    title("Interstate Spending by Endpoint Precision", size(medium)) ///
 	ytitle("Billions of 2025 USD") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(10)2025) ///
 	xmlabel(1950(5)2025, grid glcolor(gs14) glwidth(vthin) noticks nolabel) ///
 	legend(order(6 5 4 3 2 1) ///
-		label(1 "2 Endpoints," "Both Precision >= 4") ///
-		label(2 "2 Endpoints," "One Precision >= 4") ///
-		label(3 "1 Endpoint," "Precision >= 4") ///
-		label(4 "2 Endpoints," "Both Precision <= 3") ///
-		label(5 "1 Endpoint," "Precision <= 3") ///
+		label(1 "2 Endpoints," "Both Prec. 4-6") ///
+		label(2 "2 Endpoints," "One Prec. 4-6," "One Prec. 2-3") ///
+		label(3 "1 Endpoint," "Prec. 4-6") ///
+		label(4 "2 Endpoints," "Both Prec. 2-3") ///
+		label(5 "1 Endpoint," "Prec. 2-3") ///
 		label(6 "All Interstate Projects")) ///
 	note( ///
 		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
 		size(small) span ///
-	) ///
-	graphregion(margin(l=15 r=15))
-graph export "$out_dir/interstate_title_endpoint_quality.png", replace width(2500)
+	)
+graph export "$out_dir/interstate_title_endp_quality.png", replace width(2500)
 
 * plot what can be matched 
-gen maybe_match = cost_2_endp_prec46x2 
-gen hard_match = cost_2_endp_prec46x2 + cost_2_endp_prec46x1 + cost_1_endp_prec46
+gen possible_match = cost_2_endp_prec46x2
+gen maybe_match = cost_2_endp_prec46x1 + cost_1_endp_prec46
+gen unlikely_match = cost_2_endp_prec3x2 + cost_1_endp_prec3
+gen impossible_match = total_cost_bills_adjusted - possible_match - maybe_match - unlikely_match
 gen match_b0 = 0
+gen match_s1 = possible_match
+gen match_s2 = match_s1 + maybe_match
+gen match_s3 = match_s2 + unlikely_match
+gen match_s4 = match_s3 + impossible_match
 
 graph twoway ///
-	(rarea maybe_match hard_match year, lwidth(none)) ///
-	(rarea hard_match total_cost_bills_adjusted year, lwidth(none)) ///
-	(rarea match_b0 maybe_match year, lwidth(none)) ///
+	(rarea match_b0 match_s1 year, lwidth(none)) ///
+	(rarea match_s1 match_s2 year, lwidth(none)) ///
+	(rarea match_s2 match_s3 year, lwidth(none)) ///
+	(rarea match_s3 match_s4 year, lwidth(none)) ///
 	(line total_cost_bills_adjusted year, lcolor(black) lwidth(medthin)), ///
-    title("Comparison of Interstate Spending by Project Title Quality", size(medium)) ///
+    title("Interstate Spending by Anticipated Match Feasibility", size(medium)) ///
 	ytitle("Billions of 2025 USD") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(10)2025) ///
 	xmlabel(1950(5)2025, grid glcolor(gs14) glwidth(vthin) noticks nolabel) ///
-	legend(order(4 2 1 3) ///
-		label(3 "Possible Match" "(2 endpoints, both" "precision >= 4)") ///
-		label(1 "Unlikely but Possible Match" "(At least one endpoint" "with precision >= 4)") ///
-		label(2 "Likely Unusable") ///
-		label(4 "All Interstate Projects") ///
+	legend(order(5 4 3 2 1) ///
+		label(1 "Possible" "(2 endpoints prec. 4-6)") ///
+		label(2 "Maybe" "(max 1 endpoint prec. 4-6)") ///
+		label(3 "Unlikely" "(max 1 endpoint prec. 2-3)") ///
+		label(4 "Impossible" "(0 endpoints)") ///
+		label(5 "All Interstate Projects") ///
 	) ///
 	note( ///
 		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
@@ -219,6 +240,7 @@ preserve
 keep if year >= 1950 & year <= 1965
 graph twoway line share_has_title year, ///
     title("Share of Annual Interstate Project Costs with Non-Missing Titles") ///
+	subtitle("1950-1965") ///
 	ytitle("Share of Annual Costs") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(1)1965)
@@ -228,12 +250,12 @@ restore
 * plot comparison of interstate spending by project title quality 
 * plot share 
 * compare endpoint count 
-* stacked rarea: 2-endpoint share + 1-endpoint share = share_has_endpoints
+* stacked rarea: 2-endpoint share + 1-endpoint share = share_has_endps
 gen sh_end0 = 0
 
 graph twoway ///
-    (rarea sh_end0 share_has_2_endpoints year, lwidth(none)) ///
-    (rarea share_has_2_endpoints share_has_endpoints year, lwidth(none)) ///
+    (rarea sh_end0 share_has_2_endps year, lwidth(none)) ///
+    (rarea share_has_2_endps share_has_endps year, lwidth(none)) ///
     (line share_has_title year, lwidth(medthin) lcolor(black)), ///
     title("Share of Annual Interstate Project Costs by Endpoint Count") ///
 	ytitle("Share of Annual Costs") xtitle("Completion Year") ///
@@ -247,11 +269,12 @@ graph twoway ///
 		label(3 "Projects with Titles") ///
 	) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		, size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$out_dir/interstate_share_title_endpoint_count.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_endp_count.png", replace width(2500)
 
 * plot comparison of interstate spending by project title quality 
 * plot share 
@@ -278,11 +301,11 @@ graph twoway ///
 	xmlabel(1950(5)2025, grid glcolor(gs14) glwidth(vthin) noticks nolabel) ///
 	legend( ///
 		order(6 5 4 3 2 1) ///
-		label(1 "2 Endpoints," "Both Precision >= 4") ///
-		label(2 "2 Endpoints," "One Precision >= 4") ///
-		label(3 "1 Endpoint," "Precision >= 4") ///
-		label(4 "2 Endpoints," "Both Precision <= 3") ///
-		label(5 "1 Endpoint," "Precision <= 3") ///
+		label(1 "2 Endpoints," "Both Prec. 4-6") ///
+		label(2 "2 Endpoints," "One Prec. 4-6," "One Prec. 2-3") ///
+		label(3 "1 Endpoint," "Prec. 4-6") ///
+		label(4 "2 Endpoints," "Both Prec. 2-3") ///
+		label(5 "1 Endpoint," "Prec. 2-3") ///
 		label(6 "Projects with Titles") ///
 	) ///
 	note( ///
@@ -290,28 +313,36 @@ graph twoway ///
 		size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
-graph export "$out_dir/interstate_share_title_endpoint_precision.png", replace width(2500)
+graph export "$out_dir/interstate_share_title_endp_precision.png", replace width(2500)
 
 * same match-quality breakdown as interstate_title_match_quality.png, but as shares of annual cost
-gen share_maybe_match = share_2_endp_prec46x2
-gen share_hard_match = share_2_endp_prec46x2 + share_2_endp_prec46x1 + share_1_endp_prec46
+gen share_possible_match = share_2_endp_prec46x2
+gen share_maybe_match = share_2_endp_prec46x1 + share_1_endp_prec46
+gen share_unlikely_match = share_2_endp_prec3x2 + share_1_endp_prec3
+gen share_impossible_match = 1 - share_possible_match - share_maybe_match - share_unlikely_match
 gen share_full = 1
+gen share_match_s1 = share_possible_match
+gen share_match_s2 = share_match_s1 + share_maybe_match
+gen share_match_s3 = share_match_s2 + share_unlikely_match
+gen share_match_s4 = share_match_s3 + share_impossible_match
 
 graph twoway ///
-	(rarea share_maybe_match share_hard_match year, lwidth(none)) ///
-	(rarea share_hard_match share_full year, lwidth(none)) ///
-	(rarea match_b0 share_maybe_match year, lwidth(none)) ///
+	(rarea match_b0 share_match_s1 year, lwidth(none)) ///
+	(rarea share_match_s1 share_match_s2 year, lwidth(none)) ///
+	(rarea share_match_s2 share_match_s3 year, lwidth(none)) ///
+	(rarea share_match_s3 share_match_s4 year, lwidth(none)) ///
 	(line share_has_title year, lcolor(black) lwidth(medthin)), ///
-    title("Share of Annual Interstate Project Costs by Title / Endpoint Match Quality", size(medium)) ///
+    title("Share of Annual Interstate Project Costs by Anticipated Match Feasibility", size(medium)) ///
 	ytitle("Share of Annual Costs") xtitle("Completion Year") ///
 	yscale(titlegap(10)) ///
 	xlabel(1950(10)2025) ///
 	xmlabel(1950(5)2025, grid glcolor(gs14) glwidth(vthin) noticks nolabel) ///
-	legend(order(4 2 1 3) ///
-		label(3 "Possible Match" "(2 endpoints, both" "precision >= 4)") ///
-		label(1 "Unlikely but Possible Match" "(At least one endpoint" "with precision >= 4)") ///
-		label(2 "Likely Unusable") ///
-		label(4 "Projects with Titles") ///
+	legend(order(5 4 3 2 1) ///
+		label(1 "Possible" "(2 endpoints prec. 4-6)") ///
+		label(2 "Maybe" "(max 1 endpoint prec. 4-6)") ///
+		label(3 "Unlikely" "(max 1 endpoint prec. 2-3)") ///
+		label(4 "Impossible" "(0 endpoints)") ///
+		label(5 "Projects with Titles") ///
 	) ///
 	note( ///
 		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
