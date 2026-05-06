@@ -235,7 +235,7 @@ graph export "$output/ave_cost_by_prefixes.png", replace
 ============*/
 use "$data/Intermediate/receipt_level_FMIS", clear
 * total costs by region over time, adjusted for inflation
-keep if completion_year >= 1950 & completion_year < 2025 // filter out years without much data
+keep if completion_year >= 1945 & completion_year < 2025 // filter out years without much data
 collapse (sum) total_cost_mills, by(region completion_year)
 rename completion_year year
 merge m:1 year using "$data/Intermediate/CPI_2025.dta"
