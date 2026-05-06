@@ -33,9 +33,14 @@ if !direxists("$out_dir") mkdir "$out_dir"
 * load FMIS data
 import delimited using "$data/Hannah sandbox/FMIS_title_quality_claude.csv", clear
 
+* extra screening step for "statewide" or "various locations" because it doesn't seem like the Claude regex script handled these super well 
+gen is_statewide = regexm(projecttitle, "STATEWIDE") 
+gen is_various_locations = regexm(projecttitle, "VARIOUS") 
+
 * useful indicator variables for project quality 
 gen has_title = !missing(projecttitle)
 gen endp_count = (endpoint_a_raw != "" & precision_a >= 2) + (endpoint_b_raw != "" & precision_b >= 2)
+replace endp_count = 0 if is_statewide | is_various_locations
 gen has_2_endps = endp_count == 2
 gen has_1_endp = endp_count == 1
 
@@ -147,6 +152,7 @@ graph twoway ///
 	note( ///
 		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
 		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
 		, size(small) span ///
 	)
 graph export "$out_dir/interstate_title_endp_count.png", replace width(2500)
@@ -182,8 +188,10 @@ graph twoway ///
 		label(5 "1 Endpoint," "Prec. 2-3") ///
 		label(6 "All Interstate Projects")) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
+		, size(small) span ///
 	)
 graph export "$out_dir/interstate_title_endp_quality.png", replace width(2500)
 
@@ -217,8 +225,10 @@ graph twoway ///
 		label(5 "All Interstate Projects") ///
 	) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
+		, size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
 graph export "$out_dir/interstate_title_match_quality.png", replace width(2500)
@@ -271,6 +281,7 @@ graph twoway ///
 	note( ///
 		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
 		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
 		, size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
@@ -309,8 +320,10 @@ graph twoway ///
 		label(6 "Projects with Titles") ///
 	) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
+		, size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
 graph export "$out_dir/interstate_share_title_endp_precision.png", replace width(2500)
@@ -345,8 +358,10 @@ graph twoway ///
 		label(5 "Projects with Titles") ///
 	) ///
 	note( ///
-		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code.", ///
-		size(small) span ///
+		"Interstate projects are those with at least one receipt coded as interstate by the federal aid system code." ///
+		"Endpoints with a precision of 0-1 are re-classified as not being an endpoint." ///
+		`"Project titles containing "statewide" or "various" as keywords considered not to have endpoints."' ///
+		, size(small) span ///
 	) ///
 	graphregion(margin(l=15 r=15))
 graph export "$out_dir/interstate_share_title_match_quality.png", replace width(2500)
