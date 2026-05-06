@@ -273,7 +273,7 @@ tempfile ic_duration_base
 save `ic_duration_base', replace
 
 // foreach subsample in full cty_per_yr cty_rt_per_yr cty_life cty_rt_life cty_openyr_ever cty_rt_openyr_ever {
-foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
+foreach subsample in full {
     use `ic_duration_base', clear
 
     if "`subsample'" == "full" {
@@ -866,7 +866,135 @@ foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
         )
     graph export "$duration_dir/IC_const_duration_hist_maint_costwgt`fig_suffix'.png", replace width(2500)
     restore
+
+    * same cost-weighted histograms as above but using log durations
+    local log_duration_binwidth 0.1
+    preserve
+    drop if mi(const_duration) | mi(total_cost_bills_adj)
+    drop if const_duration <= 0
+    keep if is_construction
+    gen double _log_duration = log(const_duration)
+    gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
+    collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
+    sort _log_dur_bin
+    twoway bar spend _log_dur_bin, barwidth(`log_duration_binwidth') ///
+        title("Log time between construction authorization and completion, cost-weighted", size(medium)) ///
+        subtitle("Interstate Construction; new construction, reconstruction, and rehabilitation reimbursements", size(small)) ///
+        xtitle("Log years") ///
+        ytitle("Billions of 2025 USD") ///
+        note( ///
+            `"Reimbursements are identified by the "Interstate Construction" funding program codes."' ///
+            "Projects with missing cost data are excluded." ///
+            "Projects with non-positive duration are excluded before taking logs." ///
+            "Sample excludes maintenance reimbursements." ///
+            `"`sample_note'"' ///
+            `"`sample_size_note'"' ///
+            , size(small) span ///
+        )
+    graph export "$duration_dir/IC_const_duration_hist_any_construction_costwgt_logdur`fig_suffix'.png", replace width(2500)
+    restore
+
+    preserve
+    drop if mi(const_duration) | mi(total_cost_bills_adj)
+    drop if const_duration <= 0
+    keep if work_type == 1
+    gen double _log_duration = log(const_duration)
+    gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
+    collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
+    sort _log_dur_bin
+    twoway bar spend _log_dur_bin, barwidth(`log_duration_binwidth') ///
+        title("Log time between construction authorization and completion, cost-weighted", size(medium)) ///
+        subtitle("Interstate Construction; new construction reimbursements", size(small)) ///
+        xtitle("Log years") ///
+        ytitle("Billions of 2025 USD") ///
+        note( ///
+            `"Reimbursements are identified by the "Interstate Construction" funding program codes."' ///
+            "Projects with missing cost data are excluded." ///
+            "Projects with non-positive duration are excluded before taking logs." ///
+            "Sample restricted to new construction roadway, maintenance relocation, bridge new construction, and new tunnel." ///
+            `"`sample_note'"' ///
+            `"`sample_size_note'"' ///
+            , size(small) span ///
+        )
+    graph export "$duration_dir/IC_const_duration_hist_newconstr_costwgt_logdur`fig_suffix'.png", replace width(2500)
+    restore
+
+    preserve
+    drop if mi(const_duration) | mi(total_cost_bills_adj)
+    drop if const_duration <= 0
+    keep if work_type == 2
+    gen double _log_duration = log(const_duration)
+    gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
+    collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
+    sort _log_dur_bin
+    twoway bar spend _log_dur_bin, barwidth(`log_duration_binwidth') ///
+        title("Log time between construction authorization and completion, cost-weighted", size(medium)) ///
+        subtitle("Interstate Construction; reconstruction reimbursements", size(small)) ///
+        xtitle("Log years") ///
+        ytitle("Billions of 2025 USD") ///
+        note( ///
+            `"Reimbursements are identified by the "Interstate Construction" funding program codes."' ///
+            "Projects with missing cost data are excluded." ///
+            "Projects with non-positive duration are excluded before taking logs." ///
+            "Sample restricted to 4R reconstruction, 4R added or no added capacity, bridge replacement, and tunnel replacement." ///
+            `"`sample_note'"' ///
+            `"`sample_size_note'"' ///
+            , size(small) span ///
+        )
+    graph export "$duration_dir/IC_const_duration_hist_reconstr_costwgt_logdur`fig_suffix'.png", replace width(2500)
+    restore
+
+    preserve
+    drop if mi(const_duration) | mi(total_cost_bills_adj)
+    drop if const_duration <= 0
+    keep if work_type == 3
+    gen double _log_duration = log(const_duration)
+    gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
+    collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
+    sort _log_dur_bin
+    twoway bar spend _log_dur_bin, barwidth(`log_duration_binwidth') ///
+        title("Log time between construction authorization and completion, cost-weighted", size(medium)) ///
+        subtitle("Interstate Construction; rehabilitation reimbursements", size(small)) ///
+        xtitle("Log years") ///
+        ytitle("Billions of 2025 USD") ///
+        note( ///
+            `"Reimbursements are identified by the "Interstate Construction" funding program codes."' ///
+            "Projects with missing cost data are excluded." ///
+            "Projects with non-positive duration are excluded before taking logs." ///
+            "Sample restricted to 4R restoration and rehabilitation, rehabilitation with capacity changes, bridge rehabilitation, and" "tunnel rehabilitation." ///
+            `"`sample_note'"' ///
+            `"`sample_size_note'"' ///
+            , size(small) span ///
+        )
+    graph export "$duration_dir/IC_const_duration_hist_rehab_costwgt_logdur`fig_suffix'.png", replace width(2500)
+    restore
+
+    preserve
+    drop if mi(const_duration) | mi(total_cost_bills_adj)
+    drop if const_duration <= 0
+    keep if work_type == 4
+    gen double _log_duration = log(const_duration)
+    gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
+    collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
+    sort _log_dur_bin
+    twoway bar spend _log_dur_bin, barwidth(`log_duration_binwidth') ///
+        title("Log time between construction authorization and completion, cost-weighted", size(medium)) ///
+        subtitle("Interstate Construction; maintenance reimbursements", size(small)) ///
+        xtitle("Log years") ///
+        ytitle("Billions of 2025 USD") ///
+        note( ///
+            `"Reimbursements are identified by the "Interstate Construction" funding program codes."' ///
+            "Projects with missing cost data are excluded." ///
+            "Projects with non-positive duration are excluded before taking logs." ///
+            "Sample restricted to maintenance resurfacing, bridge preventive maintenance and protection, tunnel preventive maintenance" "and protection, bridge resurfacing, and highway infrastructure preventive maintenance." ///
+            `"`sample_note'"' ///
+            `"`sample_size_note'"' ///
+            , size(small) span ///
+        )
+    graph export "$duration_dir/IC_const_duration_hist_maint_costwgt_logdur`fig_suffix'.png", replace width(2500)
+    restore
 }
+exit
 
 // * ==============================================================================
 // * tabulations of most common dates 
