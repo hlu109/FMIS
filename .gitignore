@@ -50,6 +50,9 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+# other
+.Rprofile
+
 # ------------------------------------------------------------------------------
 
 # Stata dataset and output files
@@ -76,6 +79,13 @@ rsconnect/
 # *.tif
 
 # ------------------------------------------------------------------------------
+# package environments 
+venv/*
+renv/*
+renv.lock 
+
+# ------------------------------------------------------------------------------
 
 # Hannah misc files 
 BrooksLiscowReplication/*
+*.cursor/*
