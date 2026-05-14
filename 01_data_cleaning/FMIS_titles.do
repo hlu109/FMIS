@@ -40,5 +40,5 @@ gen total_cost_bills_adjusted = total_cost_mills / cpi / 1000
 sort year recipientid federal_project_number
 
 * keep only project titles and adjusted costs
-keep recipientid federal_project_number projecttitle state_fips countyid county_fips total_cost_bills_adjusted year
+keep recipientid federal_project_number projecttitle projectdescription state_fips countyid county_fips total_cost_bills_adjusted year
 save "$data/Hannah sandbox/FMIS_interstate_titles_and_costs.dta", replace

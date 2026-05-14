@@ -1,8 +1,19 @@
 import pandas as pd
 import re
 import numpy as np
+import getpass
 
-df = pd.read_stata("/mnt/user-data/uploads/FMIS_interstate_titles_and_costs.dta")
+username = getpass.getuser()
+if username == "hl2266":
+    input_dir = "your path"
+    output_dir = "your path"
+elif username == "andersonkovesci":
+    input_dir = "/Users/andersonkovesci/Dropbox/FHWA cost data/Data/Hannah sandbox/FMIS_interstate_titles_and_costs.dta"
+    output_dir = '/Users/andersonkovesci/Dropbox/FHWA cost data/Data/Hannah sandbox/FMIS_title_description_quality_claude.csv'
+else: 
+    raise ValueError("Username not recognized. Please set input/output paths manually.")
+
+df = pd.read_stata(input_dir, convert_categoricals=False)
 print(f"Loaded {len(df)} rows")
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -659,30 +670,72 @@ def _try_fallback(loc):
 # ═══════════════════════════════════════════════════════════════════════════
 # APPLY
 # ═══════════════════════════════════════════════════════════════════════════
-print("Parsing titles...")
-parsed = df['projecttitle'].apply(parse_title)
+print("Parsing descriptions (first pass)...")
+parsed_desc = df['projectdescription'].apply(lambda x: parse_title(x) if pd.notna(x) else {
+    'endpoint_a_raw': '', 'endpoint_b_raw': '',
+    'precision_a': 0, 'precision_b': 0,
+    'milepost_start': np.nan, 'milepost_end': np.nan,
+    'project_type_raw': ''
+})
 for col in ['endpoint_a_raw', 'endpoint_b_raw', 'precision_a', 'precision_b',
             'milepost_start', 'milepost_end', 'project_type_raw']:
-    df[col] = [r[col] for r in parsed]
+    df[col] = [r[col] for r in parsed_desc]
+
+# ── Fallback: parse title when description is missing endpoint(s) ──
+missing_a = df['precision_a'] == 0
+missing_b = df['precision_b'] == 0
+any_missing = missing_a | missing_b
+print(f"Falling back to projecttitle for {any_missing.sum()} rows "
+      f"({missing_a.sum()} missing A, {missing_b.sum()} missing B)...")
+
+parsed_title = df.loc[any_missing, 'projecttitle'].apply(parse_title)
+title_results = list(parsed_title)
+title_index = df.loc[any_missing].index
+title_df = pd.DataFrame(title_results, index=title_index)
+
+# For rows missing A: fill all fields from title
+for col in ['endpoint_a_raw', 'endpoint_b_raw', 'precision_a', 'precision_b',
+            'milepost_start', 'milepost_end']:
+    df.loc[missing_a, col] = title_df.loc[missing_a, col]
+
+# For rows where A is fine but B is missing: only fill B fields from title
+missing_b_only = missing_b & ~missing_a
+df.loc[missing_b_only, 'endpoint_b_raw'] = title_df.loc[missing_b_only, 'endpoint_b_raw']
+df.loc[missing_b_only, 'precision_b']    = title_df.loc[missing_b_only, 'precision_b']
+df.loc[missing_b_only, 'milepost_end']   = title_df.loc[missing_b_only, 'milepost_end']
+
+# project_type_raw: only fill from title where description left it blank
+title_no_type_mask = any_missing & (df['project_type_raw'] == '')
+df.loc[title_no_type_mask, 'project_type_raw'] = title_df.loc[
+    title_no_type_mask[any_missing].values, 'project_type_raw'
+].values
+
+# Track source
+df['location_source'] = 'description'
+df.loc[missing_a & (df['precision_a'] > 0), 'location_source'] = 'title'
+df.loc[missing_b_only & (df['precision_b'] > 0), 'location_source'] = 'title (b only)'
+df.loc[df['precision_a'] == 0, 'location_source'] = 'none'
 
 print("\n=== PRECISION A ===")
 print(df['precision_a'].value_counts().sort_index())
-print(f"\n=== PRECISION B ===")
+print("\n=== PRECISION B ===")
 print(df['precision_b'].value_counts().sort_index())
+print("\n=== LOCATION SOURCE ===")
+print(df['location_source'].value_counts())
 
 # Export
 out_cols = [
-    'recipientid', 'federal_project_number', 'projecttitle',
+    'recipientid', 'federal_project_number', 'projecttitle', 'projectdescription',
     'state_fips', 'county_fips', 'countyid', 'year', 'total_cost_bills_adjusted',
     'fpn_route_candidate', 'route_raw', 'route_number', 'route_type',
     'endpoint_a_raw', 'endpoint_b_raw', 'precision_a', 'precision_b',
-    'milepost_start', 'milepost_end', 'project_type_raw'
+    'milepost_start', 'milepost_end', 'project_type_raw', 'location_source'
 ]
-df[out_cols].to_csv('/home/claude/parsed_titles_v4.csv', index=False)
-print(f"\nExported {len(df)} rows")
+df[out_cols].to_csv(output_dir, index=False)
+print(f"\nExported {len(df)} rows to {output_dir}")
 
 # Spot checks
-print("\n=== SPOT CHECKS (previously failing) ===")
+print("\n=== SPOT CHECKS ===")
 tests = [
     "CUY IR 480 05.40",
     "HAM IR 70/75 VAR",
