@@ -30,15 +30,17 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 use "$intermediate_data/project_level_FMIS.dta", clear
 
 * filter to interstates 
-keep if interstate_syscode == 1
+keep if fp_ic
 
 * adjust for inflation 
 rename completion_year year
 merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
 gen total_cost_bills_adjusted = total_cost_mills / cpi / 1000
-// rename year completion_year
-sort year recipientid federal_project_number
+rename year completion_year
+sort completion_year recipientid federal_project_number
 
-* keep only project titles and adjusted costs
-keep recipientid federal_project_number projecttitle projectdescription state_fips countyid county_fips total_cost_bills_adjusted year
-save "$data/Hannah sandbox/FMIS_interstate_titles_and_costs.dta", replace
+gen constauthyear = year(authconstdate)
+
+* keep only project titles and some key variables
+keep recipientid federal_project_number projecttitle projectdescription state_fips countyid county_fips total_cost_bills_adjusted completion_year constauthyear
+save "$data/Hannah sandbox/FMIS_interstate_project_titles.dta", replace
