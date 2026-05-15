@@ -18,16 +18,21 @@ gemini_model_id = "gemini-2.5-flash"
 username = getpass.getuser()
 if username == "hl2266":
     PROJECT_ROOT = Path("C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data")
+    DATA_ROOT = PROJECT_ROOT / "Data"
+    RAW_DATA_DIR = DATA_ROOT / "Raw"
+    INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
+    GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
+    CODE_ROOT = PROJECT_ROOT / "Code" / "FMIS_hannah"
 elif username == "andersonkovesci":
     PROJECT_ROOT = Path("/Users/andersonkovesci/Dropbox/FHWA cost data")
+    DATA_ROOT = PROJECT_ROOT / "Data"
+    RAW_DATA_DIR = DATA_ROOT / "Raw"
+    INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
+    GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
+    CODE_ROOT = PROJECT_ROOT / "Code" / "FMIS_andy"
 else:
     raise ValueError("Update config with machine-specific paths.")
 
-DATA_ROOT = PROJECT_ROOT / "Data"
-RAW_DATA_DIR = DATA_ROOT / "Raw"
-INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
-GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
-CODE_ROOT = PROJECT_ROOT / "Code"
 
 INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_project_titles.dta"
 
@@ -41,8 +46,12 @@ prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / "prompt v1.md"
 # Set Schema -----------------------------------
 page_schema = Project
 
-# Project filtering (optional) - if None, processes all projects
-row_indices = None # TODO maybe replace row idxes with recipient id x fpn - but likely not needed 
+# Project filtering (optional)
+row_indices = None 
+# row_indices = [27, 28, 29, 30]          # manual override; if set, skip auto sample
+sample_n = 100                # if set (and row_indices is None), sample this many rows
+sample_stratify_by = ["state_fips"]
+random_seed = 42
 
 # ------------------------------------------------------------------------------
 # END OF SET PARAMETERS --------------------------------------------------------

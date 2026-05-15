@@ -9,9 +9,9 @@ Do not omit or hallucinate fields. If information is not present in the title, r
 
 You will receive a JSON object containing::
 - `project_title` (string): the full FMIS title
-- `state_fips` (integer): the state FIPS code where the project is located
+- `state_fips` (string): the two-digit state FIPS code where the project is located
 - `state_name` (string): the state name resolved from `state_fips` 
-- `county_fips` (integer): the dominant county FIPS code for the project
+- `county_fips` (string): the 5-digit FIPS code for the dominant county where the project is located
 - `county_name` (string): the county name resolved from `county_fips`
 - `route_num` (integer or null): the main route number, if already extracted
 
@@ -107,42 +107,3 @@ Examples:
 
 7. **Ramps are not exits** and should not be coded as such. 
 
-
-
-
-
-
-
-
-
-## Output schema
-
-```python
-class Project(BaseModel):
-    statewide: bool
-    various_locs_unspecified: bool
-    multi_locs_specified: bool
-    endpoint_a: Endpoint | None
-    endpoint_b: Endpoint | None
-
-class Endpoint(BaseModel):
-    endpoint_cleaned: str | None
-    precision: Literal[1, 2, 3, 4, 5, 6] | None
-    anchor_type: Literal[
-        "milepost", "log_mile", "slm", "reference_post", "km_post",
-        "ohio_coded_mp", "station", "exit_number", "highway", "road",
-        "railroad_crossing", "named_bridge", "tunnel",
-        "county_line", "state_line", "waterway", "other_terrain",
-        "city", "city_limits", "county", "region",
-        "other_landmark", "unknown"
-    ] | None
-    city: str | None
-    county: str | None
-    mile_num: float | None
-    exit_num: int | None
-    cross_feature_name: str | None
-    offset_dist: float | None
-    offset_unit: Literal["mi", "km", "ft"] | None
-    offset_direction: Literal["N", "S", "E", "W", "NE", "NW", "SE", "SW"] | None
-    offset_qualifier: Literal["exact", "near", "approx"] | None
-```

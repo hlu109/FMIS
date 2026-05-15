@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 class Endpoint(BaseModel):
     endpoint_cleaned: Optional[str] = None
-    precision: Optional[Literal[1, 2, 3, 4, 5, 6]] = None
+    precision: Optional[Literal["1", "2", "3", "4", "5", "6"]] = None
     anchor_type: Optional[Literal[
         "milepost", "log_mile", "slm", "reference_post", "km_post",
         "ohio_coded_mp", "station", "exit_number", "highway", "road",
