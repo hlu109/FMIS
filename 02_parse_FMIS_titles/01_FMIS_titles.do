@@ -26,6 +26,9 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
+global geocoding_dir "$intermediate_data/geocoding"
+if !direxists("$geocoding_dir") mkdir "$geocoding_dir"
+
 * load FMIS data
 use "$intermediate_data/project_level_FMIS.dta", clear
 
@@ -41,6 +44,15 @@ sort completion_year recipientid federal_project_number
 
 gen constauthyear = year(authconstdate)
 
+* extract the route number from the federal project number
+gen str3 route_fpn_str = substr(strtrim(federal_project_number), 1, 3)
+gen str3 route_fpn = ustrregexra(route_fpn_str, "[A-Za-z]", "")
+destring route_fpn, replace
+
+* add state and county names 
+decode state_fips, gen(state_name)
+decode county_fips, gen(county_name)
+
 * keep only project titles and some key variables
-keep recipientid federal_project_number projecttitle projectdescription state_fips countyid county_fips total_cost_bills_adjusted completion_year constauthyear
-save "$data/Hannah sandbox/FMIS_interstate_project_titles.dta", replace
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name countyid county_fips county_name  route_fpn total_cost_bills_adjusted completion_year constauthyear
+save "$geocoding_dir/FMIS_interstate_project_titles.dta", replace
