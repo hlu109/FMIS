@@ -18,11 +18,11 @@ def main():
     # --------------------------------------------------------------------------
     os.makedirs(config.gemini_dir, exist_ok=True)
     os.makedirs(config.log_dir, exist_ok=True)
-    os.makedirs(config.results_dir, exist_ok=True)
-    os.makedirs(config.temp_dir, exist_ok=True)
+    os.makedirs(config.run_dir, exist_ok=True)
 
     print(f"Using prompt: {config.prompt_text_path}")
-    print(f"Saving output in: {config.results_dir}")
+    print(f"Intermediate JSONs: {config.run_dir}")
+    print(f"Final CSV: {config.OUTPUT_PATH}")
 
     # --------------------------------------------------------------------------
     # Create Gemini client
@@ -84,8 +84,7 @@ def main():
         sample_stratum_counts=sample_stratum_counts,
     )
 
-    outpath = os.path.join(config.results_dir, config.OUTPUT_FILE_NAME)
-    print(f"Output path: {outpath}")
+    outpath = str(config.OUTPUT_PATH)
 
     # --------------------------------------------------------------------------
     # Run parsing
@@ -98,7 +97,7 @@ def main():
             prompt_text=task,
             model_id=config.gemini_model_id,
             outfile_path=outpath,
-            intermediate_dir=config.temp_dir,
+            intermediate_dir=str(config.run_dir),
             row_indices=row_indices,
             log_dir=config.log_dir,
             identifier=config.identifier,

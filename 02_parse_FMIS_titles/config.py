@@ -59,7 +59,8 @@ random_seed = 42
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 identifier = timestamp
-OUTPUT_FILE_NAME = "fmis_interstate_parsed_titles_" + identifier + ".csv"
-
-results_dir = gemini_dir / ("run_" + identifier)
-temp_dir = results_dir / "temp"
+RUN_PREFIX = "fmis_interstate_parsed_titles"
+run_name = f"{RUN_PREFIX}_{identifier}"
+OUTPUT_FILE_NAME = f"{run_name}.csv"
+run_dir = gemini_dir / run_name
+OUTPUT_PATH = gemini_dir / OUTPUT_FILE_NAME

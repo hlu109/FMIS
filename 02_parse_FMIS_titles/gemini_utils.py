@@ -115,7 +115,7 @@ def extract_title_data(genai_client,
     Parameters:
         genai_client: Gemini API client.
         project_input (dict): Dict with project title and metadata fields
-            (project_title, state_fips, state_name, county_fips, county_name, route_num).
+            (project_title, state_fips, state_name, county_fips, county_name, route_fpn).
         data_struct (BaseModel): Pydantic model for structured output.
         prompt_text (str): Prompt text in raw text form.
         model_id (str): Gemini model ID.
@@ -246,10 +246,10 @@ def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_
 
     partial_df = pd.concat(all_dataframes, ignore_index=True)
 
-    # rearrange so raw_project_title is first column
-    if "raw_project_title" in partial_df.columns:
-        partial_df = partial_df[["raw_project_title"] + [
-            col for col in partial_df.columns if col != "raw_project_title"
+    # rearrange so project_title is first column
+    if "project_title" in partial_df.columns:
+        partial_df = partial_df[["project_title"] + [
+            col for col in partial_df.columns if col != "project_title"
         ]]
 
     partial_df.to_csv(outfile_path, index=False)
@@ -324,7 +324,7 @@ def process_titles(genai_client,
             #     row_df["recipient_id"] = recipient_id
             #     row_df["federal_project_number"] = fpn
             #     row_df["model_id"] = result_json.get("model_id")
-            #     row_df["raw_project_title"] = result_json.get("raw_project_title")
+            #     row_df["project_title"] = result_json.get("project_title")
             #     all_dataframes.append(row_df)
             #     continue
 
@@ -336,7 +336,7 @@ def process_titles(genai_client,
                 "state_name": str(row.get("state_name", "")),
                 "county_fips": _format_county_fips(row.get("county_fips")),
                 "county_name": str(row.get("county_name", "")),
-                "route_num": int(row["route_fpn"]) if pd.notna(row.get("route_fpn")) else None,
+                "route_fpn": int(row["route_fpn"]) if pd.notna(row.get("route_fpn")) else None,
             }
 
             if project_input["project_title"] == "":
@@ -372,10 +372,10 @@ def process_titles(genai_client,
                     "recipient_id": recipient_id,
                     "federal_project_number": fpn,
                     "model_id": model_id,
-                    "raw_project_title": project_input["project_title"],
                 }
+                runtime_metadata.update(project_input)
 
-                # add additional tracked information to the json 
+                # add additional metadata to the json 
                 result_json = result.model_dump()
                 result_json.update(runtime_metadata)
 
@@ -428,8 +428,8 @@ def process_titles(genai_client,
 
     if all_dataframes:
         final_df = pd.concat(all_dataframes, ignore_index=True)
-        # rearrange so raw_project_title is first column
-        final_df = final_df[["raw_project_title"] + [col for col in final_df.columns if col != "raw_project_title"]]
+        # rearrange so project_title is first column
+        final_df = final_df[["project_title"] + [col for col in final_df.columns if col != "project_title"]]
 
         print(f"\n Generated dataframe with {final_df.shape[0]} rows")
         final_df.to_csv(outfile_path, index=False)

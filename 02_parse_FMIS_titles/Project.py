@@ -3,6 +3,14 @@ from pydantic import BaseModel
 from typing import Literal, Optional
 
 
+class MainRoute(BaseModel):
+    route_designation: Optional[str] = None
+    route_type: Optional[Literal["interstate", "us_route", "state_route", "other"]] = None
+    route_num: Optional[int] = None
+
+
+
+
 class Endpoint(BaseModel):
     endpoint_cleaned: Optional[str] = None
     precision: Optional[Literal["1", "2", "3", "4", "5", "6"]] = None
@@ -29,11 +37,19 @@ class Project(BaseModel):
     statewide: bool
     various_locs_unspecified: bool
     multi_locs_specified: bool
+    main_route: Optional[MainRoute] = None
     endpoint_a: Optional[Endpoint] = None
     endpoint_b: Optional[Endpoint] = None
 
-
+MAIN_ROUTE_FIELDS = list(MainRoute.model_fields.keys())
 ENDPOINT_FIELDS = list(Endpoint.model_fields.keys())
+
+
+def _flatten_main_route(main_route: Optional[MainRoute]) -> dict:
+    if main_route is None:
+        return {f"main_route_{field}": None for field in MAIN_ROUTE_FIELDS}
+    data = main_route.model_dump()
+    return {f"main_route_{field}": data[field] for field in MAIN_ROUTE_FIELDS}
 
 
 def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
@@ -50,6 +66,7 @@ def project_to_dataframe(project: Project) -> pd.DataFrame:
         "various_locs_unspecified": project.various_locs_unspecified,
         "multi_locs_specified": project.multi_locs_specified,
     }
+    row.update(_flatten_main_route(project.main_route))
     row.update(_flatten_endpoint(project.endpoint_a, "A"))
     row.update(_flatten_endpoint(project.endpoint_b, "B"))
     return pd.DataFrame([row])
