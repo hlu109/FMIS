@@ -47,9 +47,9 @@ ENDPOINT_FIELDS = list(Endpoint.model_fields.keys())
 
 def _flatten_main_route(main_route: Optional[MainRoute]) -> dict:
     if main_route is None:
-        return {f"main_route_{field}": None for field in MAIN_ROUTE_FIELDS}
+        return {f"main_{field}": None for field in MAIN_ROUTE_FIELDS}
     data = main_route.model_dump()
-    return {f"main_route_{field}": data[field] for field in MAIN_ROUTE_FIELDS}
+    return {f"main_{field}": data[field] for field in MAIN_ROUTE_FIELDS}
 
 
 def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:

@@ -19,7 +19,7 @@ def write_log(message, log_dir, identifier):
         os.makedirs(log_dir)
     file_path = os.path.join(log_dir, f"log_{identifier}.txt")
     with open(file_path, "a", encoding="utf-8") as file:
-        timestamp = datetime.now().strftime("%H%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
         file.write(f"[{timestamp}] {message}\n\n")
 
 
@@ -304,7 +304,7 @@ def process_titles(genai_client,
 
     try:
         for i, (idx, row) in enumerate(df_subset.iterrows()):
-            recipient_id = row.get("recipientid", "")
+            recipient_id = _format_state_fips(row.get("recipientid"))
             fpn = row.get("federal_project_number", "")
             proj_id = f"{recipient_id}_{fpn}"
             json_path = os.path.join(intermediate_dir, 

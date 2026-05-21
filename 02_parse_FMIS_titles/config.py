@@ -34,7 +34,7 @@ else:
     raise ValueError("Update config with machine-specific paths.")
 
 
-INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_project_titles.dta"
+INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_newconstr_project_titles.dta"
 
 # SET OUTPUT PATHS -------------------------------------------------------------
 gemini_dir = GEOCODING_DIR / "title_parsing_gemini_output"
@@ -49,7 +49,7 @@ page_schema = Project
 # Project filtering (optional)
 row_indices = None 
 # row_indices = [27, 28, 29, 30]          # manual override; if set, skip auto sample
-sample_n = 100                # if set (and row_indices is None), sample this many rows
+sample_n = 1000                # if set (and row_indices is None), sample this many rows
 sample_stratify_by = ["state_fips"]
 random_seed = 42
 

@@ -37,25 +37,27 @@ The main route often appears at the start of the title, written in one of these 
 - `IH 80` — "Interstate Highway" abbreviation
 - `FAI 80` — "Federal Aid Interstate" abbreviation
 - `ON I-80 FROM ...` — preceded by "ON"
-
-It is also possible that the main route is referred to by an alternate name or vanity name rather than the route number. 
-
 However, it is also possible that the main route is present but does not appear at the start. 
+
+It is also possible that the main route is referred to by an alternate name or vanity name rather than the route number. Think of `route_designation` as the cleaned version of the raw text while `route_type` and `route_num` reflect the canonical parsed data. They may differ when the title uses a concurrent designation, an alternate/vanity name, or a historically renumbered route.
 
 Finally, it is possible that the main route is absent from the title, in which case, return `null`.
 
-**route_designation**: Expand abbreviations from the title into a clean, geocodable phrase. Do NOT infer any other geographic context. If a named routem vanity name, or alternate name is given instead of a route number, capture the name used in the title rather than the primary name. (E.g., if a title says `"Baltimore Beltway"`, capture `"Baltimore Beltway"` instead of Interstate 695.)
+**route_designation**: Expand abbreviations from the title into a clean, geocodable phrase. Do NOT infer any other geographic context. If a named route, vanity name, or alternate name is given instead of a route number, capture the name used in the title rather than the primary name. (E.g., if a title says `"Baltimore Beltway"`, capture `"Baltimore Beltway"` instead of Interstate 695.)
 
-**route_type**: The highway classification. If an alternate name or vanity name is given, infer the route number using context of the American highway system. 
-
-Options:
+**route_type**: The canonical, modern day, highest-class highway classification. Options:
 - `interstate`: Interstate highway (`I-XX`, `IR XX`, `IH XX`, `FAI XX`)
 - `us_route`: US numbered route (`US-XX`)
 - `state_route`: State highway or state route (`SR`, `SH`, `TH`, and other state-specific prefixes)
 - `local_road`: County road, township road, or named local road
 - `other`: Other route type not covered above
 
-**route_num**: The numeric route number. Read from the title; do **not** infer or backfill from `route_num`. If an alternate name or vanity name is given, infer the route number using context of the American highway system. 
+**route_num**: The canonical, modern-day numeric route number of the highest class route designation. Do not backfill from `route_num`, but you may infer the route number if an alternate name or vanity name is given, using context of the American highway system. 
+
+Use the provided `state_name` and `county_name` to resolve concurrent designations, alternate or vanity names, and apply historical renumbering knowledge in `route_type` and `route_num`. E.g., 
+- Concurrent routes: If the main route is a state/US route that runs concurrently with a higher-class route in that state, populate `route_type` and `route_num` with the higher-class route. 
+- Renumbered routes: If the route in the title was historically renumbered, use the current route and number in `route_type` and `route_num`. The original designation still goes in `route_designation`.
+
 
 ## Endpoint extraction
 
@@ -66,12 +68,12 @@ If none of the title-level flags are activated, search for endpoints, identified
 
 **endpoint_cleaned**: Expand abbreviations from the title into a clean, geocodable phrase. Do NOT infer any other geographic context (e.g., do not guess which county an exit is in, do not guess a city based on a route, do not guess neighborhoods). 
 
-No need to specify "interchange" or "junction" if the endpoint is at precision level 4 – it is already implicitly captured by the coding. 
+Do not include terms like "interchange", "junction", or "intersection". These are implicit in the precision level and anchor_type coding.
 
 **precision**: Assign based on the most precise information present:
 - `6` = linear reference (milepost, log mile, SLM, reference post, KM post, Ohio coded, station)
 - `5` = exit number
-- `4` = intersection or crossing with a named feature (road, highway, river, railroad, etc.) 
+- `4` = intersection or crossing with a named feature (road, highway, river, railroad, named bridge, boundary line of county/state, etc.)
 - `3` = offset (distance + direction) from a precise anchor (intersection, exit, milepost)
 - `2` = offset from an imprecise named place anchor (city, county, region)
 - `1` = named place only (city, county, region)
@@ -91,7 +93,7 @@ No need to specify "interchange" or "junction" if the endpoint is at precision l
 - `named_bridge`: named bridge
 - `tunnel`: named tunnel
 - `county_line`: county boundary (CO.L., CO LINE, C/L)
-- `state_line`: state boundary (S.L., STATE LINE, S/L)
+- `state_line`: state boundary (S.L., STATE LINE, S/L). Also code international boundaries as a state boundary.
 - `waterway`: named river, fork, branch, creek, run, brook, etc.
 - `other_terrain`: other natural feature not covered above
 - `city`: city, town, village, or borough name
@@ -107,7 +109,7 @@ No need to specify "interchange" or "junction" if the endpoint is at precision l
 
 **exit_num**: The numeric exit value, applicable only when `precision == 5`. 
 
-**cross_feature_name**: The name of the intersecting feature, applicable only when `precision == 4`. E.g., road name, highway name, river name, railroad name. 
+**cross_feature_name**: The name of the intersecting feature, applicable only when `precision == 4`. E.g., road name, highway name, river name, railroad name, bridge name, etc. For county/state lines, format it as e.g., "Franklin County Line", "Ohio State Line".
 
 **offset_dist**, **offset_unit**, **offset_direction**: Applicable only when `precision == 2` or `precision == 3`. Extract the numeric distance, unit (e.g., "mi", "km", "ft"), and cardinal direction. If "NEAR" or "NR" appears with no numeric distance, leave `offset_dist` and `offset_direction` as `null` and set `offset_qualifier = "near"`.
 
@@ -137,7 +139,7 @@ No need to specify "interchange" or "junction" if the endpoint is at precision l
 Examples:
 - "0.5 MI N OF SR 267" → "0.5 miles north of State Route 267"
 - "CUY IR 480 05.40" → "Milepost 5.40 on Interstate 480"
-- "JCT I-10" → "Junction with Interstate 10"
+- "JCT I-10" → "Interstate 10"
 - "AT STEVENSON BLVD" → "At Stevenson Boulevard"
 - "I-75 OVER BIG PINEY RIVER" → "Interstate 75 over Big Piney River"
 

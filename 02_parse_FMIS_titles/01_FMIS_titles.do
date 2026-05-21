@@ -54,5 +54,11 @@ decode state_fips, gen(state_name)
 decode county_fips, gen(county_name)
 
 * keep only project titles and some key variables
-keep recipientid federal_project_number projecttitle projectdescription state_fips state_name countyid county_fips county_name  route_fpn total_cost_bills_adjusted completion_year constauthyear
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name countyid county_fips county_name  route_fpn total_cost_bills_adjusted completion_year constauthyear has_new_construction
 save "$geocoding_dir/FMIS_interstate_project_titles.dta", replace
+
+* restrict to projects with new construction
+keep if has_new_construction
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name countyid county_fips county_name  route_fpn total_cost_bills_adjusted completion_year constauthyear
+save "$geocoding_dir/FMIS_interstate_newconstr_project_titles.dta", replace
+
