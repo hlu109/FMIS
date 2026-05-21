@@ -1,6 +1,7 @@
 from google import genai
 import os
 import sys
+import time
 from pathlib import Path
 import pandas as pd
 
@@ -89,6 +90,7 @@ def main():
     # --------------------------------------------------------------------------
     # Run parsing
     # --------------------------------------------------------------------------
+    start_time = time.time()
     try:
         process_titles(
             client,
@@ -102,8 +104,10 @@ def main():
             log_dir=config.log_dir,
             identifier=config.identifier,
         )
-        write_log("PROCESS COMPLETE", config.log_dir, config.identifier)
-        print("\nParsing complete!")
+        elapsed_hrs = (time.time() - start_time) / 3600
+        write_log(f"PROCESS COMPLETE. Run time: {elapsed_hrs:.2f} hrs",
+                  config.log_dir, config.identifier)
+        print(f"\nParsing complete! Run time: {elapsed_hrs:.2f} hrs")
     except RateLimitException as e:
         write_log(f"RUN ABORTED: {e}", config.log_dir, config.identifier)
         print(f"\nRun aborted due to fatal rate limit: {e}")

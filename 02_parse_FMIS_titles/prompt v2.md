@@ -2,7 +2,7 @@
 
 You are given a JSON object containing the title of a highway construction project, along with state and county metadata. Your task is to extract structured location information about the project's main route and endpoints, following the schema defined in the `Project`, `MainRoute`, and `Endpoint` data classes.
 
-Do not omit or hallucinate fields. If information is not present in the title, return `null` for that field rather than guessing.
+Do not omit or hallucinate fields. If information is not present or easily inferrable from a field, return `null` rather than guessing.
 
 
 ## Input
@@ -13,7 +13,7 @@ You will receive a JSON object containing::
 - `state_name` (string): the state name resolved from `state_fips` 
 - `county_fips` (string): the 5-digit FIPS code for the dominant county where the project is located
 - `county_name` (string): the county name resolved from `county_fips`
-- `route_fpn` (integer or null): metadata with the main route number extracted from an alternate source. If a highway in the title matches this number, treat it as strong evidence that highway is the main route and do **not** code it as an endpoint. Do **not** use `route_fpn` to populate `main_route` fields if the route does not appear in the title text.
+- `route_fpn` (integer or null): metadata with the main route number extracted from an alternate source. If a highway in the title matches this number, treat it as strong evidence that highway is the main route and do **not** code it as an endpoint. Do **NOT** use `route_fpn` to populate `main_route` fields if the route does not appear in the title text.
 
 
 ## Title-level flags
@@ -27,7 +27,7 @@ Set these first. If any is `True`, set `main_route`, `endpoint_a`, and `endpoint
 
 ## Main route extraction
 
-Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified from text explicitly present in the title. Do **not** infer or backfill from `route_fpn`.
+Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names.)
 
 The main route often appears at the start of the title, written in one of these forms:
 - `I-80` — dash separator (most common)
@@ -39,22 +39,24 @@ The main route often appears at the start of the title, written in one of these 
 - `ON I-80 FROM ...` — preceded by "ON"
 However, it is also possible that the main route is present but does not appear at the start. 
 
-It is also possible that the main route is referred to by an alternate name or vanity name rather than the route number. Think of `route_designation` as the cleaned version of the raw text while `route_type` and `route_num` reflect the canonical parsed data. They may differ when the title uses a concurrent designation, an alternate/vanity name, or a historically renumbered route.
+It is also possible that the main route is referred to by an alternate name or vanity name rather than the route number. Think of `route_designation` as the cleaned and standardized version of the raw text while `route_type` and `route_num` reflect the canonical, present-day parsed data. They may differ when the title uses a concurrent designation, an alternate/vanity name, or a historically renumbered route.
 
-Finally, it is possible that the main route is absent from the title, in which case, return `null`.
+Finally, it is possible that the main route is absent from the title, in which case, return `null`. **If the main route is absent, DO NOT use `route_fpn` to backfill the information.**
+
+**Do not promote an endpoint anchor to main route.** A highway that appears only as a cross-feature within an endpoint reference — e.g., after "from", "to", "at", or as an offset anchor — is serving as a location landmark, not as the main route. 
 
 **route_designation**: Expand abbreviations from the title into a clean, geocodable phrase. Do NOT infer any other geographic context. If a named route, vanity name, or alternate name is given instead of a route number, capture the name used in the title rather than the primary name. (E.g., if a title says `"Baltimore Beltway"`, capture `"Baltimore Beltway"` instead of Interstate 695.)
 
-**route_type**: The canonical, modern day, highest-class highway classification. Options:
+**route_type**: The canonical, modern day, highest-class highway classification. Options include:
 - `interstate`: Interstate highway (`I-XX`, `IR XX`, `IH XX`, `FAI XX`)
 - `us_route`: US numbered route (`US-XX`)
 - `state_route`: State highway or state route (`SR`, `SH`, `TH`, and other state-specific prefixes)
 - `local_road`: County road, township road, or named local road
 - `other`: Other route type not covered above
 
-**route_num**: The canonical, modern-day numeric route number of the highest class route designation. Do not backfill from `route_num`, but you may infer the route number if an alternate name or vanity name is given, using context of the American highway system. 
+**route_num**: The canonical, modern-day numeric route number of the highest class route designation. Do **NOT** backfill from `route_fpn`. You may only use `route_fpn` to help resolve cases where an alternate name or vanity name is given. 
 
-Use the provided `state_name` and `county_name` to resolve concurrent designations, alternate or vanity names, and apply historical renumbering knowledge in `route_type` and `route_num`. E.g., 
+Use the provided `state_name`, `county_name`, and `route_fpn` to help resolve concurrent designations, alternate or vanity names, and apply historical renumbering knowledge in `route_type` and `route_num`. E.g., 
 - Concurrent routes: If the main route is a state/US route that runs concurrently with a higher-class route in that state, populate `route_type` and `route_num` with the higher-class route. 
 - Renumbered routes: If the route in the title was historically renumbered, use the current route and number in `route_type` and `route_num`. The original designation still goes in `route_designation`.
 
@@ -121,7 +123,7 @@ Do not include terms like "interchange", "junction", or "intersection". These ar
 
 ## Extraction rules
 
-1. **DO NOT HALLUCINATE.** NOT ALL FIELDS CAN BE FILLED. Return `null` if a field is not supported directly by the title text or the input metadata. Do not infer locations that are not present in the title. Do not use prior knowledge to fill in geographic context (e.g., do not guess which township an exit is in, do not guess a county based on a route, do not guess a road's name from its number).
+1. **DO NOT HALLUCINATE.** NOT ALL FIELDS CAN BE FILLED. Return `null` if a field is not supported directly by the title text is inferrable using the title, input metadata, and prior knowledge about the American highway system. Do not infer locations that are not present in the title. Do not make up information to fill in geographic context (e.g., do not guess which township an exit is in, do not guess a county based on a route).
 
 2. **Prefer the most precise anchor available.** But always populate additional location context variables when available. 
 

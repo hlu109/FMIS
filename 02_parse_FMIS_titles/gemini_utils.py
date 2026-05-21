@@ -410,6 +410,17 @@ def process_titles(genai_client,
             print(f"Average time per project so far: {avg_time_per_project:.2f} s")
             print(f"Projects with no Gemini output so far: {error_count}")
 
+            if (i + 1) % 10 == 0:
+                _log_and_print(f"Progress: {i + 1}/{total_rows}",
+                               log_dir, identifier)
+                _log_and_print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs",
+                               log_dir, identifier)
+                _log_and_print(f"Average time per project so far: {avg_time_per_project:.2f} s",
+                               log_dir, identifier)
+                _log_and_print(f"Projects with no Gemini output so far: {error_count}",
+                               log_dir, identifier)
+
+
     except KeyboardInterrupt:
         row_info = (
             f"on row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}"

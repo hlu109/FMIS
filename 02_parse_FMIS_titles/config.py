@@ -11,8 +11,10 @@ from Project import Project
 # ------------------------------------------------------------------------------
 
 # Set API Parameters -------------------------------------------
-gemini_model_id = "gemini-2.5-flash"
+# gemini_model_id = "gemini-2.5-flash"
 # gemini_model_id = "gemini-2.5-pro"
+# gemini_model_id = "gemini-3.1-pro"
+gemini_model_id = "gemini-3.5-flash"
 
 # Set File Paths -------------------------------------------
 username = getpass.getuser()
@@ -49,8 +51,8 @@ page_schema = Project
 # Project filtering (optional)
 row_indices = None 
 # row_indices = [27, 28, 29, 30]          # manual override; if set, skip auto sample
-sample_n = 1000                # if set (and row_indices is None), sample this many rows
-sample_stratify_by = ["state_fips"]
+sample_n = 100                # if set (and row_indices is None), sample this many rows
+sample_stratify_by = ["state_fips", "post_1970_auth", "below_median_cost"]
 random_seed = 42
 
 # ------------------------------------------------------------------------------
