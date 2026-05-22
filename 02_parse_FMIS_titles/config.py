@@ -11,10 +11,10 @@ from Project import Project
 # ------------------------------------------------------------------------------
 
 # Set API Parameters -------------------------------------------
-# gemini_model_id = "gemini-2.5-flash"
+gemini_model_id = "gemini-2.5-flash"
 # gemini_model_id = "gemini-2.5-pro"
 # gemini_model_id = "gemini-3.1-pro"
-gemini_model_id = "gemini-3.5-flash"
+# gemini_model_id = "gemini-3.5-flash"
 
 # Set File Paths -------------------------------------------
 username = getpass.getuser()
@@ -43,7 +43,7 @@ gemini_dir = GEOCODING_DIR / "title_parsing_gemini_output"
 log_dir = GEOCODING_DIR / "title_parsing_gemini_logs"
 
 # SET GEMINI PROMPT ------------------------------------------------------------
-prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / "prompt v1.md"
+prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / "prompt v3.md"
 
 # Set Schema -----------------------------------
 page_schema = Project
@@ -60,7 +60,7 @@ random_seed = 42
 # ------------------------------------------------------------------------------
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-identifier = timestamp
+identifier = "new_constr_v3_" + timestamp
 RUN_PREFIX = "fmis_interstate_parsed_titles"
 run_name = f"{RUN_PREFIX}_{identifier}"
 OUTPUT_FILE_NAME = f"{run_name}.csv"

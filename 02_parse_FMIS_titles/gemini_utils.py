@@ -246,11 +246,13 @@ def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_
 
     partial_df = pd.concat(all_dataframes, ignore_index=True)
 
-    # rearrange so project_title is first column
-    if "project_title" in partial_df.columns:
-        partial_df = partial_df[["project_title"] + [
-            col for col in partial_df.columns if col != "project_title"
-        ]]
+    # rearrange order of columns 
+    front_cols = [
+        "project_title", "state_name", "county_name", "route_fpn",
+    ]
+    partial_df = partial_df[front_cols + [
+        col for col in partial_df.columns if col not in front_cols
+    ]]
 
     partial_df.to_csv(outfile_path, index=False)
 
@@ -439,8 +441,14 @@ def process_titles(genai_client,
 
     if all_dataframes:
         final_df = pd.concat(all_dataframes, ignore_index=True)
-        # rearrange so project_title is first column
-        final_df = final_df[["project_title"] + [col for col in final_df.columns if col != "project_title"]]
+
+        # rearrange order of columns 
+        front_cols = [
+            "project_title", "state_name", "county_name", "route_fpn",
+        ]
+        final_df = final_df[front_cols + [
+            col for col in final_df.columns if col not in front_cols
+        ]]
 
         print(f"\n Generated dataframe with {final_df.shape[0]} rows")
         final_df.to_csv(outfile_path, index=False)
