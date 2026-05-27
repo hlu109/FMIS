@@ -51,19 +51,29 @@ label variable mp_end "milepost end"
 * TODO
 
 * combine consecutive connected segments which opened in the same month
-sort st route open_year open_month mp_start county
+sort st route open_year open_month county mp_start
+
+* segments with missing values shouldn't get pooled in bysort - give unique chain ids 
+gen byte _chain_solo = missing(st) | missing(route) | missing(open_year) | missing(open_month) | missing(county)
 
 * identify chains (with small tolerance for machine rounding errors)
 bysort st route open_year open_month county: ///
-    gen byte chain_break = (_n == 1) | (abs(mp_start - mp_end[_n-1]) > 0.01)
+    gen byte chain_break = (_n == 1) | (abs(mp_start - mp_end[_n-1]) > 0.01) if !_chain_solo
 
 bysort st route open_year open_month county: ///
-    gen int _chain_seq = sum(chain_break)
+    gen int _chain_seq = sum(chain_break) if !_chain_solo
 drop chain_break
 
 * create a globally unique segment ID across the whole dataset
-egen long chain_id = group(st route open_year open_month county _chain_seq)
-drop _chain_seq
+egen long chain_id = group(st route open_year open_month county _chain_seq) if !_chain_solo
+
+* assign unique chain ids to segments with missing values (set the chain ids to increment starting from the current max chain id)
+quietly summarize chain_id, meanonly
+local max_chain = cond(r(N) == 0, 0, r(max))
+egen long _solo_id = seq() if _chain_solo
+replace chain_id = `max_chain' + _solo_id if _chain_solo
+
+drop _chain_solo _chain_seq _solo_id
 
 keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
 save "$intermediate_data/PR511_hubbardmazzeo.dta", replace
@@ -77,7 +87,6 @@ save "$intermediate_data/PR511_hubbardmazzeo_chained.dta", replace
 
 * also save as csv 
 export delimited using "$intermediate_data/PR511_hubbardmazzeo_chained.csv", replace
-exit 
 
 * ==============================================================================
 * Nate Baum PR-511 data
@@ -137,7 +146,7 @@ sort ST mp_start
 
 
 * ==============================================================================
-use "$intermediate_data/PR511_hubbardmazzeo.dta", clear
+use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
 keep if st == 6
 keep if county == 85 | county == 81 // santa clara and san mateo
 global county_lbl_def ///
@@ -146,12 +155,14 @@ global county_lbl_def ///
 label define county_lbl $county_lbl_def, replace
 label values county county_lbl
 sort open_year open_month mp_start
-drop st state region rtereal stgp sh rte
-// keep if route == 280
+drop st state region sh
+keep if route == 280
 
 save "$data/Hannah sandbox/PR511_sanmateo_santaclara.dta", replace
 
-
+// keep if county == 81 
+// sort mp_start 
+// exit
 
 * ==============================================================================
 * Basic stats
