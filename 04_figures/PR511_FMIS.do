@@ -167,8 +167,8 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * ==============================================================================
 // * compute project count by year
 // use "$intermediate_data/project_level_FMIS_lite.dta", clear
-// keep if fp_ic
-// keep if has_new_construction
+// keep if fp_ic == 1
+// keep if has_new_construction == 1
 // rename completion_year year
 
 // egen project_id = group(recipientid federal_project_number)

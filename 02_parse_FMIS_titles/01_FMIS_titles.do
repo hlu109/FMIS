@@ -33,7 +33,7 @@ if !direxists("$geocoding_dir") mkdir "$geocoding_dir"
 use "$intermediate_data/project_level_FMIS.dta", clear
 
 * filter to interstates 
-keep if fp_ic
+keep if fp_ic == 1
 
 * adjust for inflation 
 rename completion_year year
@@ -65,7 +65,7 @@ keep recipientid federal_project_number projecttitle projectdescription state_fi
 save "$geocoding_dir/FMIS_interstate_project_titles.dta", replace
 
 * restrict to projects with new construction
-keep if has_new_construction
+keep if has_new_construction == 1
 
 * recompute the median cost
 summarize total_cost_bills_adjusted, detail

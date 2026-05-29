@@ -171,7 +171,7 @@ foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
 	gen total_cost_mills_adj = total_cost_mills / cpi
 
 	* track spending for different improvement types
-	gen new_construction_cost = total_cost_mills_adj if new_construction
+	gen new_construction_cost = total_cost_mills_adj if new_construction == 1
 	gen row_cost = total_cost_mills_adj if detail_improvementtype == 16
 	gen pe_cost = total_cost_mills_adj if detail_improvementtype == 15
 

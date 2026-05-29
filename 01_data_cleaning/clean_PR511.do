@@ -58,20 +58,20 @@ gen byte _chain_solo = missing(st) | missing(route) | missing(open_year) | missi
 
 * identify chains (with small tolerance for machine rounding errors)
 bysort st route open_year open_month county: ///
-    gen byte chain_break = (_n == 1) | (abs(mp_start - mp_end[_n-1]) > 0.01) if !_chain_solo
+    gen byte chain_break = (_n == 1) | (abs(mp_start - mp_end[_n-1]) > 0.01) if _chain_solo == 0
 
 bysort st route open_year open_month county: ///
-    gen int _chain_seq = sum(chain_break) if !_chain_solo
+    gen int _chain_seq = sum(chain_break) if _chain_solo == 0
 drop chain_break
 
 * create a globally unique segment ID across the whole dataset
-egen long chain_id = group(st route open_year open_month county _chain_seq) if !_chain_solo
+egen long chain_id = group(st route open_year open_month county _chain_seq) if _chain_solo == 0
 
 * assign unique chain ids to segments with missing values (set the chain ids to increment starting from the current max chain id)
 quietly summarize chain_id, meanonly
 local max_chain = cond(r(N) == 0, 0, r(max))
-egen long _solo_id = seq() if _chain_solo
-replace chain_id = `max_chain' + _solo_id if _chain_solo
+egen long _solo_id = seq() if _chain_solo == 1
+replace chain_id = `max_chain' + _solo_id if _chain_solo == 1
 
 drop _chain_solo _chain_seq _solo_id
 

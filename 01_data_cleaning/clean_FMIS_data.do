@@ -121,13 +121,13 @@ gen reconstruction = detail_improvementtype == 2 | detail_improvementtype == 3 |
 gen rehabilitation = detail_improvementtype == 6 | detail_improvementtype == 12 | detail_improvementtype == 13 | detail_improvementtype == 14 | detail_improvementtype == 52 // 4R restoration and rehabilitation, rehabilitation (added capacity), bridge rehabilitation (obsolete), bridge rehabilitation (added capacity), bridge rehabilitation (no added capacity), tunnel rehabilitation
 gen maintenance = detail_improvementtype == 5 | detail_improvementtype == 47 | detail_improvementtype == 48 | detail_improvementtype == 53 | detail_improvementtype == 54 | detail_improvementtype == 59 | detail_improvementtype == 60 // maintenance resurfacing, bridge preventive maintenance, bridge protection, tunnel preventive maintenance, tunnel protection, bridge resurfacing, highway infrastructure preventive maintenance
 gen work_type = .
-replace work_type = 1 if new_construction
-replace work_type = 2 if reconstruction
-replace work_type = 3 if rehabilitation
-replace work_type = 4 if maintenance
+replace work_type = 1 if new_construction == 1
+replace work_type = 2 if reconstruction == 1
+replace work_type = 3 if rehabilitation == 1
+replace work_type = 4 if maintenance == 1
 label define work_type_lbl 1 "New Construction" 2 "Reconstruction" 3 "Rehabilitation" 4 "Maintenance"
 label values work_type work_type_lbl
-gen is_construction = new_construction | reconstruction | rehabilitation
+gen is_construction = new_construction == 1 | reconstruction == 1 | rehabilitation == 1
 label variable is_construction "Construction work includes new construction, reconstruction, and rehabilitation"
 
 * Define project status 

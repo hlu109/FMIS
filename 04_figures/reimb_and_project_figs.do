@@ -53,7 +53,7 @@ forvalues tpass = 1/2 {
     keep if `year_var' >= 1950 & `year_var' < 2025
 
     gen n_proj = 1
-    gen n_proj_ic = 1 if fp_ic
+    gen n_proj_ic = 1 if fp_ic == 1
     gen n_proj_ic_newconstr = 1 if fp_ic == 1 & has_new_construction == 1
 
     preserve
@@ -248,7 +248,7 @@ forvalues tpass = 1/2 {
     keep if `year_var' >= 1950 & `year_var' < 2025 // filter out years without much data
     gen n_reimb = 1
     gen n_reimb_ic = 1 if funding_program == "Interstate Construction"
-    gen n_reimb_ic_newconstr = 1 if funding_program == "Interstate Construction" & new_construction
+    gen n_reimb_ic_newconstr = 1 if funding_program == "Interstate Construction" & new_construction == 1
 
     preserve
     collapse (sum) n_reimb n_reimb_ic n_reimb_ic_newconstr, by(`year_var')
@@ -296,7 +296,7 @@ forvalues tpass = 1/2 {
     merge m:1 year using "$intermediate_data/CPI_2025.dta", nogen
     gen total_mills_all_adj = total_cost_mills / cpi
     gen total_mills_ic_adj = total_mills_all_adj if funding_program == "Interstate Construction"
-    gen total_mills_ic_newconstr_adj = total_mills_all_adj if funding_program == "Interstate Construction" & new_construction
+    gen total_mills_ic_newconstr_adj = total_mills_all_adj if funding_program == "Interstate Construction" & new_construction == 1
     rename year completion_year
 
     preserve
