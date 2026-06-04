@@ -18,23 +18,26 @@ gemini_model_id = "gemini-2.5-flash"
 
 # Set File Paths -------------------------------------------
 username = getpass.getuser()
-if username == "hl2266":
-    PROJECT_ROOT = Path("C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data")
-    DATA_ROOT = PROJECT_ROOT / "Data"
-    RAW_DATA_DIR = DATA_ROOT / "Raw"
-    INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
-    GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
+print(f"Running as user: {username}")
+
+if username == "hl2266": # username is the same between local machine and server, hence need further handling 
+    if os.getcwd().startswith("C:"): # local machine 
+        PROJECT_ROOT = Path("C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data")
+    elif "pi_zdl3" in os.getcwd(): # Yale HPC 
+        PROJECT_ROOT = Path("/nfs/roberts/project/pi_zdl3/shared/FMIS project")
     CODE_ROOT = PROJECT_ROOT / "Code" / "FMIS_hannah"
 elif username == "andersonkovesci":
     PROJECT_ROOT = Path("/Users/andersonkovesci/Dropbox/FHWA cost data")
-    DATA_ROOT = PROJECT_ROOT / "Data"
-    RAW_DATA_DIR = DATA_ROOT / "Raw"
-    INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
-    GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
     CODE_ROOT = PROJECT_ROOT / "Code" / "FMIS_andy"
 else:
     raise ValueError("Update config with machine-specific paths.")
 
+DATA_ROOT = PROJECT_ROOT / "Data"
+RAW_DATA_DIR = DATA_ROOT / "Raw"
+INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
+GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
+
+# ------------------------------------------------------------------------------
 
 INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_newconstr_project_titles.dta"
 
@@ -51,7 +54,7 @@ page_schema = Project
 # Project filtering (optional)
 row_indices = None 
 # row_indices = [27, 28, 29, 30]          # manual override; if set, skip auto sample
-sample_n = 100                # if set (and row_indices is None), sample this many rows
+sample_n = 10                # if set (and row_indices is None), sample this many rows
 sample_stratify_by = ["state_fips", "post_1970_auth", "below_median_cost"]
 random_seed = 42
 
