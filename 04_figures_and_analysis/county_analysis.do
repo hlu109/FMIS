@@ -48,8 +48,8 @@ drop _merge
 replace state_capital_county = 0 if missing(state_capital_county)
 
 gen county_status = countyid
-replace county_status = 1 if state_capital_county
-replace county_status = 2 if countyid != 999 & countyid != 0 & !state_capital_county & !missing(countyid)
+replace county_status = 1 if state_capital_county == 1
+replace county_status = 2 if countyid != 999 & countyid != 0 & state_capital_county == 0 & !missing(countyid)
 replace county_status = 0 if missing(countyid)
 global county_status_lbl_def ///
     999  "Statewide" ///

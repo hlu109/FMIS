@@ -585,7 +585,7 @@ graph export "$output/IC_impvmt_codes_share.png", replace width(2500)
 use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if funding_program == "Interstate Construction"
 drop if detail_improvementtype == 5 | detail_improvementtype == 59 // drop maintenance resurfacing and bridge resurfacing
-gen new_const_cost_mills = total_cost_mills if new_construction
+gen new_const_cost_mills = total_cost_mills if new_construction == 1
 
 * collapse to project level with an indicator for whether there is at least one new construction receipt
 collapse (sum) total_cost_mills new_const_cost_mills (max) new_construction (firstnm) completedate completion_year, by(recipientid federal_project_number)

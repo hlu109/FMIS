@@ -34,6 +34,9 @@ if (user == "andersonkovesci") {
 source(file.path(getwd(), "utils/fig_utils.R"))
 
 # ==============================================================================
+pr511_intermediate <- file.path(intermediate_data_dir, "PR_511")
+dir.create(pr511_intermediate, recursive = TRUE, showWarnings = FALSE)
+
 regr_dir <- file.path(output_dir, "duration_regression")
 dir.create(regr_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -103,7 +106,7 @@ fmis_panel <- fmis_panel %>%
 
 # PR-511 cell mileage 
 pr511 <- read_dta(
-  file.path(intermediate_data_dir, "PR511_hubbardmazzeo_chained.dta")) %>%
+  file.path(pr511_intermediate, "PR511_hubbardmazzeo_chained.dta")) %>%
   filter(!is.na(open_year)) %>%
   mutate(
     st = as.integer(st),

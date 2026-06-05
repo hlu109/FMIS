@@ -26,6 +26,9 @@ else {
 if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
+
 global out_dir "$output/interstate_route_check"
 if !direxists("$out_dir") mkdir "$out_dir"
 
@@ -142,7 +145,7 @@ label value route_fpn_matches_any_extracted route_fpn_extr_lbl
 
 tempfile pr511_county pr511_county_route
 preserve
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 rename st state_fips
 rename county countyid
 keep if inrange(state_fips, 1, 56)

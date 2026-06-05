@@ -40,42 +40,42 @@ gen is_various_locations = regexm(projecttitle, "VARIOUS")
 * useful indicator variables for project quality 
 gen has_title = !missing(projecttitle)
 gen endp_count = (endpoint_a_raw != "" & precision_a >= 2) + (endpoint_b_raw != "" & precision_b >= 2)
-replace endp_count = 0 if is_statewide | is_various_locations
+replace endp_count = 0 if is_statewide == 1 | is_various_locations == 1
 gen has_2_endps = endp_count == 2
 gen has_1_endp = endp_count == 1
 
 * generate max and min precisions 
 gen max_precision = max(precision_a, precision_b)
 gen min_precision = .
-replace min_precision = min(precision_a, precision_b) if has_2_endps
+replace min_precision = min(precision_a, precision_b) if has_2_endps == 1
 
 preserve 
-keep if has_1_endp
+keep if has_1_endp == 1
 tab max_precision, m
 restore
 preserve 
-keep if has_2_endps
+keep if has_2_endps == 1
 tab max_precision, m
 tab min_precision, m
 restore
 
 
 * compute share (by cost) of projects by title quality 
-gen cost_has_title = has_title * total_cost_bills_adjusted
-gen cost_has_2_endps = has_2_endps * total_cost_bills_adjusted
-gen cost_has_1_endp = has_1_endp * total_cost_bills_adjusted
+gen cost_has_title = (has_title == 1) * total_cost_bills_adjusted
+gen cost_has_2_endps = (has_2_endps == 1) * total_cost_bills_adjusted
+gen cost_has_1_endp = (has_1_endp == 1) * total_cost_bills_adjusted
 gen cost_has_endps = cost_has_2_endps + cost_has_1_endp
 
 * has 2 endpoints and precision 4-6 for both
-gen cost_2_endp_prec46x2 = (has_2_endps & min_precision >= 4) * total_cost_bills_adjusted
+gen cost_2_endp_prec46x2 = (has_2_endps == 1 & min_precision >= 4) * total_cost_bills_adjusted
 * has 2 endpoints with one precision 4-6 and one precision 2-3
-gen cost_2_endp_prec46x1 = (has_2_endps & max_precision >= 4 & min_precision >= 2 & min_precision <= 3) * total_cost_bills_adjusted
+gen cost_2_endp_prec46x1 = (has_2_endps == 1 & max_precision >= 4 & min_precision >= 2 & min_precision <= 3) * total_cost_bills_adjusted
 * has 1 endpoint and precision 4-6
-gen cost_1_endp_prec46 = (has_1_endp & max_precision >= 4) * total_cost_bills_adjusted
+gen cost_1_endp_prec46 = (has_1_endp == 1 & max_precision >= 4) * total_cost_bills_adjusted
 * has 2 endpoints and precision 2-3 for both
-gen cost_2_endp_prec3x2 = (has_2_endps & min_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
+gen cost_2_endp_prec3x2 = (has_2_endps == 1 & min_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
 * has 1 endpoint and precision 2-3
-gen cost_1_endp_prec3 = (has_1_endp & max_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
+gen cost_1_endp_prec3 = (has_1_endp == 1 & max_precision >= 2 & max_precision <= 3) * total_cost_bills_adjusted
 
 keep if year >= 1950 & year < 2025
 

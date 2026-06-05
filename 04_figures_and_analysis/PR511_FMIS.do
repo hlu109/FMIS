@@ -28,6 +28,9 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 global fig_height = 384 // 4 inches, so it fits on Google Docs nicely 
 
 * ==============================================================================
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
+
 global out_dir "$output/PR511_FMIS"
 if !direxists("$out_dir") mkdir "$out_dir"
 global match_dir "$intermediate_data/PR511_FMIS"
@@ -40,7 +43,7 @@ global match_window_note ///
     "Match allows FMIS project completion year to be ${pre_pr_window} years before to ${post_pr_window} years after PR-511 open year."
 
 * derive PR-511 year bounds
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 quietly summarize open_year
 global pr_open_year_min = r(min)
 global pr_open_year_max = r(max)
@@ -69,7 +72,7 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // save `fmis_state_year'
 
 // * load and collapse PR-511 interstate openings to state-year miles opened
-// use "$intermediate_data/PR511_hubbardmazzeo.dta", clear
+// use "$pr511_intermediate/PR511_hubbardmazzeo.dta", clear
 // rename st state_fips
 // rename open_year year
 // collapse (sum) interstate_mi = seg_len, by(state_fips year)
@@ -167,8 +170,8 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * ==============================================================================
 // * compute project count by year
 // use "$intermediate_data/project_level_FMIS_lite.dta", clear
-// keep if fp_ic
-// keep if has_new_construction
+// keep if fp_ic == 1
+// keep if has_new_construction == 1
 // rename completion_year year
 
 // egen project_id = group(recipientid federal_project_number)
@@ -177,7 +180,7 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // save `fmis_project_count'
 
 // * compute miles opened by year
-// use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+// use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 // rename open_year year
 // collapse (sum) mi_opened = chain_len, by(year)
 // keep year mi_opened
@@ -281,7 +284,7 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * ============
 // * for PR-511
 // * ============
-// use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+// use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 // drop if open_year < 1950 | mi(open_year)
 // gen county_fips = real(string(st, "%02.0f") + string(county, "%03.0f")) if !mi(st) & !mi(county)
 // gen county_fips_x_route = real(string(st, "%02.0f") + string(county, "%03.0f") + string(route, "%03.0f")) if !mi(st) & !mi(county) & !mi(route)

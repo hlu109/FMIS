@@ -27,7 +27,7 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
 global duration_dir "$output/project_duration"
 if !direxists("$duration_dir") mkdir "$duration_dir"
-global pr511_intermediate "$intermediate_data/pr_511"
+global pr511_intermediate "$intermediate_data/PR_511"
 if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
 
 * ==============================================================================
@@ -54,7 +54,7 @@ drop cpi total_cost_mills
 * ==============================================================================
 // * look at outliers with really long durations of construction stage 
 // // preserve
-// drop if mi(is_construction) | !is_construction
+// drop if mi(is_construction) | is_construction == 0
 // drop if mi(const_duration)
 // keep if const_duration > 20 // years 
 
@@ -158,7 +158,7 @@ drop cpi total_cost_mills
 
 // * number of reimbursements over time that have a construction start and end date (IC, construction; count)
 // preserve 
-// keep if is_construction
+// keep if is_construction == 1
 // collapse ///
 //     (sum) has_completedate has_both_dates total_rows, by(completion_year)
 // replace total_rows = total_rows / 1000
@@ -658,7 +658,7 @@ foreach subsample in full {
     // * histogram of duration for all reimbursements for any construction
     // preserve
     // drop if mi(const_duration)
-    // keep if is_construction
+    // keep if is_construction == 1
     // histogram const_duration, frequency ///
     //     title("Time between construction authorization and completion", size(medium)) ///
     //     subtitle("Interstate Construction; new construction, reconstruction, and rehabilitation reimbursements", size(small)) ///
@@ -759,7 +759,7 @@ foreach subsample in full {
     local duration_binwidth 1
     preserve
     drop if mi(const_duration) | mi(total_cost_bills_adj)
-    keep if is_construction
+    keep if is_construction == 1
     gen double _dur_bin = `duration_binwidth' * floor(const_duration / `duration_binwidth')
     collapse (sum) spend = total_cost_bills_adj, by(_dur_bin)
     sort _dur_bin
@@ -872,7 +872,7 @@ foreach subsample in full {
     preserve
     drop if mi(const_duration) | mi(total_cost_bills_adj)
     drop if const_duration <= 0
-    keep if is_construction
+    keep if is_construction == 1
     gen double _log_duration = log(const_duration)
     gen double _log_dur_bin = `log_duration_binwidth' * floor(_log_duration / `log_duration_binwidth')
     collapse (sum) spend = total_cost_bills_adj, by(_log_dur_bin)
@@ -1045,8 +1045,8 @@ exit
 * ==============================================================================
 
 use "$intermediate_data/project_level_FMIS_lite.dta", clear
-keep if fp_ic 
-keep if has_new_construction
+keep if fp_ic == 1 
+keep if has_new_construction == 1
 
 gen int authconstyear = year(authconstdate)
 drop if mi(authconstyear) | mi(completion_year)
@@ -1073,7 +1073,7 @@ save `fmis_base'
 foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
     tempfile pr511_mi_by_yr
 
-    use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+    use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
     drop if open_year < 1960
     drop if open_year > 1995
     drop if mi(open_year)
