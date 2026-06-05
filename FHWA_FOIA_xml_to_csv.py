@@ -192,10 +192,22 @@ def parse_project_details(xml_file):
                         if item.tag != 'GISBreakdown':
                             row[f'GIS_{item.tag}'] = clean_text(item.text)
                     
-                    breakdown = gis.find('GISBreakdown')
-                    if breakdown is not None:
-                        for item in breakdown:
-                            row[f'GISBreakdown_{item.tag}'] = clean_text(item.text)
+                    breakdowns = gis.findall('GISBreakdown')
+
+                    if not breakdowns:
+                        row['GIS_has_breakdown'] = '0'
+                    else:
+                        for i, breakdown in enumerate(breakdowns):
+                            row_copy = row.copy()
+                            row_copy['GIS_has_breakdown'] = '1'
+                            row_copy['GISBreakdown_index'] = i + 1
+
+                            for item in breakdown:
+                                row_copy[f'GISBreakdown_{item.tag}'] = clean_text(item.text)
+
+                            rows.append(row_copy)
+
+                        continue
             
             rows.append(row)
 
