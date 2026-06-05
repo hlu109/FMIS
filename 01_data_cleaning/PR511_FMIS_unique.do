@@ -26,14 +26,14 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
-global pr511_dir "$output/PR511"
-if !direxists("$pr511_dir") mkdir "$pr511_dir"
-global pr511_intermediate "$intermediate_data/pr_511"
+global pr511_intermediate "$intermediate_data/PR_511"
 if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
 
+global pr511_dir "$output/PR511"
+if !direxists("$pr511_dir") mkdir "$pr511_dir"
 
 * see how many counties have a unique PR-511 chain per calendar year 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 drop if mi(open_year)
 collapse (count) chain_count = chain_id, by(open_year st county)
 tab chain_count
@@ -62,7 +62,7 @@ keep st county_fips
 save "$pr511_intermediate/pr511_cty_max_one_chain_per_yr.dta", replace
 
 * see how many county x route cells have a unique PR-511 chain per calendar year 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 drop if mi(open_year)
 collapse (count) chain_count = chain_id, by(open_year st county route)
 tab chain_count
@@ -90,7 +90,7 @@ keep st county_fips route
 save "$pr511_intermediate/pr511_cty_rt_max_one_chain_per_yr.dta", replace
 
 * counties with only one distinct PR-511 chain_id across all years
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 bysort st county chain_id: keep if _n == 1
 collapse (count) n_distinct = chain_id, by(st county)
 keep if n_distinct == 1
@@ -99,7 +99,7 @@ keep st county_fips
 save "$pr511_intermediate/pr511_cty_single_chain_ever.dta", replace
 
 * county x route cells with only one distinct PR-511 chain_id across all years
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 bysort st county route chain_id: keep if _n == 1
 collapse (count) n_distinct = chain_id, by(st county route)
 keep if n_distinct == 1
@@ -110,7 +110,7 @@ save "$pr511_intermediate/pr511_cty_rt_single_chain_ever.dta", replace
 
 
 * counties with only one distinct PR-511 open_year across all years (can have multiple chains within that year)
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 gen one = 1
 collapse (max) one, by(st county open_year)
 collapse (count) n_years = open_year, by(st county)
@@ -121,7 +121,7 @@ save "$pr511_intermediate/pr511_cty_single_openyr_ever.dta", replace
 
 
 * county x route cells with only one distinct PR-511 open_year across all years (can have multiple chains within that year)
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 gen one = 1
 collapse (max) one, by(st county route open_year)
 collapse (count) n_years = open_year, by(st county route)

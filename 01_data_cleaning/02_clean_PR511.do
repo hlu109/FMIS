@@ -26,6 +26,9 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
+
 * start with the Hubbard Mazzeo data which already includes their hand-merged county data 
 use "$raw_data/PR_511/hubbard_mazzeo/openings/highway10122.dta", clear
 
@@ -76,17 +79,17 @@ replace chain_id = `max_chain' + _solo_id if _chain_solo == 1
 drop _chain_solo _chain_seq _solo_id
 
 keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
-save "$intermediate_data/PR511_hubbardmazzeo.dta", replace
+save "$pr511_intermediate/PR511_hubbardmazzeo.dta", replace
 
 * also save as csv 
-export delimited using "$intermediate_data/PR511_hubbardmazzeo.csv", replace
+export delimited using "$pr511_intermediate/PR511_hubbardmazzeo.csv", replace
 
 * save another copy of just the chain-level data
 collapse (sum) chain_len = seg_len (first) sh st state county route region open_year open_month (min) mp_start (max) mp_end, by(chain_id)
-save "$intermediate_data/PR511_hubbardmazzeo_chained.dta", replace
+save "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", replace
 
 * also save as csv 
-export delimited using "$intermediate_data/PR511_hubbardmazzeo_chained.csv", replace
+export delimited using "$pr511_intermediate/PR511_hubbardmazzeo_chained.csv", replace
 
 * ==============================================================================
 * Nate Baum PR-511 data
@@ -137,7 +140,7 @@ label variable seg_len "segment length (miles)"
 gen mp_end = mp_start + seg_len
 label variable mp_end "milepost end"
 
-save "$intermediate_data/PR511_baumsnow.dta", replace
+save "$pr511_intermediate/PR511_baumsnow.dta", replace
 
 drop SH I RTE MPOST SEG
 keep if route == 78
@@ -146,7 +149,7 @@ sort ST mp_start
 
 
 * ==============================================================================
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 keep if st == 6
 keep if county == 85 | county == 81 // santa clara and san mateo
 global county_lbl_def ///
@@ -169,7 +172,7 @@ save "$data/Hannah sandbox/PR511_sanmateo_santaclara.dta", replace
 * ==============================================================================
 
 * tabulate frequency of counties with X count of segment-chains
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 collapse (count) chain_count = chain_id, by(st county)
 label var chain_count "# chains in county"
 di _n(2) as result "=== Distribution of chain counts across county observations ==="
@@ -180,7 +183,7 @@ tab chain_count, missing
 // list chain_count number_of_counties, clean noobs abbreviate(24)
 
 * same but for county x route 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 collapse (count) chain_count = chain_id, by(st county route)
 label var chain_count "# chains in county x route"
 di _n(2) as result "=== Distribution of chain counts across county x route observations ==="

@@ -26,6 +26,9 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
+
 global match_dir "$intermediate_data/PR511_FMIS"
 if !direxists("$match_dir") mkdir "$match_dir"
 
@@ -61,7 +64,7 @@ foreach state of local states {
     local state_name_file = subinstr("`state_name'", " ", "", .) // remove spaces for filenames 
 
     * PR-511 subset for this state
-    use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+    use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
     quietly summarize open_year
     local pr_min_year = r(min)
     local pr_max_year = r(max)
@@ -197,5 +200,6 @@ forvalues i = 2/`n_state_match_files' {
     append using "$match_dir/`f'"
 }
 
-save "$intermediate_data/PR511_FMIS_match_all${match_suffix}.dta", replace
+save "$match_dir/PR511_FMIS_match_all${match_suffix}.dta", replace
+
 

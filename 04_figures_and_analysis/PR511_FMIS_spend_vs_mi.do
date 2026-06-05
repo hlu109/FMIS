@@ -29,7 +29,7 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 global out_dir "$output/PR511_FMIS"
 if !direxists("$out_dir") mkdir "$out_dir"
 global match_dir "$intermediate_data/PR511_FMIS"
-global pr511_intermediate "$intermediate_data/pr_511"
+global pr511_intermediate "$intermediate_data/PR_511"
 if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
 
 // foreach subsample in full cty_per_yr cty_rt_per_yr cty_life cty_rt_life cty_openyr_ever cty_rt_openyr_ever {
@@ -74,7 +74,7 @@ foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
 	* ==========================================================================
 	* merge FMIS and PR-511 data at spatial and year level (treating FMIS as a lagged year) and compare spend/mi and mi/spend 
 	* ==========================================================================
-	use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+	use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 	drop if open_year < 1960
 	drop if open_year > 1995 
 

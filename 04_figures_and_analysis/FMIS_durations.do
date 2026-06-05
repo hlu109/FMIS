@@ -27,7 +27,7 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 * ==============================================================================
 global duration_dir "$output/project_duration"
 if !direxists("$duration_dir") mkdir "$duration_dir"
-global pr511_intermediate "$intermediate_data/pr_511"
+global pr511_intermediate "$intermediate_data/PR_511"
 if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
 
 * ==============================================================================
@@ -1073,7 +1073,7 @@ save `fmis_base'
 foreach subsample in cty_openyr_ever cty_rt_openyr_ever {
     tempfile pr511_mi_by_yr
 
-    use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+    use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
     drop if open_year < 1960
     drop if open_year > 1995
     drop if mi(open_year)

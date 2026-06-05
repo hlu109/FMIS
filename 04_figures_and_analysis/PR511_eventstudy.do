@@ -24,10 +24,13 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
+
 global out_dir "$output/PR511_FMIS"
 if !direxists("$out_dir") mkdir "$out_dir"
 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 
 preserve
 collapse (count) chain_count = chain_id (first) chain_id, by(st county)
@@ -53,7 +56,7 @@ restore
 * Event study for counties with exactly one PR-511 chain ever
 * ==============================================================================
 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 merge 1:1 chain_id using `one_chain_counties', keep(3) nogen
 rename st state_fips
 rename county countyid
@@ -287,7 +290,7 @@ restore
 * ==============================================================================
 
 * aggregate one observation per county x open_year
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 collapse (count) chain_count = chain_id, by(st county open_year)
 rename st state_fips
 rename county countyid

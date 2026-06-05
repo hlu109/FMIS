@@ -24,12 +24,13 @@ if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
-
+global pr511_intermediate "$intermediate_data/PR_511"
+if !direxists("$pr511_intermediate") mkdir "$pr511_intermediate"
 
 local pr511_dir "$output/PR511"
 if !direxists("`pr511_dir'") mkdir "`pr511_dir'"
 
-use "$intermediate_data/PR511_hubbardmazzeo_chained.dta", clear
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 
 histogram chain_len if inrange(open_year, 1950, 1990), ///
 	title("PR-511 Chain Length, 1950-1990") ///
