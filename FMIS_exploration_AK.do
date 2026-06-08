@@ -136,16 +136,43 @@ format detail_lastactiondate_numeric %tdCCYY-NN-DD
 drop detail_lastactiondate_temp detail_lastactiondate
 rename detail_lastactiondate_numeric detail_lastactiondate
 
-keep recipientid projectstatus projecttitle projectdescription total_cost_mills detail_lastactiondate completedate authconstdate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region
+* Aggregate the gisbreakdown_countyid to the reimbursement level
+tostring gisbreakdown_countyid, replace
+replace gisbreakdown_countyid = "" if gisbreakdown_countyid == "."
+bysort federal_project_number recipientid detail_programcode detail_linenumber (gisbreakdown_index): ///
+	gen county_combined = gisbreakdown_countyid[1]
+bysort federal_project_number recipientid detail_programcode detail_linenumber (gisbreakdown_index): ///
+	replace county_combined = county_combined[_n-1] + "; " + gisbreakdown_countyid if _n > 1 & ///
+	strpos("; " + county_combined[_n-1] + ";", "; " + gisbreakdown_countyid + ";") == 0
+bysort federal_project_number recipientid detail_programcode detail_linenumber (gisbreakdown_index): /// 
+	replace gisbreakdown_countyid = county_combined[_N]
+
+* drop to the reimbursement level
+keep if gisbreakdown_index == . | gisbreakdown_index == 1
+
+keep recipientid projectstatus projecttitle projectdescription total_cost_mills detail_lastactiondate completedate authconstdate recipientremarks divisionremarks detail_prefix detail_programcode nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year federal_project_number region
 save "$data/Intermediate/receipt_level_FMIS.dta", replace
 
 * Collapse to the project level, and save
-* aggregate the improvement types to the project level, and count number of reciepts
+* aggregate the improvement types and counties to the project level, and count number of reciepts
 tostring detail_improvementtype, gen(proj_improv_types)
-bysort federal_project_number recipientid: gen strL alltypes = proj_improv_types[1]
-bysort federal_project_number recipientid: replace alltypes = alltypes[_n-1] + "; " + proj_improv_types if _n>1 & proj_improv_types != ""
-by federal_project_number recipientid: replace alltypes = alltypes[_N]
-	
+tostring nongis_countyid, replace 
+foreach v of varlist proj_improv_types nongis_countyid gisbreakdown_countyid {
+    replace `v' = "" if `v' == "."
+    
+    bysort federal_project_number recipientid: gen `v'_combined = `v'[1]
+    bysort federal_project_number recipientid: ///
+		replace `v'_combined = `v' if `v'_combined == ""
+    bysort federal_project_number recipientid: ///
+        replace `v'_combined = `v'_combined[_n-1] + "; " + `v' if _n > 1 ///
+        & `v' != "" ///
+        & strpos("; " + `v'_combined[_n-1] + ";", "; " + `v' + ";") == 0
+    
+    by federal_project_number recipientid: replace `v' = `v'_combined[_N]
+}
+
+rename proj_improv_types alltypes
+
 gen receipts = 1 // this is used for reciept counts
 
 collapse (sum) receipts total_cost_mills (firstnm) region projectstatus projecttitle projectdescription completedate authconstdate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid (lastnm) alltypes completion_year, by(federal_project_number recipientid)
