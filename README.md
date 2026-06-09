@@ -57,9 +57,15 @@ County FIPS codes are from the Census: https://www2.census.gov/geo/docs/referenc
 
 ## Setting up GitHub and git 
 
-PLACEHOLDER
+(PLACEHOLDER SECTION)
 
-### GitHub 
+Here are some resources on using Github: 
+* [Using Git](https://docs.github.com/en/get-started/using-git)
+  * [About Git](https://docs.github.com/en/get-started/using-git/about-git)
+  * [Pushing commits to a remote repository](https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository)
+  * [Getting changes from a remote repository](https://docs.github.com/en/get-started/using-git/getting-changes-from-a-remote-repository)
+* Other [Git Basics](https://docs.github.com/en/get-started/git-basics)
+
 
 
 ### git 
@@ -75,6 +81,10 @@ https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/a
 - add Note/nickname so you remember what it was for 
 - expiration: I recommend no expiration (none of what we work on requires high security). 
 - Scopes: all you need to select is `repo`. This should be enough to read and write/push code. 
+
+### GitHub setup for this project
+
+Make a clone of this repository in `/FHWA Cost Data/Code/`. This will create a new, local folder called `FMIS`. You should rename the folder (e.g., to `FMIS_<your_name>`) so that we RAs don't get confused about who's working in which folder. When you have code that is functional and ready to be shared with the rest of the team, you should push your changes to Github. The other RAs can then pull any changes into their local copy of the repo to sync up the versions. 
 
 
 
