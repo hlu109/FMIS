@@ -2,8 +2,6 @@
 
 ## Data Overview 
 
-This section documents the data that we use. 
-
 ### FMIS 
 The primary dataset is FMIS (Financial Management Information System). This is a financial reimbursement system for states to receive reimbursements from the federal government, not a project management system. Data was FOIA'd from the federal DOT. We received the data in raw xml format, then parsed it into csv format, then performed further cleaning and saved the data in .dta files. 
 
@@ -22,7 +20,7 @@ Cleaned dta files: `/FHWA Cost Data/Data/Intermediate`
     * `project_level_FMIS.data`: rich project-level data
     * `project_level_FMIS_lite.data`: a smaller 'lite' version of the project-level data, with some larger and less-used variables removed for faster data processing. 
 
-This diagram provides an overview of the hierarchical structure found in the raw XML data: 
+This diagram provides an overview of the hierarchical structure found in the raw XML data: (source: `/FHWA cost data/Data/FMIS5 Data Dictionary-Projects.xlsx`)
 
 <img width="712" height="472" alt="Image" src="https://github.com/user-attachments/assets/de6e197b-f774-4929-bf72-3b82a5d5bd9f" />
 
