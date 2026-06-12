@@ -35,7 +35,103 @@ if !direxists("$labels_dir") mkdir "$labels_dir"
 import delimited "$data/CSVs/combined_data.csv", clear bindquote(strict) varnames(1)
 
 rename federalprojectnumber federal_project_number
-* In the variable detail_improvementtype, there is a category (15) called preliminary engineering, which is by far the most common.
+
+* Add County Names
+gen countyid = gisbreakdown_countyid 
+replace countyid = nongis_countyid if countyid == .
+
+gen state_fips = gis_stateid
+replace state_fips = nongis_stateid if state_fips == .
+* correct mariana islands because the state id is 75 in FMIS but FIPS code is 69 (all other state IDs match census FIPS codes)
+replace state_fips = 69 if state_fips == 75 
+
+gen long county_fips = real(string(state_fips, "%02.0f") + string(countyid, "%03.0f")) ///
+    if !mi(state_fips) & !mi(countyid)
+
+global countyid_lbl_def ///
+    999  "statewide" ///
+    0  "unknown"
+label define countyid_lbl $countyid_lbl_def, replace
+label values countyid countyid_lbl
+
+gen urban_rural = nongis_urbanorrural
+replace urban_rural = gisbreakdown_urbanorrural if urban_rural == .
+global urban_rural_lbl_def ///
+    0  "Statewide" ///
+    1  "Rural" ///
+    2  "Urban"
+label define urban_rural_lbl $urban_rural_lbl_def, replace
+label values urban_rural urban_rural_lbl
+
+* label county values using external csv mapping from FIPS to name 
+global county_labels_do_path = "$labels_dir/county_labels.do"
+if !fileexists("$county_labels_do_path") {
+    preserve 
+    import delimited using "$intermediate_data/census_county_FIPS_crosswalk.csv", ///
+        varnames(1) encoding(UTF-8) bindquote(strict) clear stringcols(5 8)
+    gen long county_fips_num = real(strtrim(county_fips_full))
+    keep county_fips_num countyname
+    duplicates drop county_fips_num, force
+    quietly count
+    local n_co = r(N)
+    capture label drop county_fips_lbl
+    label define county_fips_lbl, replace
+    forvalues i = 1/`n_co' {
+        local v = county_fips_num[`i']
+        local t = strtrim(countyname[`i'])
+        local t_clean : subinstr local t `"""' "", all
+        local t80 = substr(`"`t_clean'"', 1, 80)
+        label define county_fips_lbl `v' `"`t80'"', add
+    }
+    label save county_fips_lbl using "$county_labels_do_path", replace
+    restore
+}
+run "$county_labels_do_path"
+label values county_fips county_fips_lbl
+
+* parse multiple counties
+decode county_fips, gen(county_name)
+tostring county_fips, replace force
+
+* Save the county list for project level data
+preserve
+tostring detail_improvementtype, gen(proj_improv_types)
+gen row = _n
+sort federal_project_number recipientid row
+foreach var of varlist proj_improv_types county_fips county_name {
+    replace `var' = "" if `var' == "."
+    capture drop `var'_combined
+    by federal_project_number recipientid: gen `var'_combined = `var'[1]
+	by federal_project_number recipientid: replace `var'_combined = cond( ///
+		!regexm(`var'_combined[_n-1], "(^|; )" + `var' + "($|;)"), ///
+		cond(`var'_combined[_n-1] == "", `var', `var'_combined[_n-1] + "; " + `var'), ///
+    `var'_combined[_n-1]) if _n > 1  
+	by federal_project_number recipientid: replace `var' = `var'_combined[_N]
+}
+bysort recipientid federal_project_number: gen n = _n
+keep if n == 1 
+keep recipientid federal_project_number proj_improv_types county_fips county_name
+save "$intermediate_data/aggregated_proj_strings.dta", replace
+restore
+
+* Aggregate to the reimbursement level
+sort federal_project_number recipientid detail_programcode detail_linenumber gisbreakdown_index
+foreach var of varlist county_fips county_name {
+    replace `var' = "" if `var' == "."
+    capture drop `var'_combined
+    by federal_project_number recipientid detail_programcode detail_linenumber: ///
+        gen `var'_combined = `var'[1]
+    by federal_project_number recipientid detail_programcode detail_linenumber: ///
+        replace `var'_combined = cond( ///
+            !regexm(`var'_combined[_n-1], "(^|; )" + `var' + "($|;)"), ///
+            cond(`var'_combined[_n-1] == "", `var', `var'_combined[_n-1] + "; " + `var'), ///
+            `var'_combined[_n-1]) if _n > 1
+    by federal_project_number recipientid detail_programcode detail_linenumber: ///
+        replace `var' = `var'_combined[_N]
+}
+
+* drop to the reimbursement level
+keep if gisbreakdown_index == . | gisbreakdown_index == 1
 
 * Define improvement labels 
 global improvement_lbl_def ///
@@ -214,57 +310,6 @@ label variable detail_programcode "Program Code"
 // label variable detail_fain "Federal Award Identification Number" // all empty
 // label variable detail_grantnumber "Discretionary Grant Award Number" // all empty
 
-* location variables 
-gen state_fips = gis_stateid
-replace state_fips = nongis_stateid if state_fips == .
-* correct mariana islands because the state id is 75 in FMIS but FIPS code is 69 (all other state IDs match census FIPS codes)
-replace state_fips = 69 if state_fips == 75 
-
-gen countyid = gisbreakdown_countyid
-replace countyid = nongis_countyid if countyid == .
-gen long county_fips = real(string(state_fips, "%02.0f") + string(countyid, "%03.0f")) ///
-    if !mi(state_fips) & !mi(countyid)
-
-global countyid_lbl_def ///
-    999  "statewide" ///
-    0  "unknown"
-label define countyid_lbl $countyid_lbl_def, replace
-label values countyid countyid_lbl
-
-gen urban_rural = nongis_urbanorrural
-replace urban_rural = gisbreakdown_urbanorrural if urban_rural == .
-global urban_rural_lbl_def ///
-    0  "Statewide" ///
-    1  "Rural" ///
-    2  "Urban"
-label define urban_rural_lbl $urban_rural_lbl_def, replace
-label values urban_rural urban_rural_lbl
-
-* label county values using external csv mapping from FIPS to name 
-global county_labels_do_path = "$labels_dir/county_labels.do"
-if !fileexists("$county_labels_do_path") {
-    preserve 
-    import delimited using "$intermediate_data/census_county_FIPS_crosswalk.csv", ///
-        varnames(1) encoding(UTF-8) bindquote(strict) clear stringcols(5 8)
-    gen long county_fips_num = real(strtrim(county_fips_full))
-    keep county_fips_num countyname
-    duplicates drop county_fips_num, force
-    quietly count
-    local n_co = r(N)
-    capture label drop county_fips_lbl
-    label define county_fips_lbl, replace
-    forvalues i = 1/`n_co' {
-        local v = county_fips_num[`i']
-        local t = strtrim(countyname[`i'])
-        local t_clean : subinstr local t `"""' "", all
-        local t80 = substr(`"`t_clean'"', 1, 80)
-        label define county_fips_lbl `v' `"`t80'"', add
-    }
-    label save county_fips_lbl using "$county_labels_do_path", replace
-    restore
-}
-run "$county_labels_do_path"
-label values county_fips county_fips_lbl
 
 * label state and recipientid values 
 // we hard-code this here because it's not too long, and this makes the script run faster than if we referenced another external file 
@@ -433,28 +478,21 @@ replace funding_program = "National Highway Performance Program" if inlist(detai
 replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z510", "Z530", "M0E1", "M0E2", "M001", "M002")
 
 * export 
-keep recipientid state_fips county_fips countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix nongis_countyid gisbreakdown_countyid gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
+keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 label save using "$labels_dir/FMIS_labels.do", replace
 
 * also export lite version 
-drop projecttitle projectdescription recipientremarks divisionremarks nongis_countyid gisbreakdown_countyid gis_routeid
+drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid county_name
 
 save "$intermediate_data/receipt_level_FMIS_lite.dta", replace
-
 
 * ==============================================================================
 * Project-level data
 * ==============================================================================
 use "$intermediate_data/receipt_level_FMIS.dta", clear
-
 * Collapse to the project level, and save
-* aggregate the improvement types to the project level, and count number of reciepts
-tostring detail_improvementtype, gen(proj_improv_types)
-bysort federal_project_number recipientid: gen strL alltypes = proj_improv_types[1]
-bysort federal_project_number recipientid: replace alltypes = alltypes[_n-1] + "; " + proj_improv_types if _n>1 & proj_improv_types != ""
-by federal_project_number recipientid: replace alltypes = alltypes[_N]
 
 * identify funding programs (indicators are true if at least one receipt is funded by the program)
 gen fp_ic = funding_program == "Interstate Construction"
@@ -467,8 +505,8 @@ gen receipts = 1 // this is used for reciept counts
 // TODO: should verify that the location variables (county, urban_rural, etc) are consistent across receipts within a project 
 collapse ///
     (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds ///
-    (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips county_fips countyid gis_routeid urban_rural ///
-    (lastnm) alltypes completion_year ///
+    (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips gis_routeid urban_rural ///
+    (lastnm) completion_year ///
     (max) interstate_functional interstate_syscode fp_ic fp_im fp_imd fp_nhpp (max) has_new_construction = new_construction ///
     (max) has_reconstruction = reconstruction ///
     (max) has_rehabilitation = rehabilitation ///
@@ -477,6 +515,7 @@ collapse ///
     , by(federal_project_number recipientid)
 // note the max codes for indicator variables so that the project adopts the feature if at least one reimbursement has the feature
 
+merge 1:1 federal_project_number recipientid using "$intermediate_data/aggregated_proj_strings.dta", nogen
 
 * update labels    
 label variable interstate_functional "True if at least one receipt is interstate"
@@ -489,8 +528,6 @@ label variable fp_nhpp "True if at least one receipt is funded by National Highw
 run "$labels_dir/FMIS_labels.do"
 label values recipientid recipientid_lbl
 label values state_fips state_fips_lbl
-label values county_fips county_fips_lbl
-label values countyid countyid_lbl
 
 save "$data/Intermediate/project_level_FMIS.dta", replace
 
