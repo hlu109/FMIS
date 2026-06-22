@@ -1,6 +1,18 @@
 /*==============================================================================
  	FMIS data processing 
-    This script cleans and saves the receipt-level FMIS data. 
+    This script cleans and saves FMIS data, exporting it in four formats:
+    * rich receipt-level data
+    * a smaller 'lite' version of the receipt-level data, with some larger and less-used variables removed for faster data processing 
+    * rich project-level data
+    * a smaller 'lite' version of the project-level data, with some larger and less-used variables removed for faster data processing. 
+
+    Hannah notes: this is the input data structure, as far as I understand
+    * the raw xml contains nested fields: 
+        * project 
+            * reimbursements (which seem to be denoted "detail" in the xml?)
+                * GISBreakdown_ (which may contain multiple GIS entries, including multiple counties)
+    I think the input csv contains distinct rows for distinct "GISBreakdown_" fields for each reimbursement and project. 
+
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -477,8 +489,12 @@ replace funding_program = "Interstate Maintenance Discretionary" if inlist(detai
 replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z0E1", "Z0E2", "Z51E", "Z53E", "Z001", "Z002")
 replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z510", "Z530", "M0E1", "M0E2", "M001", "M002")
 
+* adjust for inflation 
+// TODO 
+
+
 * export 
-keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
+keep recipientid state_fips county_fips county_name projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 label save using "$labels_dir/FMIS_labels.do", replace

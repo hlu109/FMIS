@@ -1,5 +1,10 @@
 /*==============================================================================
-    This script analyzes the location variables in FMIS. 
+    This script analyzes the county variables in FMIS. 
+    This includes:
+    * analyzing the prevalence of projects with multiple counties
+    * comparing the number of projects that have a valid county FIPS code, are coded as statewide, or are missing/unknown. I also identify and code which counties are state capitals to test the hypothesis that projects could be disproportionately recorded as being in a state capital (e.g., if it were statewide but listed as being in the capital). The output figures suggest that this is not a concern. 
+    
+    * TODO: need to revamp everything to handle multiple counties. 
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -24,6 +29,106 @@ else {
 if !direxists("$output") mkdir "$output"
 if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
+* ==============================================================================
+* analyze prevalence of multiple counties 
+* ==============================================================================
+* load data 
+use "$intermediate_data/project_level_FMIS.dta", clear
+
+* adjust for inflation 
+rename completion_year year
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) nogen
+gen total_cost_bills_adjusted = total_cost_mills / cpi / 1000
+rename year completion_year
+
+// TODO: construct a variable n_counties in 01 FMIS data cleaning (note Andy is going to move the county processing data to another script so that it will be faster to run)
+exit 
+
+* plot distribution of number of counties in all FMIS projects 
+tab n_counties, mi 
+quietly count
+local n_obs = r(N)
+graph histogram n_counties, over(n_counties) ///
+    title("Number of Counties per Project") ///
+    ytitle("Number of Projects") ///
+    xtitle("Number of Counties") ///
+    note( ///
+        `"N = `n_obs' projects."' ///
+        , size(small) span ///
+    )
+graph export "$output/n_county_distrib.png", replace width(2500)
+
+
+* plot distribution of number of counties in Interstate Construction-funded projects
+preserve 
+    keep if fp_ic == 1
+    tab n_counties, mi 
+    quietly count
+    local n_ic = r(N)
+    graph histogram n_counties, over(n_counties) ///
+        title("Number of Counties per Interstate Construction-funded Project") ///
+        ytitle("Number of Projects") ///
+        xtitle("Number of Counties") ///
+        note( ///
+            "Projects are included if at least one reimbursement is funded by the 'Interstate Construction' program." ///
+            `"N = `n_ic' projects."' ///
+            , size(small) span ///
+        )
+    graph export "$output/n_county_distrib_ic.png", replace width(2500)
+restore
+
+
+* plot cost-weighted distribution of number of counties in all FMIS projects 
+* note the histogram function doesn't accept aweights so we have to do that manually with a bar chart
+preserve
+    tab n_counties [aw = total_cost_bills_adjusted], mi 
+    collapse (sum) total_cost_bills_adjusted, by(n_counties)
+    twoway (bar total_cost_bills_adjusted n_counties), ///
+        title("Number of Counties per Project (Cost-Weighted)") ///
+        ytitle("Billions of 2025 USD") ///
+        xtitle("Number of Counties") ///
+        note( ///
+            `"N = `n_obs' projects."' ///
+            , size(small) span ///
+        )
+    graph export "$output/n_county_distrib_cost_wgt.png", replace width(2500)
+restore
+
+
+* plot cost-weighted distribution of number of counties in Interstate Construction-funded projects
+* note the histogram function doesn't accept aweights so we have to do that manually with a bar chart
+preserve 
+    keep if fp_ic == 1
+    tab n_counties [aw = total_cost_bills_adjusted], mi 
+    collapse (sum) total_cost_bills_adjusted, by(n_counties)
+    twoway (bar total_cost_bills_adjusted n_counties), ///
+        title("Number of Counties per Interstate Construction-funded Project (Cost-Weighted)") ///
+        ytitle("Billions of 2025 USD") ///
+        xtitle("Number of Counties") ///
+        note( ///
+            "Projects are included if at least one reimbursement is funded by the 'Interstate Construction' program." ///
+            `"N = `n_ic' projects."' ///
+            , size(small) span ///
+        )
+    graph export "$output/n_county_distrib_ic_cost_wgt.png", replace width(2500)
+restore
+
+
+
+
+
+
+
+
+
+
+
+
+
+exit 
+
+* ==============================================================================
+* old analysis of county types (currently broken since adding new counties was not backwards compatible)
 * ==============================================================================
 use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 
