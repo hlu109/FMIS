@@ -334,8 +334,18 @@ global state_fips_lbl_def ///
     19  "Iowa" ///
     20  "Kansas" ///
     21  "Kentucky" ///
-    22  "Louisiana" ///
-    33  "New Hampshire" ///
+    22	"Louisiana" ///
+    23	"Maine" ///
+    24	"Maryland" ///
+    25	"Massachusetts" ///
+    26	"Michigan" ///
+    27	"Minnesota" ///
+    28	"Mississippi" ///
+    29	"Missouri" ///
+    30	"Montana" ///
+    31	"Nebraska" ///
+    32	"Nevada" ///
+    33	"New Hampshire" ///
     34  "New Jersey" ///
     35  "New Mexico" ///
     36  "New York" ///
