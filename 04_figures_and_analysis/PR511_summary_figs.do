@@ -1,6 +1,8 @@
 /*==============================================================================
  	FMIS data processing 
-    This script plots the length of PR-511 segments over time. 
+    This script plots summary figures for PR-511, including: 
+    * histograms of PR-511 chain lengths. 
+    * the length of PR-511 segments over time. 
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -36,9 +38,42 @@ use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 drop if open_year < 1950 | mi(open_year)
 
 * ==============================================================================
+* distributions of chain lengths
+* ==============================================================================
+
+count if inrange(open_year, 1950, 1990)
+local n_obs = r(N)
+
+histogram chain_len if inrange(open_year, 1950, 1990), ///
+	title("PR-511 Chain Length, 1950-1990") ///
+	xtitle("Miles", size(medsmall)) ///
+	ytitle("Frequency", size(medsmall)) ///
+	note( ///
+        "Number of observations: `n_obs'." ///
+    )
+
+graph export "$out_dir/hist_chain_len.png", replace
+
+gen double log_chain_len = log(chain_len)
+
+count if inrange(open_year, 1950, 1990) & chain_len > 0
+local n_obs = r(N)
+
+histogram log_chain_len if inrange(open_year, 1950, 1990) & chain_len > 0, ///
+	title("Log PR-511 Chain Length, 1950-1990") ///
+	xtitle("Log miles", size(medsmall)) ///
+	ytitle("Frequency", size(medsmall)) ///
+	note( ///
+        "Number of observations: `n_obs'." ///
+    )
+
+graph export "$out_dir/hist_log_chain_len.png", replace
+
+* ==============================================================================
 * total mileage by year
 * ==============================================================================
 preserve 
+local n_obs = _N
 collapse (sum) chain_len, by(open_year)
 sort open_year
 graph twoway ///
@@ -46,15 +81,18 @@ graph twoway ///
     title("Total Miles Opened in PR-511 Each Year") ///
     xtitle("Opening Year") ///
     ytitle("Miles") ///
+    note( ///
+        "Number of observations: `n_obs'." ///
+    ) ///
     legend(off)
 graph export "$out_dir/total_mi_by_year.png", width(1000) replace
 restore
-
 
 * ==============================================================================
 * average segment length by year
 * ==============================================================================
 preserve 
+local n_obs = _N
 collapse (mean) chain_len, by(open_year)
 sort open_year
 
@@ -65,11 +103,11 @@ graph twoway ///
     ytitle("Miles") ///
     note( ///
         "Chains are defined as consecutive segments of the same route within the same opening month." ///
+        "Number of observations: `n_obs'." ///
     ) ///
     legend(off)
 graph export "$out_dir/avg_chain_len_by_year.png", width(1000) replace
 restore
-
 
 * ==============================================================================
 * # counties with openings per year 
@@ -78,6 +116,7 @@ preserve
 gen county_fips = real(string(st, "%02.0f") + string(county, "%03.0f")) if !mi(st) & !mi(county)
 keep open_year county_fips
 duplicates drop
+local n_obs = _N
 collapse (count) county_count = county_fips, by(open_year)
 sort open_year
 graph twoway ///
@@ -85,6 +124,7 @@ graph twoway ///
     title("Number of Counties with PR-511 Openings Each Year") ///
     xtitle("Opening Year") ///
     ytitle("Number of Counties") ///
+    note("Number of observations: `n_obs'.") ///
     legend(off)
 graph export "$out_dir/counties_by_year.png", width(1000) replace
 restore
@@ -97,6 +137,7 @@ preserve
 gen county_fips_x_route = real(string(st, "%02.0f") + string(county, "%03.0f") + string(route, "%03.0f")) if !mi(st) & !mi(county) & !mi(route)
 keep open_year county_fips_x_route
 duplicates drop
+local n_obs = _N
 collapse (count) obs_count = county_fips_x_route, by(open_year)
 sort open_year
 graph twoway ///
@@ -104,6 +145,7 @@ graph twoway ///
     title("Number of County x Route Cells with PR-511 Openings Each Year") ///
     xtitle("Opening Year") ///
     ytitle("Number of County x Route Cells") ///
+    note("Number of observations: `n_obs'.") ///
     legend(off)
 graph export "$out_dir/county_routes_by_year.png", width(1000) replace
 restore

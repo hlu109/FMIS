@@ -47,7 +47,7 @@ label variable seg_len "segment length (miles)"
 gen mp_end = mp_start + seg_len
 label variable mp_end "milepost end"
 
-* handle I-35 E/W which got coded as 351 and 352 in the rtereal variable 
+* handle I-35 E/W which got coded as 351 and 352 in the 'rtereal' variable 
 * TODO 
 
 * label counties 
@@ -79,13 +79,17 @@ replace chain_id = `max_chain' + _solo_id if _chain_solo == 1
 drop _chain_solo _chain_seq _solo_id
 
 keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
+
+* construct a county fips variable for convenience
+gen int county_fips = real(string(st, "%02.0f") + string(county, "%03.0f")) if !mi(st) & !mi(county)
+
 save "$pr511_intermediate/PR511_hubbardmazzeo.dta", replace
 
 * also save as csv 
 export delimited using "$pr511_intermediate/PR511_hubbardmazzeo.csv", replace
 
 * save another copy of just the chain-level data
-collapse (sum) chain_len = seg_len (first) sh st state county route region open_year open_month (min) mp_start (max) mp_end, by(chain_id)
+collapse (sum) chain_len = seg_len (first) sh st state county county_fips route region open_year open_month (min) mp_start (max) mp_end, by(chain_id)
 save "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", replace
 
 * also save as csv 
@@ -166,29 +170,3 @@ save "$data/Hannah sandbox/PR511_sanmateo_santaclara.dta", replace
 // keep if county == 81 
 // sort mp_start 
 // exit
-
-* ==============================================================================
-* Basic stats
-* ==============================================================================
-
-* tabulate frequency of counties with X count of segment-chains
-use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
-collapse (count) chain_count = chain_id, by(st county)
-label var chain_count "# chains in county"
-di _n(2) as result "=== Distribution of chain counts across county observations ==="
-tab chain_count, missing 
-* alt display that renames the Freq. column 
-// contract chain_count, freq(number_of_counties)
-// label var number_of_counties "Number of counties"
-// list chain_count number_of_counties, clean noobs abbreviate(24)
-
-* same but for county x route 
-use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
-collapse (count) chain_count = chain_id, by(st county route)
-label var chain_count "# chains in county x route"
-di _n(2) as result "=== Distribution of chain counts across county x route observations ==="
-tab chain_count, missing 
-* alt display that renames the Freq. column 
-// contract chain_count, freq(number_county_routes)
-// label var number_county_routes "Number of county-route cells"
-// list chain_count number_county_routes, clean noobs abbreviate(24)

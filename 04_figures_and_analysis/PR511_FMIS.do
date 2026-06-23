@@ -292,52 +292,56 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * county x year, distribution of count 
 // preserve 
 // collapse (count) chain_count = chain_id, by(county_fips open_year)
+// local n_obs = _N
 // graph twoway ///
 //     (histogram chain_count, frequency), ///
 //     title("Distribution of PR-511 Chains by County x Year Cell", size(medsmall)) ///
 //     ytitle("Number of cells", size(small)) ///
 //     xtitle("Number of PR-511 chains in cell", size(small)) ///
 //     note( ///
-//         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
-//         size(small) span ///
+//         "Chains are defined as consecutive segments of the same route within the same opening month." ///
+//         "Number of county x year cells: `n_obs'." ///
+// 		, size(small) span ///
 //     ) ///
 //     legend(off)
 // graph export "$out_dir/pr511_distrib_chain_by_ct_yr.png", replace height($fig_height)
 // restore
 
-// // * county x year, distribution weighted by miles
-// // preserve
-// // collapse (count) chain_count = chain_id (sum) cell_chain_len = chain_len, by(county_fips open_year)
-// // collapse (sum) weighted_freq_miles = cell_chain_len, by(chain_count)
-// // twoway ///
-// //     (bar weighted_freq_miles chain_count), ///
-// //     title("Distribution of PR-511 Chains by County x Year Cell", size(medsmall)) ///
-// //     subtitle("Weighted by chain length (miles)", size(small)) ///
-// //     ytitle("Weighted frequency (sum of chain miles)", size(small)) ///
-// //     xtitle("Number of PR-511 chains in cell", size(small)) ///
-// //     note( ///
-// //         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
-// //         size(small) span ///
-// //     ) ///
-// //     legend(off)
-// // graph export "$out_dir/pr511_distrib_chain_by_ct_yr_weighted_miles.png", replace height($fig_height)
-// // restore
+// * county x year, distribution weighted by miles
+// preserve
+// collapse (count) chain_count = chain_id (sum) cell_chain_len = chain_len, by(county_fips open_year)
+// local n_obs = _N
+// collapse (sum) weighted_freq_miles = cell_chain_len, by(chain_count)
+// twoway ///
+//     (bar weighted_freq_miles chain_count), ///
+//     title("Distribution of PR-511 Chains by County x Year Cell", size(medsmall)) ///
+//     subtitle("Weighted by chain length (miles)", size(small)) ///
+//     ytitle("Weighted frequency (sum of chain miles)", size(small)) ///
+//     xtitle("Number of PR-511 chains in cell", size(small)) ///
+//     note( ///
+//         "Chains are defined as consecutive segments of the same route within the same opening month." ///
+//         "Number of county x year cells: `n_obs'." ///
+//		, size(small) span ///
+//     ) ///
+//     legend(off)
+// graph export "$out_dir/pr511_distrib_chain_by_ct_yr_weighted_miles.png", replace height($fig_height)
+// restore
 
-// // * count x year, distribution of miles 
-// // preserve
-// // collapse (sum) len = chain_len, by(county_fips open_year)
-// // graph twoway ///
-// //     (histogram len, frequency), ///
-// //     title("Distribution of PR-511 Miles by County x Year Cell", size(medsmall)) ///
-// //     ytitle("Number of cells", size(small)) ///
-// //     xtitle("Miles of PR-511 chains in cell", size(small)) ///
-// //     note( ///
-// //         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
-// //         size(small) span ///
-// //     ) ///
-// //     legend(off)
-// // graph export "$out_dir/pr511_distrib_mi_by_ct_yr.png", replace height($fig_height)
-// // restore
+// * count x year, distribution of miles 
+// preserve
+// collapse (sum) len = chain_len, by(county_fips open_year)
+// graph twoway ///
+//     (histogram len, frequency), ///
+//     title("Distribution of PR-511 Miles by County x Year Cell", size(medsmall)) ///
+//     ytitle("Number of cells", size(small)) ///
+//     xtitle("Miles of PR-511 chains in cell", size(small)) ///
+//     note( ///
+//         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
+//         size(small) span ///
+//     ) ///
+//     legend(off)
+// graph export "$out_dir/pr511_distrib_mi_by_ct_yr.png", replace height($fig_height)
+// restore
 
 // * county x year, count groups over time
 // preserve
@@ -435,14 +439,16 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * county x route x year, distribution of count 
 // preserve 
 // collapse (count) chain_count = chain_id, by(county_fips route open_year)
+// local n_obs = _N
 // graph twoway ///
 //     (histogram chain_count, frequency), ///
 //     title("Distribution of PR-511 Chains by County x Route x Year Cell", size(medsmall)) ///
 //     ytitle("Number of cells", size(small)) ///
 //     xtitle("Number of PR-511 chains in cell", size(small)) ///
 //     note( ///
-//         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
-//         size(small) span ///
+//         "Chains are defined as consecutive segments of the same route within the same opening month." ///
+//         "Number of county x route x year cells: `n_obs'." ///
+// 		, size(small) span ///
 //     ) ///
 //     legend(off)
 // graph export "$out_dir/pr511_distrib_chain_by_ct_rt_yr.png", replace height($fig_height)
@@ -452,14 +458,16 @@ global fmis_year_max = $pr_open_year_max + $post_pr_window
 // * county x route x year, distribution of miles 
 // preserve
 // collapse (sum) len = chain_len, by(county_fips route open_year)
+// local n_obs = _N
 // graph twoway ///
 //     (histogram len, frequency), ///
 //     title("Distribution of PR-511 Miles by County x Route x Year Cell", size(medsmall)) ///
 //     ytitle("Number of cells", size(small)) ///
 //     xtitle("Miles of PR-511 chains in cell", size(small)) ///
 //     note( ///
-//         "Chains are defined as consecutive segments of the same route within the same opening month.", ///
-//         size(small) span ///
+//         "Chains are defined as consecutive segments of the same route within the same opening month." ///
+//         "Number of county x route x year cells: `n_obs'." ///
+// 		, size(small) span ///
 //     ) ///
 //     legend(off)
 // graph export "$out_dir/pr511_distrib_mi_by_ct_rt_yr.png", replace height($fig_height)
