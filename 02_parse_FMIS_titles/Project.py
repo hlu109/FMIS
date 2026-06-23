@@ -4,9 +4,9 @@ from typing import Literal, Optional
 
 
 class MainRoute(BaseModel):
-    route_designation: Optional[str] = None
     route_type: Optional[Literal["interstate", "us_route", "state_route", "local_road", "other"]] = None
     route_num: Optional[int] = None
+    alt_names: Optional[str] = None
 # Maximum number of LocationRef entries per endpoint stored in the flat table.
 MAX_ANCHORS = 3
 
@@ -19,7 +19,7 @@ class LocationRef(BaseModel):
     """
     anchor_type: Optional[Literal[
         "milepost", "log_mile", "slm", "reference_post", "km_post",
-        "ohio_coded_mp", "station", "exit_number", "highway", "road",
+        "ohio_coded_mp", "station", "exit_number", "highway", "road", "named_junct_interchange",
         "railroad_crossing", "named_bridge", "tunnel",
         "county_line", "state_line", "waterway", "other_terrain",
         "city", "city_limits", "county", "region",
@@ -70,7 +70,9 @@ ANCHOR_TYPE_TO_PRECISION = {
     # 5 — exit number
     "exit_number": "5",
     # 4 — intersections / crossings / boundaries 
-    "highway": "4", "road": "4", "railroad_crossing": "4",
+    "highway": "4", "road": "4", 
+    "named_junct_interchange": "4",
+    "railroad_crossing": "4",
     "named_bridge": "4", "tunnel": "4",
     "county_line": "4", "state_line": "4",
     "waterway": "4", "city_limits": "4",
@@ -97,6 +99,7 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
         row = {
             f"{prefix}_cleaned": None,
             f"{prefix}_n_refs": None,
+            f"{prefix}_max_precision": None,
             f"{prefix}_city": None,
             f"{prefix}_county": None,
         }
@@ -121,9 +124,13 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
 
     ref_prec_pairs.sort(key=prec_sort_key, reverse=True)
 
+    # Also compute the highest precision so it's easier to access later
+    max_prec = ref_prec_pairs[0][1] if ref_prec_pairs else None
+
     row = {
         f"{prefix}_cleaned": endpoint.endpoint_cleaned,
         f"{prefix}_n_refs": len(refs),
+        f"{prefix}_max_precision": max_prec,
         # extract city and county as top-level fields in Endpoint object for downstream convenience (if they exist)
         # TODO (low priority): handle endpoints with multiple city refs. Currently takes the first.
         f"{prefix}_city":   next((r.feature_name for r in refs if r.anchor_type == "city"),   None),
@@ -139,8 +146,8 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
             ref, prec = None, None
             data = {}
         for f in REF_FIELDS:
-            row[f"{prefix}_ref{i}_{f}"] = data.get(f)
-        row[f"{prefix}_ref{i}_precision"] = prec
+            row[f"{prefix}_ref{i+1}_{f}"] = data.get(f)
+        row[f"{prefix}_ref{i+1}_precision"] = prec
     return row
 
 

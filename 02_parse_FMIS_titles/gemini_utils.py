@@ -224,13 +224,6 @@ def _format_state_fips(value):
     return f"{int(value):02d}"
 
 
-def _format_county_fips(value):
-    """Format county FIPS as a 5-digit zero-padded string."""
-    if pd.isna(value):
-        return None
-    return f"{int(value):05d}"
-
-
 def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_dir,
                         identifier, reason) -> pd.DataFrame | None:
     """Save accumulated rows to CSV; returns the DataFrame if any rows were saved.
@@ -336,7 +329,7 @@ def process_titles(genai_client,
                 "project_title": str(row.get("projecttitle", "")),
                 "state_fips": _format_state_fips(row.get("state_fips")),
                 "state_name": str(row.get("state_name", "")),
-                "county_fips": _format_county_fips(row.get("county_fips")),
+                "county_fips": row.get("county_fips"),
                 "county_name": str(row.get("county_name", "")),
                 "route_fpn": int(row["route_fpn"]) if pd.notna(row.get("route_fpn")) else None,
             }
