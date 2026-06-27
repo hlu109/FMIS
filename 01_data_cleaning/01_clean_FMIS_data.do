@@ -5,6 +5,7 @@
 * Set user
 local user = c(username)
 if "`user'" == "andersonkovesci"{
+	global code "/Users/andersonkovesci/Dropbox/FHWA cost data/Code/FMIS_andy"
 	global output "/Users/andersonkovesci/Dropbox/FHWA cost data/Output/Andy"
 	global data "/Users/andersonkovesci/Dropbox/FHWA cost data/Data"
 	global raw_data "$data/Raw"
@@ -12,6 +13,7 @@ if "`user'" == "andersonkovesci"{
 }
 else if "`user'" == "hl2266"{
     global project_root "C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data"
+	global code "$project_root/Code/FMIS_hannah"
     global output "$project_root/Output/Hannah"
     global data "$project_root/Data"
 	global raw_data "$data/Raw"
@@ -93,45 +95,11 @@ label values county_fips county_fips_lbl
 decode county_fips, gen(county_name)
 tostring county_fips, replace force
 
-* Save the county list for project level data
-preserve
-tostring detail_improvementtype, gen(proj_improv_types)
-gen row = _n
-sort federal_project_number recipientid row
-foreach var of varlist proj_improv_types county_fips county_name {
-    replace `var' = "" if `var' == "."
-    capture drop `var'_combined
-    by federal_project_number recipientid: gen `var'_combined = `var'[1]
-	by federal_project_number recipientid: replace `var'_combined = cond( ///
-		!regexm(`var'_combined[_n-1], "(^|; )" + `var' + "($|;)"), ///
-		cond(`var'_combined[_n-1] == "", `var', `var'_combined[_n-1] + "; " + `var'), ///
-    `var'_combined[_n-1]) if _n > 1  
-	by federal_project_number recipientid: replace `var' = `var'_combined[_N]
-}
-bysort recipientid federal_project_number: gen n = _n
-keep if n == 1 
-keep recipientid federal_project_number proj_improv_types county_fips county_name
-save "$intermediate_data/aggregated_proj_strings.dta", replace
-restore
-
-* Aggregate to the reimbursement level
-sort federal_project_number recipientid detail_programcode detail_linenumber gisbreakdown_index
-foreach var of varlist county_fips county_name {
-    replace `var' = "" if `var' == "."
-    capture drop `var'_combined
-    by federal_project_number recipientid detail_programcode detail_linenumber: ///
-        gen `var'_combined = `var'[1]
-    by federal_project_number recipientid detail_programcode detail_linenumber: ///
-        replace `var'_combined = cond( ///
-            !regexm(`var'_combined[_n-1], "(^|; )" + `var' + "($|;)"), ///
-            cond(`var'_combined[_n-1] == "", `var', `var'_combined[_n-1] + "; " + `var'), ///
-            `var'_combined[_n-1]) if _n > 1
-    by federal_project_number recipientid detail_programcode detail_linenumber: ///
-        replace `var' = `var'_combined[_N]
-}
-
-* drop to the reimbursement level
+* Aggregate strings to the reimbursement level and the project level
+* run "$code/01_data_cleaning/aggregate_strings.do"
 keep if gisbreakdown_index == . | gisbreakdown_index == 1
+merge m:m recipientid federal_project_number detail_linenumber ///
+	using "$intermediate_data/aggregated_reimbursement_strings.dta"
 
 * Define improvement labels 
 global improvement_lbl_def ///
