@@ -98,6 +98,7 @@ tostring county_fips, replace force
 * Aggregate strings to the reimbursement level and the project level
 * run "$code/01_data_cleaning/aggregate_strings.do"
 keep if gisbreakdown_index == . | gisbreakdown_index == 1
+drop county_fips county_name 
 merge m:m recipientid federal_project_number detail_linenumber ///
 	using "$intermediate_data/aggregated_reimbursement_strings.dta"
 
