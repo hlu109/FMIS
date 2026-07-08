@@ -105,8 +105,8 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
         }
         for i in range(MAX_ANCHORS):
             for f in REF_FIELDS:
-                row[f"{prefix}_ref{i}_{f}"] = None
-            row[f"{prefix}_ref{i}_precision"] = None
+                row[f"{prefix}_ref{i+1}_{f}"] = None
+            row[f"{prefix}_ref{i+1}_precision"] = None
         return row
 
     refs = endpoint.loc_refs if endpoint.loc_refs is not None else []
@@ -150,7 +150,6 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
         row[f"{prefix}_ref{i+1}_precision"] = prec
     return row
 
-# TODO: debug why we are still outputting (empty) columns for ref0
 def project_to_dataframe(project: Project) -> pd.DataFrame:
     """Flatten a Project into a single-row DataFrame."""
     row = {
