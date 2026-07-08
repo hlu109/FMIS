@@ -42,7 +42,7 @@ gen total_cost_bills_adjusted = total_cost_mills / cpi / 1000
 rename year completion_year
 sort completion_year recipientid federal_project_number
 
-gen constauthyear = year(authconstdate)
+gen authconstyear = year(authconstdate)
 
 * extract the route number from the federal project number
 gen str3 route_fpn_str = substr(strtrim(federal_project_number), 1, 3)
@@ -53,14 +53,15 @@ destring route_fpn, replace
 decode state_fips, gen(state_name)
 
 * add variable to filter by pre/post NEPA 
-gen post_1970_auth = constauthyear >= 1970
+gen post_1970_auth = authconstyear >= 1970
 
 * add variable to filter by below/above median cost 
 summarize total_cost_bills_adjusted, detail
 gen below_median_cost = total_cost_bills_adjusted < r(p50)
 
 * keep only project titles and some key variables
-keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year constauthyear has_new_construction post_1970_auth below_median_cost
+* Ella also specifically requested dates 
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear has_new_construction post_1970_auth below_median_cost
 save "$geocoding_dir/FMIS_interstate_project_titles.dta", replace
 
 * restrict to projects with new construction
@@ -71,6 +72,6 @@ summarize total_cost_bills_adjusted, detail
 drop below_median_cost
 gen below_median_cost = total_cost_bills_adjusted < r(p50)
 
-keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year constauthyear post_1970_auth below_median_cost
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear post_1970_auth below_median_cost
 save "$geocoding_dir/FMIS_interstate_newconstr_project_titles.dta", replace
 

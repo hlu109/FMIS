@@ -46,17 +46,17 @@ prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / "prompt v4.md"
 
 # SET FILE IDENTIFIERS --------------------------------------------------------
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-identifier = "new_constr_v4_" + timestamp
-RUN_PREFIX = "otherlandmark_debug_"
-run_name = f"{RUN_PREFIX}_{identifier}"
+# identifier = "new_constr_v4_" + timestamp
+RUN_PREFIX = "new_constr_v4"
+identifier = f"{RUN_PREFIX}_{timestamp}"
 
 # SET FILE PATHS -------------------------------------------------------------
 INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_newconstr_project_titles.dta"
 gemini_dir = GEOCODING_DIR / "title_parsing_gemini_output"
 log_dir = GEOCODING_DIR / "title_parsing_gemini_logs"
 
-OUTPUT_FILE_NAME = f"{run_name}.csv"
-run_dir = gemini_dir / run_name
+OUTPUT_FILE_NAME = f"{identifier}.csv"
+run_dir = gemini_dir / identifier
 OUTPUT_PATH = gemini_dir / OUTPUT_FILE_NAME
 
 
@@ -70,6 +70,6 @@ row_indices = None
 # row_indices = [4764,
 # 9673, 17318, 9690, 19604, 10831, 17351, 18157, 10842, 15966, 15541, 13380, 1878, 1859, 15059, 19036, 4029, 5523, 8094, 9179, 8081, 11194, 9229, 5718, 15752, 9216, 14261, 9247, 16819, 5934, 12426, 1528, 20162, 19362, 18684, 10650, 14922]
 # row_indices = [i - 1 for i in row_indices]
-sample_n = 100                # if set (and row_indices is None), sample this many rows
+sample_n = 200                # if set (and row_indices is None), sample this many rows
 sample_stratify_by = ["state_fips", "post_1970_auth", "below_median_cost"]
 random_seed = 42

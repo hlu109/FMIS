@@ -150,7 +150,7 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
         row[f"{prefix}_ref{i+1}_precision"] = prec
     return row
 
-
+# TODO: debug why we are still outputting (empty) columns for ref0
 def project_to_dataframe(project: Project) -> pd.DataFrame:
     """Flatten a Project into a single-row DataFrame."""
     row = {

@@ -367,6 +367,8 @@ def process_titles(genai_client,
                     "recipient_id": recipient_id,
                     "federal_project_number": fpn,
                     "model_id": model_id,
+                    "completion_year": row.get("completion_year"),
+                    "authconstyear": row.get("authconstyear"),
                 }
                 runtime_metadata.update(project_input)
 
