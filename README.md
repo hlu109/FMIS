@@ -102,3 +102,21 @@ PLACEHOLDER
 My estimate is that it costs around $10 to run the Gemini title-parsing script for 1000 projects. For the full set of 60k interstate projects, we're looking at around $600, give or take. For the 20k subset of new construction interstate projects, we're looking at around $200.
 
 Runtime is approximately 2 hours for a 1k sample. 
+
+
+
+## Using the Yale HPC 
+
+### VSCode 
+
+If you need to develop any code on the server, I recommend setting up VSCode via Remote Tunnel, though there are other simpler options as well. See https://docs.ycrc.yale.edu/clusters-at-yale/access/ood-vscode/ for more information. 
+
+### Python 
+
+I recommend using a virtual environment (like virtualenv for Python combined with a requirements.txt list of packages, or renv for R) so that it is easy to install all the dependencies for your code. 
+
+Make sure to load the Python module via 
+
+`module load Python` 
+
+otherwise you won't be able to run anything properly. This is also necessary to use pip. (See https://docs.ycrc.yale.edu/clusters-at-yale/guides/python/ for more details.)
