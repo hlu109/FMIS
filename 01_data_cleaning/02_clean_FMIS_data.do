@@ -432,18 +432,18 @@ label variable projectenddate "Expected end date"
 label variable finalvoucherdate "Date of final expenditure or date the final voucher was paid"
 label variable latestpaymentdate "Date of most recent expenditure against the project"
 
-// * Add NEPA variables
-// rename nepaclassofaction nepa_class
-// rename nepaclassofactiondecisiondate nepa_decision_date
-// global nepa_class_lbl_def ///
-//     0  "Undefined" ///
-//     1  "Categorial Exclusions" ///
-//     2  "Environmental Assessment" ///
-//     3  "Environmental Impact Statement"
-// label define nepa_class_lbl $nepa_class_lbl_def, replace
-// label values nepa_class nepa_class_lbl
-// label variable nepa_class "NEPA Class of Action"
-// label variable nepa_decision_date "Decision date for NEPA class of action"
+* Add NEPA variables
+rename nepaclassofaction nepa_class
+rename nepaclassofactiondecisiondate nepa_decision_date
+global nepa_class_lbl_def ///
+    0  "Undefined" ///
+    1  "Categorial Exclusions" ///
+    2  "Environmental Assessment" ///
+    3  "Environmental Impact Statement"
+label define nepa_class_lbl $nepa_class_lbl_def, replace
+label values nepa_class nepa_class_lbl
+label variable nepa_class "NEPA Class of Action"
+label variable nepa_decision_date "Decision date for NEPA class of action"
 
 * parse funding streams  
 gen funding_program = ""
@@ -457,13 +457,13 @@ replace funding_program = "National Highway Performance Program" if inlist(detai
 replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z510", "Z530", "M0E1", "M0E2", "M001", "M002")
 
 * export 
-keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type
+keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid gis_beginpoint gis_endpoint detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type nepa_class nepa_decision_date
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 label save using "$labels_dir/FMIS_labels.do", replace
 
 * also export lite version 
-drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid county_name
+drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid gis_beginpoint gis_endpoint county_name
 
 save "$intermediate_data/receipt_level_FMIS_lite.dta", replace
 
@@ -484,8 +484,9 @@ gen receipts = 1 // this is used for reciept counts
 // TODO: should verify that the location variables (county, urban_rural, etc) are consistent across receipts within a project 
 collapse ///
     (sum) receipts total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds ///
-    (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips gis_routeid urban_rural ///
+    (firstnm) region projectstatus projecttitle projectdescription authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate recipientremarks divisionremarks detail_prefix state_fips gis_routeid gis_beginpoint gis_endpoint urban_rural ///
     (lastnm) completion_year ///
+    (max) nepa_class nepa_decision_date ///
     (max) interstate_functional interstate_syscode fp_ic fp_im fp_imd fp_nhpp (max) has_new_construction = new_construction ///
     (max) has_reconstruction = reconstruction ///
     (max) has_rehabilitation = rehabilitation ///
@@ -511,6 +512,6 @@ label values state_fips state_fips_lbl
 save "$data/Intermediate/project_level_FMIS.dta", replace
 
 * also export lite version
-drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid
+drop projecttitle projectdescription recipientremarks divisionremarks gis_routeid gis_beginpoint gis_endpoint
 
 save "$intermediate_data/project_level_FMIS_lite.dta", replace
