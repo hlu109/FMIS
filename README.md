@@ -120,3 +120,5 @@ Make sure to load the Python module via
 `module load Python` 
 
 otherwise you won't be able to run anything properly. This is also necessary to use pip. (See https://docs.ycrc.yale.edu/clusters-at-yale/guides/python/ for more details.)
+
+Whenever I use the Google Gemini python package on the server, it never installs properly via `pip install -r requirements.txt`; I always need to manually install it via `pip install google-genai`. I am not sure why this is necessary, but noting for posterity. 
