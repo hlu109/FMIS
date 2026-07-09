@@ -50,12 +50,12 @@ Use the provided `state_name`, `county_name`, and `route_fpn` to help resolve co
 - Renumbered routes: If the route in the title was historically renumbered, use the modern-day route and number in `route_type` and `route_num`. The original historical designation goes in `alt_names`.
 
 
-**route_num**: The canonical, modern-day numeric route number of the highest class route designation. Do **NOT** backfill from `route_fpn`. You may only use `route_fpn` to help resolve cases where an alternate name or vanity name is given. 
+**route_num**: The canonical, modern-day numeric route number of the highest class route designation. Do **NOT** backfill from `route_fpn`. You may only use `route_fpn` to help resolve cases where an alternate name or vanity name is given. DO NOT OMIT THIS if the main route is found in the title. It is possible for the main route in the title to differ from `route_fpn`. 
 
 **route_type**: The canonical, modern day, highest-class highway classification. Options include:
-- `interstate`: Interstate highway (`I-XX`, `IR XX`, `IH XX`, `FAI XX`) Alaska and Hawaii have interstates numbered as `A-X` and `H-X` respectively – do NOT confuse these with state routes. 
-- `us_route`: US numbered route (`US-XX`)
-- `state_route`: State highway or state route (`SR`, `SH`, `TH`, and other state-specific prefixes)
+- `interstate`: Interstate highway (often prefixed with `I`, `IR`, `IH`, or `FAI`, with or without dashes and spaces between the prefix and route number). Alaska and Hawaii have interstates prefixed with an `A` or `H` respectively; do NOT confuse these with state routes. 
+- `us_route`: US numbered route (often prefixed with `US`)
+- `state_route`: State highway or state route (often prefixed with `SR`, `SH`, `TH`, or other state-specific prefixes)
 - `local_road`: County road, township road, or named local road
 - `other`: Other route type not covered above
 
@@ -86,7 +86,7 @@ If none of the title-level flags are activated, search for endpoints, identified
 *Exit numbers:*
 - `exit_number`: numbered highway exit
 *Intersections / crossings / boundaries:*
-- `highway`: another highway (distinct from the main route). 
+- `highway`: another highway (distinct from the main route). Do NOT confuse a state boundary for a state highway. 
 - `road`: non-highway road
 - `named_junct_interchange`: a specially-named junction or interchange (where the junction/interchange has its own name, distinct from the original highway or road name). do not confuse this for a highway or road name that happens to specify it is an interchange. 
 - `railroad_crossing`: railroad

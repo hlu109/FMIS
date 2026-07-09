@@ -42,16 +42,16 @@ print(f"PROJECT_ROOT: {PROJECT_ROOT}")
 # ------------------------------------------------------------------------------
 
 # SET GEMINI PROMPT ------------------------------------------------------------
-prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / "prompt v4.md"
+prompt_version = 5
+prompt_text_path = CODE_ROOT / "02_parse_FMIS_titles" / f"prompt v{prompt_version}.md"
 
 # SET FILE IDENTIFIERS --------------------------------------------------------
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-# identifier = "new_constr_v4_" + timestamp
-RUN_PREFIX = "new_constr_v4"
+RUN_PREFIX = f"interstate_new_constr_AK_HI_v{prompt_version}"
 identifier = f"{RUN_PREFIX}_{timestamp}"
 
 # SET FILE PATHS -------------------------------------------------------------
-INPUT_PATH = GEOCODING_DIR / "FMIS_interstate_newconstr_project_titles.dta"
+INPUT_PATH = GEOCODING_DIR / "inputs" / "FMIS_interstate_newconstr_project_titles_AK_HI_sample.dta"
 gemini_dir = GEOCODING_DIR / "title_parsing_gemini_output"
 log_dir = GEOCODING_DIR / "title_parsing_gemini_logs"
 
@@ -70,6 +70,7 @@ row_indices = None
 # row_indices = [4764,
 # 9673, 17318, 9690, 19604, 10831, 17351, 18157, 10842, 15966, 15541, 13380, 1878, 1859, 15059, 19036, 4029, 5523, 8094, 9179, 8081, 11194, 9229, 5718, 15752, 9216, 14261, 9247, 16819, 5934, 12426, 1528, 20162, 19362, 18684, 10650, 14922]
 # row_indices = [i - 1 for i in row_indices]
-sample_n = 200                # if set (and row_indices is None), sample this many rows
-sample_stratify_by = ["state_fips", "post_1970_auth", "below_median_cost"]
+# sample_n = 200                # if set (and row_indices is None), sample this many rows
+# sample_stratify_by = ["state_fips", "post_1970_auth", "below_median_cost"]
+sample_n = None # use full dataset
 random_seed = 42
