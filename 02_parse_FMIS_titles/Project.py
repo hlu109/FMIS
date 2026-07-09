@@ -6,6 +6,11 @@ from typing import Literal, Optional
 class MainRoute(BaseModel):
     route_type: Optional[Literal["interstate", "us_route", "state_route", "local_road", "other"]] = None
     route_num: Optional[int] = None
+    route_num_match_status: Optional[Literal[
+        "matches_route_fpn", "concurrent_higher_class", "historical_renumbering",
+        "vanity_or_alt_name", "spur_or_business_route",
+        "other"
+    ]] = None
     alt_names: Optional[str] = None
 # Maximum number of LocationRef entries per endpoint stored in the flat table.
 MAX_ANCHORS = 3

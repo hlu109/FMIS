@@ -63,6 +63,14 @@ Use the provided `state_name`, `county_name`, and `route_fpn` to help resolve co
 - `local_road`: County road, township road, or named local road
 - `other`: Other route type not covered above
 
+**route_num_match_status**: Records the match status of the route number/type extracted from the title compared to route_fpn. Options include: 
+- `matches_route_fpn`: The route number extracted from the title matches `route_fpn`.
+- `concurrent_higher_class`: The title's stated route runs concurrently with a higher-class route at that location, and `route_type`/`route_num` reflect the higher-class route instead of the literal text.
+- `historical_renumbering`: The title uses a historical/former route designation that has since been renumbered; `route_type`/`route_num` reflect the modern designation.
+- `vanity_or_alt_name`: The title gives only a name (no route number), and `route_type`/`route_num` were resolved by recognizing the named route from context.
+- `spur_or_business_route`: The title's stated route is a spur, business loop, or bypass of a different parent corridor than `route_fpn`. These are physically distinct roads, not the same road under two names. Keep the literal title route; do no substitute from `route_fpn`.
+- `other`: Any other reason for a mismatch with `route_fpn`, explained in `route_reasoning`.
+
 **alt_names**: A route's vanity name, alternate name, or concurrent route number, if it is explicitly given in addition to, or instead of, a primary route number. If a concurrent, numbered route is given, format this to include both the route type and number. E.g., `"Baltimore Beltway"`, or "Interstate 94" (when given I-90&94, indicating concurrent routes). 
 
 
