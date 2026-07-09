@@ -12,6 +12,7 @@ if "`user'" == "andersonkovesci"{
 }
 else if "`user'" == "hl2266"{
     global project_root "C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data"
+	global code_root "$project_root/Code/FMIS_Hannah"
     global output "$project_root/Output/Hannah"
     global data "$project_root/Data"
 	global raw_data "$data/Raw"
@@ -40,88 +41,10 @@ gen byte route_fpn_has_char = regexm(route_fpn, "[A-Za-z]")
 gen str3 route_fpn_int = ustrregexra(route_fpn, "[A-Za-z]", "")
 destring route_fpn_int, replace
 
-* ==============================================================================
-* string regex to extract interstate route numbers from project titles
-* ==============================================================================
-/*
-    Uses ustrregexm() so that \b word boundaries are available;
-    this is the key guard against false positives like "VI-40" (Virgin Islands)
-    or "RI-6" (Rhode Island state route), where a letter immediately precedes
-    the I and blocks the word boundary.
-
-    Patterns matched:
-      I-40  I 40  I40          standard I-prefix, with or without separator
-      IH-10 IH 10 IH10         IH-prefix (Texas / Wisconsin convention)
-      I-70B I-94BL             letter suffixes for business loops / branches
-      INTERSTATE 95            spelled out
-      FAI-57  FAI 70           Federal Aid Interstate project codes
-
-    Patterns explicitly NOT matched:
-      VI-40  VI-70             Virgin Islands routes (\b before I blocked by V)
-      RI-6   KY-31             state routes with two-letter prefix
-      I/S                      intersection abbreviation (/ not in [-\s]?)
-      I-SECTION  ITS           non-digit after I prefix
-      BRIDGE NO. I 6-00        bridge IDs (minor residual risk on single-digit
-                               routes like I-4 / I-5 / I-8; acceptable tradeoff)
-*/
-
-* define regex components
-* =======================
-
-* core route: I or IH, optional dash/space, 1-3 digit number, optional letter
-* suffix (B = business, L = loop, BL = business loop, etc.)
-* \b on both sides prevents matching inside longer tokens (VI-40, ITS, etc.)
-local re_route    `"(\bIH?[-\s]?\d{1,3}[A-Z]{0,2}\b)"'
-
-* spelled-out "INTERSTATE" followed by a route number
-local re_spelled  `"(\bINTERSTATE\s+\d{1,3}\b)"'
-
-* Federal Aid Interstate project codes (FAI-57, FAI 70, FAI94, etc.)
-* note: FAI followed by a US route number (e.g. "FAI US 33") will NOT match
-* this pattern since US is not a digit
-local re_fai      `"(\bFAI[-\s]?\d{1,3}\b)"'
-
-* combined
-local re_all `"`re_route'|`re_spelled'|`re_fai'"'
-
-
-* apply to data
-* =======================
-gen str title_upper = upper(projecttitle)
-
-* indicator: 1 if any interstate route reference found
-gen byte has_route = ustrregexm(title_upper, `"`re_all'"')
-
-* extract up to 3 interstate route matches per title
-* find match, strip it from the string, search for more matches 
-
-* match 1
-gen str route_1 = ustrregexs(0) if ustrregexm(title_upper, `"`re_all'"')
-
-* strip route_1 and search remaining string for match 2
-gen str _title_s2 = subinstr(title_upper, route_1, "-----", 1) if !mi(route_1)
-replace _title_s2 = title_upper if mi(route_1)
-gen str route_2 = ustrregexs(0) if ustrregexm(_title_s2, `"`re_all'"')
-
-* strip route_2 and search for match 3
-gen str _title_s3 = subinstr(_title_s2, route_2, "-----", 1) if !mi(route_2)
-replace _title_s3 = _title_s2 if mi(route_2)
-gen str route_3 = ustrregexs(0) if ustrregexm(_title_s3, `"`re_all'"')
-
-drop title_upper _title_s2 _title_s3
-
-* strip prefix leaving only the route number and any trailing letter suffix
-local re_prefix `"^(INTERSTATE\s+|FAI[-\s]?|IH?[-\s]?)"'
-foreach v in route_1 route_2 route_3 {
-    replace `v' = ustrregexra(`v', `"`re_prefix'"', "") if !mi(`v')
-}
-
-* add letter flag and convert to numeric
-foreach v in route_1 route_2 route_3 {
-    gen byte `v'_has_char = regexm(`v', "[A-Za-z]") if !mi(`v')
-    gen str20 `v'_int = ustrregexra(`v', "[A-Za-z]", "") if !mi(`v')
-    destring `v'_int, replace
-}
+* extract interstate route numbers from project titles
+* use the helper function extract_routes_regex
+do "$code_root/01_data_cleaning/extract_route_regex.do"
+extract_routes_regex, titlevar(projecttitle)
 
 * check if FPN route matches any of extracted routes
 * =======================
