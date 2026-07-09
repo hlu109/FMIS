@@ -6,6 +6,11 @@ from typing import Literal, Optional
 class MainRoute(BaseModel):
     route_type: Optional[Literal["interstate", "us_route", "state_route", "local_road", "other"]] = None
     route_num: Optional[int] = None
+    route_num_match_status: Optional[Literal[
+        "matches_route_fpn", "concurrent_higher_class", "historical_renumbering",
+        "vanity_or_alt_name", "spur_or_business_route",
+        "other"
+    ]] = None
     alt_names: Optional[str] = None
 # Maximum number of LocationRef entries per endpoint stored in the flat table.
 MAX_ANCHORS = 3
@@ -39,14 +44,17 @@ class LocationRef(BaseModel):
 
 
 class Endpoint(BaseModel):
+    reasoning: Optional[str] = None
     endpoint_cleaned: Optional[str] = None
     loc_refs: Optional[list[LocationRef]] = None
 
 
 class Project(BaseModel):
+    flags_reasoning: Optional[str] = None
     statewide: bool
     various_locs_unspecified: bool
     multi_locs_specified: bool
+    route_reasoning: Optional[str] = None
     segment_length: Optional[float] = None
     segment_length_unit: Optional[str] = None   # "mi", "km", "ft"
     segment_direction: Optional[Literal["N", "S", "E", "W", "NE", "NW", "SE", "SW"]] = None
@@ -95,8 +103,9 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
     prefix = f"ep_{suffix.lower()}"   # e.g., "ep_a" or "ep_b"
 
     if endpoint is None:
-        # return a row with all empty fields 
+        # return a row with all empty fields
         row = {
+            f"{prefix}_reasoning": None,
             f"{prefix}_cleaned": None,
             f"{prefix}_n_refs": None,
             f"{prefix}_max_precision": None,
@@ -128,6 +137,7 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
     max_prec = ref_prec_pairs[0][1] if ref_prec_pairs else None
 
     row = {
+        f"{prefix}_reasoning": endpoint.reasoning,
         f"{prefix}_cleaned": endpoint.endpoint_cleaned,
         f"{prefix}_n_refs": len(refs),
         f"{prefix}_max_precision": max_prec,
@@ -153,9 +163,11 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
 def project_to_dataframe(project: Project) -> pd.DataFrame:
     """Flatten a Project into a single-row DataFrame."""
     row = {
+        "flags_reasoning": project.flags_reasoning,
         "statewide": project.statewide,
         "various_locs_unspecified": project.various_locs_unspecified,
         "multi_locs_specified": project.multi_locs_specified,
+        "route_reasoning": project.route_reasoning,
         "segment_length": project.segment_length,
         "segment_length_unit": project.segment_length_unit,
         "segment_direction": project.segment_direction,

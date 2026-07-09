@@ -363,12 +363,12 @@ def process_titles(genai_client,
 
             if result:
                 runtime_metadata = {
-                    "row_index": idx,
                     "recipient_id": recipient_id,
                     "federal_project_number": fpn,
-                    "model_id": model_id,
                     "completion_year": row.get("completion_year"),
                     "authconstyear": row.get("authconstyear"),
+                    "row_index": idx,
+                    "model_id": model_id,
                 }
                 runtime_metadata.update(project_input)
 
