@@ -29,7 +29,7 @@ Set the flags below after writing `flags_reasoning`. If any is `True`, set `main
 
 ## Main route extraction
 
-**`route_reasoning`**: Before populating `main_route` (and the segment extent fields below), write 1 sentence explaining how you identify the main route and where in the title it appears, or why it can't be identified. You may cite `route_fpn` if relevant.
+**`route_reasoning`**: Before populating `main_route` (and the segment extent fields below), write 1 sentence explaining how you identify the main route and where in the title it appears, or why it can't be identified. You may cite `route_fpn` if relevant. You should also consider concurrencies and historical renumberings. 
 
 Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names.)
 
@@ -99,7 +99,7 @@ If none of the title-level flags are activated, search for endpoints, identified
 - `named_bridge`: named bridge
 - `tunnel`: named tunnel
 - `county_line`: county boundary (e.g., CO.L., CO LINE, C/L)
-- `state_line`: the boundary of a state, or between two states (e.g., S.L., STATE LINE, S/L). Also code international boundaries as a state boundary. Do NOT confuse this with state routes (which are highways). 
+- `state_line`: the boundary of a state, or between two states (e.g., S.L., STATE LINE, S/L). Also code international boundaries as a state boundary. Do NOT confuse this with state routes (state routes should be coded as highways, not state_line). 
 - `waterway`: river, fork, branch, creek, run, brook, etc.
 - `city_limits`: city boundary
 *Named places — areas, facilities, or terrain features:*
