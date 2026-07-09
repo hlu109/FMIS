@@ -18,7 +18,9 @@ You will receive a JSON object containing::
 
 ## Title-level flags
 
-Set these first. If any is `True`, set `main_route`, `endpoint_a`, and `endpoint_b` all to `null`.
+**`flags_reasoning`**: Before setting the three flags below, write 1 sentence of reasoning. Quote or paraphrase the specific substring(s) of the title driving each decision. If the title could plausibly be read as either single- or multi-location, say so explicitly and explain which reading you chose and why.
+
+Set the flags below after writing `flags_reasoning`. If any is `True`, set `main_route`, `endpoint_a`, and `endpoint_b` all to `null`.
 
 - `statewide`: `True` if the title explicitly states the project applies statewide, districtwide, or to an entire road system.
 - `various_locs_unspecified`: `True` if the title uses the keyword "various" to describe locations without specifying them.
@@ -26,6 +28,8 @@ Set these first. If any is `True`, set `main_route`, `endpoint_a`, and `endpoint
 
 
 ## Main route extraction
+
+**`route_reasoning`**: Before populating `main_route` (and the segment extent fields below), write 1 sentence explaining how you identify the main route and where in the title it appears, or why it can't be identified. You may cite `route_fpn` if relevant.
 
 Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names.)
 
@@ -68,6 +72,8 @@ If none of the title-level flags are activated, search for endpoints, identified
 
 
 ### Field-by-field instructions
+
+**`reasoning`**: Before populating `endpoint_cleaned` and `loc_refs` for this endpoint, write 1 sentence identifying which substring(s) of the title describe this endpoint, and briefly justify the `anchor_type` chosen for each `LocationRef` below (especially if more than one ref is found, or if the anchor type/feature is ambiguous).
 
 **`endpoint_cleaned`**: Expand abbreviations from the title into a clean, geocodable phrase. Do NOT infer any other geographic context (e.g., do not guess which county an exit is in, do not guess a city based on a route, do not guess neighborhoods). 
 
