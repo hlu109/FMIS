@@ -47,7 +47,7 @@ It is also possible that the main route is referred to by an alternate name or v
 
 Finally, it is possible that the main route is absent from the title, in which case, return `null`. **If the main route is absent, DO NOT use `route_fpn` to backfill the information.**
 
-**Do not promote an endpoint anchor to main route.** A highway that appears only as a cross-feature within an endpoint reference — e.g., after "from", "to", "at", or as an offset anchor — is serving as a location landmark, not as the main route. 
+**Do not promote an endpoint anchor to main route.** A highway that appears only as a cross-feature within an endpoint reference — e.g., after "from", "to", "at", a dash, or as an offset anchor — is serving as a location landmark, not as the main route. 
 
 Use the provided `state_name`, `county_name`, and `route_fpn` to help resolve concurrent designations, alternate or vanity names, and apply historical renumbering knowledge in `route_type` and `route_num`. E.g., 
 - Concurrent routes: If the main route is a state/US route that runs concurrently with a higher-class route in that state, populate `route_type` and `route_num` with the higher-class route. 
@@ -64,7 +64,7 @@ Use the provided `state_name`, `county_name`, and `route_fpn` to help resolve co
 - `other`: Other route type not covered above
 
 **route_num_match_status**: Records the match status of the route number/type extracted from the title compared to route_fpn. Options include: 
-- `matches_route_fpn`: The route number extracted from the title matches `route_fpn`.
+- `matches_route_fpn`: The route number extracted from the title matches `route_fpn` EXACTLY.
 - `concurrent_higher_class`: The title's stated route runs concurrently with a higher-class route at that location, and `route_type`/`route_num` reflect the higher-class route instead of the literal text.
 - `historical_renumbering`: The title uses a historical/former route designation that has since been renumbered; `route_type`/`route_num` reflect the modern designation.
 - `vanity_or_alt_name`: The title gives only a name (no route number), and `route_type`/`route_num` were resolved by recognizing the named route from context.
@@ -115,7 +115,7 @@ If none of the title-level flags are activated, search for endpoints, identified
 - `county`: county or county-equivalent
 - `region`: multi-county area, DOT district, or other administrative region
 - `other_terrain`: natural terrain feature not covered above. Do not confuse named regions that sound like terrain features but are actually proper nouns. 
-- `other_landmark`: built facility not covered above (toll plaza, weigh station, rest area, unnamed junction or interchange, etc.) Do NOT confuse named junctions/interchanges for other_landmark. It's possible that the name sounds like a landmark but is actually a proper noun. 
+- `other_landmark`: built facility not covered above (toll plaza, weigh station, rest area, unnamed junction or interchange, etc.) Do NOT confuse named junctions/interchanges for other_landmark. It's possible that the name sounds like a landmark but is actually a proper noun, like a street, named highway, city, or town. 
 - `unknown`: anchor is present but type cannot be determined
 
 **`mile_num`**: numeric milepost value; only for linear reference anchor types.
