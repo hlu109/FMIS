@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=week
 #SBATCH --job-name=gemini_parse_titles_long
-#SBATCH --output="/home/hl2266/project_pi_zdl3/shared/FMIS project/slurm_logs/gemini_parse_titles_%j.log"
+#SBATCH --output="/home/hl2266/project_pi_zdl3/shared/FMIS project/slurm_logs/gemini_parse_titles_long_%j.log"
 #
 #SBATCH --time=1-12:00:00
 #SBATCH --mem=10G
