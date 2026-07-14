@@ -99,23 +99,23 @@ If none of the title-level flags are activated, search for endpoints, identified
 - `station`: civil engineering station (STA NNN+DD)
 *Exit numbers:*
 - `exit_number`: numbered highway exit
-*Intersections / crossings / boundaries:*
-- `highway`: another highway (distinct from the main route). Do NOT confuse a state boundary for a state highway. 
-- `road`: non-highway road
-- `named_junct_interchange`: a specially-named junction or interchange (where the junction/interchange has its own name, distinct from the original highway or road name). do not confuse this for a highway or road name that happens to specify it is an interchange. 
+*Intersections / crossings / boundaries (including undercrossings and overpasses):*
+- `highway`: another highway (distinct from the main route) that intersects the main route, including (but not limited to) via overpass, undercrossing, intersection, junction, or interchange. Do NOT confuse a state boundary for a state highway. 
+- `road`: non-highway road that intersects the main route, including (but not limited to) via intersection, overpass, or undercrossing. 
+- `named_junct_interchange`: a specially-named junction or interchange where the junction/interchange has its own vanity name. If the intersecting highway route number is specified, select the `highway` category instead. 
 - `railroad_crossing`: railroad
 - `named_bridge`: named bridge
 - `tunnel`: named tunnel
 - `county_line`: county boundary (e.g., CO.L., CO LINE, C/L)
 - `state_line`: the boundary of a state, or between two states (e.g., S.L., STATE LINE, S/L). Also code international boundaries as a state boundary. Do NOT confuse this with state routes (state routes should be coded as highways, not state_line). 
-- `waterway`: river, fork, branch, creek, run, brook, etc.
+- `waterway`: river, fork, branch, creek, run, brook, etc. (including waterway crossings). 
 - `city_limits`: city boundary
 *Named places — areas, facilities, or terrain features:*
 - `city`: city, town, village, borough, etc. 
 - `county`: county or county-equivalent
 - `region`: multi-county area, DOT district, or other administrative region
 - `other_terrain`: natural terrain feature not covered above. Do not confuse named regions that sound like terrain features but are actually proper nouns. 
-- `other_landmark`: built facility not covered above (toll plaza, weigh station, rest area, unnamed junction or interchange, etc.) Do NOT confuse named junctions/interchanges for other_landmark. It's possible that the name sounds like a landmark but is actually a proper noun, like a street, named highway, city, or town. 
+- `other_landmark`: built facility not covered above (toll plaza, weigh station, rest area, unnamed junction or interchange, etc.) Do NOT confuse named junctions/interchanges for other_landmark. Confirm using knowledge of US geography that the anchor is not actually a proper noun like the name of a street, neighborhood, named highway, city, or town. Only use this as a backup if none of the more specific categories apply. 
 - `unknown`: anchor is present but type cannot be determined
 
 **`mile_num`**: numeric milepost value; only for linear reference anchor types.
