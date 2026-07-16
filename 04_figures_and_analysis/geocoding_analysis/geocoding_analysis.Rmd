@@ -70,6 +70,12 @@ project_level_fmis_geo <- fread(file.path(data_dir, "geocoding", "title_parsing_
 length(unique(project_level_fmis_geo$project_id))
 ```
 
+```{r}
+t <- receipt_sample %>% 
+  filter(detail_improvementtype == 15)
+```
+
+
 Project level geographic merges
 
 ```{r}
@@ -85,14 +91,29 @@ plf_join <- project_level_fmis_geo %>%
   ) %>%
   group_by(project_id) %>% 
   summarise(
-    total_cost_mills = sum(total_cost_mills),
-    new_construction_cost = sum(new_construction_cost),
-    row_cost = sum(row_cost),
-    pe_cost = sum(pe_cost),
+    total_cost_mills = sum(total_cost_mills, na.rm=T),
+    new_construction_cost = sum(new_construction_cost, na.rm=T),
+    row_cost = sum(row_cost, na.rm=T),
+    pe_cost = sum(pe_cost, na.rm=T),
     state_fips = first(state_fips),
     county_fips = first(county_fips),
     federal_project_number = first(federal_project_number),
-    geocoded = first(geocoded)
+    geocoded = first(geocoded),
+    year = first(completion_year)
+  )
+
+# adjust for inflation
+
+inf <- read_dta(file.path(data_dir, "CPI_2025.dta")) %>% 
+  select(year, cpi)
+
+plf_join <- plf_join %>% 
+  left_join(inf, by = "year") %>% 
+  mutate(
+    total_cost_mills = total_cost_mills / cpi,
+    new_construction_cost = new_construction_cost / cpi,
+    row_cost = row_cost / cpi,
+    pe_cost = pe_cost / cpi
   )
 ```
 
@@ -260,14 +281,14 @@ source(file.path(code_dir, "make_state_county_maps.R"), local=T)
 
 # Histograms
 
-```{r hist-state, fig.width = 7, fig.height = 4.5}
+```{r hist-state, fig.width = 7, fig.height = 4.5, warning=F}
 source(file.path(code_dir, "make_histograms.R"), local=T)
 ```
 
-# 75% geocoded counties
+# 75% geocoded counties cost breakdowns
 
 ```{r}
-
+source(file.path(code_dir, "make_cost_breakdowns.R"), local=T)
 ```
 
 
