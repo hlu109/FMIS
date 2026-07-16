@@ -1,0 +1,275 @@
+---
+title: "FMIS Geocoding Analysis"
+author: "Finn Meffe"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: 
+    extra_dependencies: ["booktabs", "multirow", "makecell", "float"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 0, digits = 6)  
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext)
+
+root_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+data_dir = file.path(root_dir, "Data", "Intermediate")
+output_dir = file.path(root_dir, "Output", "Finn", "geocoding analysis")
+code_dir = file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "geocoding_analysis")
+
+knitr::opts_knit$set(root.dir = root_dir)
+
+options(tinytex.latexmk.warning = FALSE)
+
+
+```
+
+# Data Clean/Join
+
+Load and join data
+
+```{r}
+project_level_fmis <- read_dta(file.path(data_dir, "project_level_FMIS_lite.dta")) %>% 
+  mutate(project_id = paste0(
+    sprintf("%02d", recipientid),
+    sep = "_",
+    federal_project_number
+  ))
+
+receipt_level_fmis <- read_dta(file.path(data_dir, "receipt_level_FMIS_lite.dta")) %>% 
+  mutate(project_id = paste0(
+    sprintf("%02d", recipientid),
+    sep = "_",
+    federal_project_number
+  )) %>% 
+  haven::zap_labels()
+```
+
+```{r}
+# load geocoded data
+project_level_fmis_geo <- fread(file.path(data_dir, "geocoding", "title_parsing_gemini_output", "interstate_new_constr_10k_v5_20260710_113650.csv")) %>% 
+  select(recipient_id,
+         federal_project_number,
+         ep_a_max_precision,
+         ep_b_max_precision) %>% 
+  mutate(num_ep = rowSums(!is.na(pick(ep_a_max_precision:ep_b_max_precision))),
+         geocoded = ifelse(
+           num_ep == 2 & pmax(ep_a_max_precision, ep_b_max_precision) >= 3,
+           1,
+           0
+         ),
+         project_id = paste0(
+           sprintf("%02d", recipient_id), 
+           sep = "_", 
+           federal_project_number)) %>% 
+  select(-recipient_id, -federal_project_number)
+
+length(unique(project_level_fmis_geo$project_id))
+```
+
+Project level geographic merges
+
+```{r}
+plf_join <- project_level_fmis_geo %>%
+  inner_join(receipt_level_fmis, by = "project_id") %>% 
+  filter(funding_program == "Interstate Construction",
+         completion_year >= 1950 & completion_year <= 2000,
+         detail_improvementtype != 5 | detail_improvementtype != 59) %>% 
+  mutate(
+    new_construction_cost = if_else(new_construction == 1, total_cost_mills, NA_real_),
+    row_cost              = if_else(detail_improvementtype == 16, total_cost_mills, NA_real_),
+    pe_cost               = if_else(detail_improvementtype == 15, total_cost_mills, NA_real_)
+  ) %>%
+  group_by(project_id) %>% 
+  summarise(
+    total_cost_mills = sum(total_cost_mills),
+    new_construction_cost = sum(new_construction_cost),
+    row_cost = sum(row_cost),
+    pe_cost = sum(pe_cost),
+    state_fips = first(state_fips),
+    county_fips = first(county_fips),
+    federal_project_number = first(federal_project_number),
+    geocoded = first(geocoded)
+  )
+```
+
+```{r, include=F}
+# There seem to bve slight discrepancies when comparing the total_cost_mills variable from the FMIS project data to the sum of costs from the FMIS receipts data (23 projects have a difference.)
+
+test <- project_level_fmis_geo %>%
+  inner_join(project_level_fmis, by = "project_id") %>% 
+  filter(fp_ic == 1,
+         completion_year >= 1950 & completion_year <= 2000,
+         )
+
+resid_test <- inner_join(
+  plf_join %>% 
+    select(project_id, total_cost_mills),
+  test %>% 
+    select(project_id, total_cost_mills),
+  by = "project_id"
+) %>% 
+  mutate(diff = abs(total_cost_mills.x - total_cost_mills.y))
+
+summary(resid_test)
+
+non_zero_resids <- resid_test %>%
+  filter(diff > 0) %>% 
+  pull(project_id)
+```
+
+```{r}
+# note that there are 8553 unique projects out of the 9946 observations from the 10k sample
+plf_projects <- plf_join %>% 
+  group_by(federal_project_number) %>%
+  summarise(
+    n_projects = n(),
+    n_geocoded = sum(geocoded, na.rm = T),
+    total_spending = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm =
+                               T)
+  ) %>% 
+  mutate(pct_proj_geo = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending)
+  
+plf_states <- plf_join %>%
+  mutate(state_fips = sprintf("%02d", state_fips)) %>% 
+  group_by(state_fips) %>%
+  summarise(
+    n_projects = n(),
+    n_geocoded = sum(geocoded, na.rm = T),
+    total_spending = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm =
+                               T)
+  ) %>% 
+  mutate(pct_proj_geo = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending) %>% 
+  inner_join(
+    us_map(regions="states",
+           exclude = "PR"),
+    by = join_by(state_fips == fips)
+  ) %>% 
+  st_as_sf()
+
+plf_counties <- plf_join %>%
+  # keep single counties only
+  filter(!is.na(county_fips), county_fips != "", !str_detect(county_fips, ";")) %>%
+  mutate(county_fips = str_pad(as.character(county_fips), 5, side = "left", pad = "0")) %>%
+  filter(str_sub(county_fips, 3, 5) != "999") %>%
+  group_by(county_fips) %>%
+  summarise(
+    n_projects        = n(),
+    n_geocoded        = sum(geocoded, na.rm = T),
+    total_spending    = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm = T)
+  ) %>%
+  mutate(pct_proj_geo     = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending) %>%
+  right_join(
+    us_map(regions = "counties",
+           exclude = "PR"),
+    by = join_by(county_fips == fips)
+  ) %>%
+  st_as_sf()
+
+# state outlines for overlay
+plf_state_borders <- us_map(regions = "states") %>% st_as_sf()
+```
+
+```{r}
+# filter for one PR511 year ever
+one_pr511_year_counties <- read_dta(file.path(root_dir, "Output", "Finn", "PR511_FMIS", "one_year_counties.dta")) %>%
+  mutate(county_fips = paste0(
+    sprintf("%02d", st),
+    sprintf("%03d", county)
+  )) %>% 
+  pull(county_fips)
+
+plf_join_oneyear <- plf_join %>% 
+  mutate(county_fips = sprintf("%05d", as.numeric(county_fips))) %>%
+  filter(county_fips %in% one_pr511_year_counties)
+
+plf_projects_oneyear <- plf_join_oneyear %>% 
+  group_by(federal_project_number) %>%
+  summarise(
+    n_projects = n(),
+    n_geocoded = sum(geocoded, na.rm = T),
+    total_spending = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm =
+                               T)
+  ) %>% 
+  mutate(pct_proj_geo = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending)
+  
+plf_states_oneyear <- plf_join_oneyear %>%
+  mutate(state_fips = sprintf("%02d", state_fips)) %>% 
+  group_by(state_fips) %>%
+  summarise(
+    n_projects = n(),
+    n_geocoded = sum(geocoded, na.rm = T),
+    total_spending = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm =
+                               T)
+  ) %>% 
+  mutate(pct_proj_geo = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending) %>% 
+  inner_join(
+    us_map(regions="states",
+           exclude = "PR"),
+    by = join_by(state_fips == fips)
+  ) %>% 
+  st_as_sf()
+
+plf_counties_oneyear <- plf_join_oneyear %>%
+  # keep single counties only
+  filter(!is.na(county_fips), county_fips != "", !str_detect(county_fips, ";")) %>%
+  mutate(county_fips = str_pad(as.character(county_fips), 5, side = "left", pad = "0")) %>%
+  filter(str_sub(county_fips, 3, 5) != "999") %>%
+  group_by(county_fips) %>%
+  summarise(
+    n_projects        = n(),
+    n_geocoded        = sum(geocoded, na.rm = T),
+    total_spending    = sum(total_cost_mills, na.rm = T),
+    total_geo_spending = sum(total_cost_mills[geocoded == 1], na.rm = T)
+  ) %>%
+  mutate(pct_proj_geo     = n_geocoded / n_projects,
+         pct_spending_geo = total_geo_spending / total_spending) %>%
+  right_join(
+    us_map(regions = "counties",
+           exclude = "PR"),
+    by = join_by(county_fips == fips)
+  ) %>%
+  st_as_sf()
+```
+
+
+# Maps
+
+```{r map-style}
+source(file.path(code_dir, "functions_aesthetic.R"), local=T)
+```
+
+## State and county maps
+
+```{r state-maps, fig.width = 8, fig.height = 5}
+source(file.path(code_dir, "make_state_county_maps.R"), local=T)
+```
+
+# Histograms
+
+```{r hist-state, fig.width = 7, fig.height = 4.5}
+source(file.path(code_dir, "make_histograms.R"), local=T)
+```
+
+# 75% geocoded counties
+
+```{r}
+
+```
+
+
+
+
