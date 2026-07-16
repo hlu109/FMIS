@@ -1,12 +1,4 @@
-# Shared QJE / AER "brand" styling: typography for title/subtitle/caption,
-# legend placement, and margins. Applied on top of whatever base theme a given
-# plot type needs, so maps and charts stay visually consistent.
-#
-# NOTE: the caption uses ggtext::element_textbox_simple() rather than a plain
-# element_text(). A plain caption is a single line and gets clipped at the figure
-# edge when it is long; element_textbox_simple() wraps the text to the plot width
-# (width = 1 npc) automatically, so captions of any length flow onto multiple
-# lines instead of being cut off. Requires the {ggtext} package.
+# Had Claude create these aesthetics; based off of QJE standards
 qje_common <- function(base_size = 11) {
   theme(
     legend.title  = element_text(size = base_size, hjust = 0.5),
@@ -71,25 +63,33 @@ qje_fill <- function(legend_name) {
   )
 }
 
+# Append "N = X units." to a caption, given a count and singular/plural labels.
+append_n_to_caption <- function(caption, n_units, unit_singular, unit_plural) {
+  unit_label <- if (n_units == 1) unit_singular else unit_plural
+  paste0(caption, " N = ", format(n_units, big.mark = ","), " ", unit_label, ".")
+}
+
 # state choropleth
 make_state_map <- function(data, fill_var, title, subtitle, legend_name, caption) {
+  n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot(data) +
     geom_sf(aes(fill = {{ fill_var }}), color = "white", linewidth = 0.15) +
     qje_fill(legend_name) +
     coord_sf(datum = NA) +
     labs(title = title, subtitle = subtitle,
-         caption = caption) +
+         caption = append_n_to_caption(caption, n_units, "state", "states")) +
     qje_theme_map()
 }
 
 # county choropleth (county fill + state borders overlaid for legibility)
 make_county_map <- function(data, states, fill_var, title, subtitle, legend_name, caption) {
+  n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot() +
     geom_sf(data = data, aes(fill = {{ fill_var }}), color = NA) +
     geom_sf(data = states, fill = NA, color = "white", linewidth = 0.2) +
     qje_fill(legend_name) +
     coord_sf(datum = NA) +
     labs(title = title, subtitle = subtitle,
-         caption = caption) +
+         caption = append_n_to_caption(caption, n_units, "county", "counties")) +
     qje_theme_map()
 }
