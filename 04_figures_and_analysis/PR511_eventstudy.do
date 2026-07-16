@@ -45,6 +45,8 @@ summarize chain_count
 keep if chain_count == 1
 display "Number of counties with only one chain ever: " _N
 
+save "$out_dir/one_chain_counties.dta", replace
+
 * store the identifiers for these counties  
 tempfile one_chain_counties
 save `one_chain_counties'
@@ -57,6 +59,8 @@ collapse (count) chain_count = chain_id, by(st county)
 summarize chain_count
 keep if chain_count == 1
 display "Number of counties with only one chain (when chains are aggregated within year): " _N
+
+save "$out_dir/one_year_counties", replace
 
 tempfile one_year_counties
 save `one_year_counties'
