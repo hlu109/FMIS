@@ -29,6 +29,9 @@ if !direxists("$intermediate_data") mkdir "$intermediate_data"
 global geocoding_dir "$intermediate_data/geocoding"
 if !direxists("$geocoding_dir") mkdir "$geocoding_dir"
 
+global geocoding_inputs_dir "$geocoding_dir/inputs"
+if !direxists("$geocoding_inputs_dir") mkdir "$geocoding_inputs_dir"
+
 * load FMIS data
 use "$intermediate_data/project_level_FMIS.dta", clear
 
@@ -62,7 +65,7 @@ gen below_median_cost = total_cost_bills_adjusted < r(p50)
 * keep only project titles and some key variables
 * Ella also specifically requested dates 
 keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear has_new_construction post_1970_auth below_median_cost
-save "$geocoding_dir/FMIS_interstate_project_titles.dta", replace
+save "$geocoding_inputs_dir/FMIS_interstate_project_titles.dta", replace
 
 * restrict to projects with new construction
 keep if has_new_construction == 1
@@ -73,5 +76,5 @@ drop below_median_cost
 gen below_median_cost = total_cost_bills_adjusted < r(p50)
 
 keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear post_1970_auth below_median_cost
-save "$geocoding_dir/FMIS_interstate_newconstr_project_titles.dta", replace
+save "$geocoding_inputs_dir/FMIS_interstate_newconstr_project_titles.dta", replace
 

@@ -43,10 +43,10 @@ GEMINI_MODEL_ID = "gemini-2.5-flash"
 prompt_version = 5
 
 # SET FILE IDENTIFIERS 
-RUN_PREFIX = f"interstate_new_constr_v{prompt_version}"
+RUN_PREFIX = f"interstate_oneyearPR511_v{prompt_version}"
 
 # SET FILE PATHS 
-INPUT_PATH = GEOCODING_DIR / "inputs" / "FMIS_interstate_newconstr_project_titles.dta"
+INPUT_PATH = GEOCODING_DIR / "inputs" / "FMIS_interstate_project_titles_oneyearPR511.dta"
 
 # SET SCHEMA
 page_schema = Project
@@ -58,8 +58,8 @@ ROW_INDICES = None
 # ROW_INDICES = [4764,
 # 9673, 17318, 9690, 19604, 10831, 17351, 18157, 10842, 15966, 15541, 13380, 1878, 1859, 15059, 19036, 4029, 5523, 8094, 9179, 8081, 11194, 9229, 5718, 15752, 9216, 14261, 9247, 16819, 5934, 12426, 1528, 20162, 19362, 18684, 10650, 14922]
 # ROW_INDICES = [i - 1 for i in ROW_INDICES]
-SAMPLE_N = 100                # if set (and ROW_INDICES is None), sample this many rows
-SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
+SAMPLE_N = None                # if set (and ROW_INDICES is None), sample this many rows
+# SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
 # SAMPLE_N = None # use full dataset
 RANDOM_SEED = 42
 
