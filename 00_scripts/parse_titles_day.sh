@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --partition=day
-#SBATCH --job-name=gemini_parse_titles
-#SBATCH --output="/home/hl2266/project_pi_zdl3/shared/FMIS project/slurm_logs/gemini_parse_titles_%j.log"
+#SBATCH --job-name=gemini_parse_titles_day
+#SBATCH --output="/home/hl2266/project_pi_zdl3/shared/FMIS project/slurm_logs/gemini_parse_titles_day_%j.log"
 #
-#SBATCH --time=4:00:00
-#SBATCH --mem=10G
+#SBATCH --time=10:00:00
+#SBATCH --mem=1G
 #SBATCH --ntasks=1
 #
 #SBATCH --mail-type=FAIL,END

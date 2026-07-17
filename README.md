@@ -99,9 +99,9 @@ PLACEHOLDER
 
 
 ### Gemini Running Logistics
-My estimate is that it costs around $10 to run the Gemini title-parsing script for 1000 projects. For the full set of 60k interstate projects, we're looking at around $600, give or take. For the 20k subset of new construction interstate projects, we're looking at around $200.
+My estimate is that it costs around $50 to run the Gemini title-parsing script for 10k projects. For the full set of 60k interstate projects, we're looking at around $300-400, give or take. For the 20k subset of new construction interstate projects, we're looking at around $100.
 
-Runtime is approximately 2 hours for a 1k sample. 
+Runtime is approximately 2 hours for a 1k sample, 24 hours for a 10k sample. 
 
 
 
