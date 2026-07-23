@@ -1,0 +1,102 @@
+---
+title: "Big Dig Check in FMIS and PR511 Data"
+author: "Finn Meffe"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: 
+    extra_dependencies: ["booktabs", "multirow", "makecell", "float"]
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, 
+  encoding = encoding, 
+  output_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data/Output/Finn", 
+  output_file = "big_dig.pdf")
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 0, digits = 6)  
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext)
+
+root_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+data_dir = file.path(root_dir, "Data", "Intermediate")
+output_dir = file.path(root_dir, "Output", "Finn", "geocoding analysis")
+code_dir = file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "geocoding_analysis")
+
+knitr::opts_knit$set(root.dir = root_dir)
+
+options(tinytex.latexmk.warning = FALSE)
+```
+
+```{r, include=F, warning=F, message=F}
+source(file.path(code_dir, "geocoding_load.R"), local=T) # takes awhile to parse the large .dta files
+
+source(file.path(code_dir, "geocoding_clean.R"), local=T)
+```
+
+### PR511 Data
+
+I use the PR511_hubbardmazzeo_chained.csv file. Observations here are relatively sparse, so all that is needed is to filter for Massachusetts and an opening year greater than 1991 (beginning of Big Dig construction) to narrow down a single entry. Looking up the exact mile markers (134.4 to 137.6), this seems to be exactly the Ted Williams tunnel on I-90 from the interchange with I-93 to Logan Airport (see detailed mile marker info [here](https://www.malmeroads.net/mass21c/i90exits.html)). No observations come after this, as the tunnel was the only Big Dig construction that extended an interstate rather than replaced it.
+
+```{r, echo=F}
+pr511_chained <- read.csv(file.path(data_dir, "PR_511", "PR511_hubbardmazzeo_chained.csv")) %>%
+  filter(st == 25,
+         open_year >= 1991)
+
+head(pr511_chained)
+```
+
+### FMIS Data
+
+There are many more observations here than the PR511 data, so I look solely at receipts in either Suffolk (25025) or Middlesex (25017) counties. Since there are many more years per observation in this data, I filter by having a year of authorization later than or equal to 1982 (the beginning of planning for the project) and less than or equal to 2007 (official end of the Big Dig). I also filter out all projects completed after 2007, and include only observations that are categorized as new construction. Below are observations (grouped by federal project number) that fit this criteria, sorted by their total cost. 
+
+```{r, echo=F}
+# suffolk or middlesex county
+boston_re <- "25025|25017"
+
+plf_ma <- project_level_fmis %>%
+  mutate(across(contains("date"), \(x) as.Date(x, format = "%Y-%m-%d"))) %>%
+  filter(state_fips == 25,
+         str_detect(as.character(county_fips), boston_re))
+
+rlf_ma <- receipt_level_fmis %>%
+  mutate(across(contains("date"), \(x) as.Date(x, format = "%Y-%m-%d"))) %>%
+  filter(state_fips == 25,
+         str_detect(as.character(county_fips), boston_re),
+         new_construction == 1)
+
+inf <- read_dta(file.path(data_dir, "CPI_2025.dta")) %>% select(year, cpi)
+
+rlf_ma <- rlf_ma %>% 
+  left_join(inf, by = join_by(completion_year == year)) %>% 
+  mutate(total_cost_mills = total_cost_mills / cpi)
+
+rlf_ma_sums <- rlf_ma %>%
+  group_by(federal_project_number) %>%
+  summarise(
+    n_receipts        = n(),
+    total_cost_mills  = sum(total_cost_mills, na.rm = TRUE),
+    year_auth_min     = suppressWarnings(min(year(authconstdate), na.rm = TRUE)),
+    year_complete_max = suppressWarnings(max(year(completedate),  na.rm = TRUE)),
+    counties          = paste(sort(unique(county_fips)), collapse = " | "),
+    programs          = paste(sort(unique(funding_program)), collapse = " | "),
+    imp_types         = paste(sort(unique(detail_improvementtype)), collapse = ",")
+  ) %>%
+  filter(year_auth_min >= 1982, # planning begins in 1982
+         year_auth_min <= 2007, # absolute upper bound
+         year_complete_max <= 2007 # official completion year of 2007
+         ) %>%
+  arrange(desc(total_cost_mills)) %>%
+  print(n = 40)
+```
+
+The strongest contenders for Big Dig projects seem to be the top 3 entries: all begin in 1991 and are completed in the late 90s/early 2000s. According to the [Massachusetts state website](https://www.mass.gov/info-details/the-big-dig-tunnels-and-bridges#the-i-90-extension), the replacement projects related to the Big Dig were all completed after 2001: The Thomas P. O'Neill, Jr. Tunnel (I-93 replacement) opened in 2003, and the Leonard P. Zakim Bunker Hill Bridge (replacement to previous six-lane bridge) opened in 2004. The Leverett Circle Connector Bridge opened in 1999 and appears to be new construction (as it connects to the Leonard P. Zakim bridge in a segment that previously did not exist). The sum of all spending within the subset above confirms that it is not the full sample of Big Dig projects:
+
+```{r, echo=F}
+print(sum(rlf_ma_sums$total_cost_mills))
+```
+
+The Ted Williams tunnel alone cost ~\$1.3-1.7 billion, so this covers a reasonable amount of the cost. It's also possible that this includes some of the costs from the new bridges (if they are counted as new construction, given that they do not exactly parallel the old I-93 route), at \$100 million (Leonard Zakim) and \$20 million (Levertt Circle) (see [here](https://web.archive.org/web/20081121114006/http://www.massturnpike.com/bigdig/background/crb.html)), but generally precludes the possibility that these large costs are attributable to the new "Dig" portion of I-93 (largest were incurred before its completion). The calculated numbers are also expressed in 2025 dollars, so they may be slightly inflated compared to the information available online. Thus, I believe we can conclude that **neither** the FMIS or PR511 data include observations related to new construction in the Big Dig.
