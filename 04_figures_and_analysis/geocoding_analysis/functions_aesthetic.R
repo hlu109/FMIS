@@ -81,6 +81,19 @@ make_state_map <- function(data, fill_var, title, subtitle, legend_name, caption
     qje_theme_map()
 }
 
+make_state_map_decade <- function(data, states, fill_var, title, subtitle, legend_name, caption, time_var) {
+  n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
+  ggplot() +
+    geom_sf(data = states, fill = "grey90", color = NA) +                    
+    geom_sf(data = data, aes(fill = {{ fill_var }}), color = NA) +           
+    geom_sf(data = states, fill = NA, color = "white", linewidth = 0.2) +   
+    qje_fill(legend_name) +
+    coord_sf(datum = NA) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    qje_theme_map() +
+    facet_wrap(vars({{ time_var }}))
+}
+
 # county choropleth (county fill + state borders overlaid for legibility)
 make_county_map <- function(data, states, fill_var, title, subtitle, legend_name, caption) {
   n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
