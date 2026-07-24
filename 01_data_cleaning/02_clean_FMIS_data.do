@@ -19,6 +19,14 @@ else if "`user'" == "hl2266"{
 	global raw_data "$data/Raw"
 	global intermediate_data "$data/Intermediate"
 }
+else if "`user'" == "fm557"{
+    global project_root "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+	global code "$project_root/Code/FMIS_finn"
+    global output "$project_root/Output/Finn"
+    global data "$project_root/Data"
+	global raw_data "$data/Raw"
+	global intermediate_data "$data/Intermediate"	
+}
 * add your username and paths here as an else if condition
 else {
 	 display as error "Set your user"
@@ -194,6 +202,11 @@ label define work_type_lbl 1 "New Construction" 2 "Reconstruction" 3 "Rehabilita
 label values work_type work_type_lbl
 gen is_construction = new_construction == 1 | reconstruction == 1 | rehabilitation == 1
 label variable is_construction "Construction work includes new construction, reconstruction, and rehabilitation"
+
+* classify by object type
+gen road = detail_improvementtype == 1 | detail_improvementtype == 7 | detail_improvementtype == 2 | detail_improvementtype == 3 | detail_improvementtype == 4 | detail_improvementtype | detail_improvementtype == 6 | detail_improvementtype == 5 | detail_improvementtype == 60
+gen bridge = detail_improvementtype == 8 | detail_improvementtype == 9 | detail_improvementtype == 10 | detail_improvementtype == 11 | detail_improvementtype == 12 | detail_improvementtype == 13 | detail_improvementtype == 14 | detail_improvementtype == 47 | detail_improvementtype == 48 | detail_improvementtype == 59
+gen tunnel = detail_improvementtype == 50 | detail_improvementtype == 51 | detail_improvementtype == 52 | detail_improvementtype == 53 | detail_improvementtype == 54
 
 * Define project status 
 global projectstatus_lbl_def ///
@@ -457,7 +470,7 @@ replace funding_program = "National Highway Performance Program" if inlist(detai
 replace funding_program = "National Highway Performance Program" if inlist(detail_programcode, "Z510", "Z530", "M0E1", "M0E2", "M001", "M002")
 
 * export 
-keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid gis_beginpoint gis_endpoint detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type nepa_class nepa_decision_date
+keep recipientid state_fips county_fips county_name countyid projectstatus projecttitle detail_linenumber projectdescription total_cost_mills federal_funds state_funds local_funds private_funds nonmonetary_funds other_funds authsprdate authpedate authrowdate authconstdate authotherdate completedate finalvoucherdate latestpaymentdate projectenddate lastactiondate transactiondate detail_lastactiondate recipientremarks divisionremarks detail_prefix gis_routeid gis_beginpoint gis_endpoint detail_improvementtype completion_year finalvoucher_year latestpayment_year detaillastaction_year federal_project_number region functional_system system_code interstate_functional interstate_syscode detail_programcode urban_rural funding_program new_construction reconstruction rehabilitation maintenance is_construction work_type road bridge tunnel nepa_class nepa_decision_date
 save "$intermediate_data/receipt_level_FMIS.dta", replace
 
 label save using "$labels_dir/FMIS_labels.do", replace
