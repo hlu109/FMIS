@@ -1,0 +1,427 @@
+---
+title: "FMIS GIS Analysis"
+author: "Finn Meffe"
+date: "`r Sys.Date()`"
+header-includes:
+  - \usepackage{titling}
+  - \setlength{\droptitle}{-3em}
+  - \pretitle{\begin{center}\large\bfseries}
+  - \posttitle{\end{center}}
+  - \preauthor{\begin{center}\normalsize}
+  - \postauthor{\end{center}}
+  - \predate{\begin{center}\normalsize}
+  - \postdate{\end{center}}
+  - \usepackage{tabularray}
+  - \usepackage{float}
+  - \usepackage{graphicx}
+  - \usepackage{rotating}
+  - \usepackage[normalem]{ulem}
+  - \UseTblrLibrary{booktabs}
+  - \UseTblrLibrary{siunitx}
+output:
+  pdf_document: 
+    extra_dependencies: ["booktabs", "multirow", "makecell", "float", "longtable"]
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, 
+  encoding = encoding, 
+  output_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data/Output/Finn", 
+  output_file = paste0(format(Sys.Date(), "%Y-%m-%d"), " FMIS Mile Marker GIS Testing.pdf"))
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 0, digits = 6)  
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext, knitr, ggrepel)
+
+root_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+data_dir = file.path(root_dir, "Data", "Intermediate")
+output_dir = file.path(root_dir, "Output", "Finn", "geocoding analysis")
+code_dir = file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "fmis_gis")
+
+knitr::opts_knit$set(root.dir = root_dir)
+
+options(tinytex.latexmk.warning = FALSE)
+# options(viewer = NULL)
+
+source(file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "geocoding_analysis", "functions_aesthetic.R"), local=T)
+```
+
+```{r, include=F}
+# all projects
+plf_lite <- read_dta(file.path(data_dir, "project_level_FMIS_lite.dta")) %>% 
+  mutate(projectid = paste0(recipientid, "_", federal_project_number))
+
+# projects with gis
+plf_only_gis <- read_dta(file.path(data_dir, "project_level_FMIS_w_GIS.dta")) %>%
+  mutate(projectid = paste0(recipientid, "_", federal_project_number)) %>% 
+  select(projectid, gis_beginpoint, gis_endpoint, n_proj_per_routeid)
+  
+
+plf_gis <- plf_lite %>% 
+  left_join(plf_only_gis, by = "projectid") %>% 
+  mutate(has_gis = ifelse(!is.na(gis_beginpoint) & !is.na(gis_endpoint), 1, 0),
+         has_pe = ifelse(str_detect(proj_improv_types, "15"), 1, 0),
+         has_row = ifelse(str_detect(proj_improv_types, "16"), 1, 0)) %>% 
+  filter(completion_year <= 2024) %>% 
+  mutate(num_detail_codes = str_count(proj_improv_types, ";") + 1)
+
+names(plf_gis)
+sum(!is.na(plf_gis$gis_beginpoint))
+sum(!is.na(plf_gis$gis_endpoint))
+table(plf_gis$has_gis)
+
+plf_gis_sample <- plf_gis[1:1000, ]
+```
+
+```{r, include=F}
+source(file.path(code_dir, "plot_time_trends.R"), local=T)
+```
+
+
+# Summary
+
+This memo looks at the availability and distribution of GIS information provided directly by FMIS. GIS information is provided in the form of mile start and endpoints along a given route. There are no observations with partial data: all either have both points or none at all. Generally, this FMIS-provided GIS data begins after 2010; in later years this accounts for around half of all FMIS projects and project-spending. However, this GIS information does not appear to be distributed evenly across different project types, and the differences are even more stark when looking at the percentage of spending, particularly for new construction. I believe this is likely a result of data for new construction being sparse: the number of projects in this period is well below any other work type.
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(data = plf_gis_year %>% filter(completion_year >= 1990), aes(x = completion_year)) +
+  geom_line(aes(y = pct_gis * 100, col = "% Projects Geocoded")) +
+  geom_line(aes(y = cost_pct_gis * 100, col = "% Spending Geocoded")) +
+  labs(title = "FMIS GIS Data over Time",
+       subtitle = "Full sample of FMIS data, 1990-2024",
+       col = NULL,
+       x = " Project Completion Year", y = "Percentage with GIS",
+       caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded from the figure. All projects with a beginning point also have an endpoint; with GIS denotes a project having these points.") +
+  qje_theme()
+``` 
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = pct_gis * 100, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Geocoding over Time, by Work Type",
+    subtitle = "Full sample of FMIS data, 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "% Projects Geocoded",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = cost_pct_gis * 100, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Spending Geocoding over Time, by Work Type",
+    subtitle = "Full sample of FMIS data, 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "% Spending Geocoded",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
+  ) +
+  qje_theme()
+```
+
+## Aggregate Work Type Trends over Time
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = n, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "# FMIS Projects over Time, by Work Type",
+    subtitle = "FMIS Projects completed from 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "# Projects",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = cost, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Spending over Time, by Work Type",
+    subtitle = "FMIS Projects completed from 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "Spending ($ Millions)",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_df <- function(data) {
+df <- inner_join(
+  us_map() %>% mutate(state_fips = as.numeric(fips)),
+  data %>% 
+    filter(completion_year >= 2015) %>% 
+  group_by(state_fips) %>% 
+  summarise(n = n(),
+            n_gis = sum(has_gis),
+            pct_gis = n_gis / n,
+            cost = sum(total_cost_mills),
+            cost_gis = sum(total_cost_mills[has_gis == 1]),
+            cost_pct_gis = cost_gis / cost,
+            avg_detail_codes = mean(num_detail_codes)),
+  by = "state_fips"
+)
+}
+
+make_state_map(make_state_df(plf_gis), pct_gis, legend_name = "% Projects Geocoded", title = "FMIS GIS Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F}
+kable(make_state_df(plf_gis) %>% 
+  select(abbr, cost_pct_gis) %>% 
+  st_drop_geometry() %>% 
+  arrange(-cost_pct_gis), format = "latex", booktabs = TRUE)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_new_construction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, New Construction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_reconstruction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Reconstruction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_rehabilitation == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Rehabilitation", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_maintenance == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Maintenance", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_pe == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, PE", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_row == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, ROW", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+\newpage
+# Representativeness of the Mile Markers GIS Subsample
+
+In this section, I investigate the degree to which the sample of projects with mile marker data is representative of the full sample of projects. I first look at state-level shares: if the subsample of mile marker projects is representative, then each states' share of total projects (and total spending) should be similar to its shares in the smaller subsample. I plot these two shares below. Some large states like California and New York are noticeably underrepresented in terms of their share of projects in the mile markers sample; this discrepancy is even higher when looking at shares of spending.
+
+```{r representativeness, include=F}
+source(file.path(code_dir, "plot_representativeness.R"), local=T)
+```
+
+## By State
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F}
+print(state_rep_proj_scatter)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F}
+print(state_rep_spend_scatter)
+```
+
+To quantify the most over and underrepresented states in the sample, I take a simple "overrepresentation score" as the (share of projects in mile marker sample - share of projects in full sample) / share of projects in full sample. The results are shown below. There seem to be some geographic patterns: states in the Midwest and South are overrepresented, whereas states in the Northeast and West appear to be underrepresented. The reason why these regional patterns would correspond with states being more or less likely to report GIS data through FMIS is unclear, however.
+
+```{r, echo = F}
+rep_state %>% mutate(overrep_score = (share_proj_gis - share_proj_full) / share_proj_full) %>% 
+  select(abbr, overrep_score) %>% arrange(overrep_score) %>% slice_head(n = 10) %>% kable()
+
+rep_state %>% mutate(overrep_score = (share_proj_gis - share_proj_full) / share_proj_full) %>% 
+  select(abbr, overrep_score) %>% arrange(overrep_score) %>% slice_tail(n = 10) %>% kable()
+```
+
+## By Construction Type
+
+I also look at differences between the full sample and the mile marker sample by cost type. I use the 6 main cost types as in previous analysis: new construction, reconstruction, rehabilitation, maintenance, preliminary engineering, and right of way. In every case (with the exception of new construction), these appear to be *more* represented in the subsample than the full sample of projects.
+
+```{r, echo=F, fig.width=10, fig.height=5}
+print(type_rep_proj_bar)
+```
+
+```{r, echo=F, fig.width=10, fig.height=5}
+print(type_rep_spend_bar)
+```
+
+
+It is not immediately obvious that having mile marker information correlates with any specific type of project, and stranger is the fact that *all* project types seem to have a higher share in the subsample. To test whether I am simply omitting a large portion of project categories in the two previous figure, I take every code present in the data (there are around 70 distinct codes) and create a similar plot. I show the top 20 - it does not seem to be the case that there are enough project types in which the full sample dominates to offset large discrepancies in common project types. This is the case for both the number of projects and spending.
+
+```{r, echo=F, fig.width=10, fig.height=6}
+print(code_rep_proj_bar)
+```
+
+```{r, echo=F, fig.width=10, fig.height=6}
+print(code_rep_spend_bar)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6}
+print(code_rep_proj_scatter)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6}
+print(code_rep_spend_scatter)
+```
+
+I check this with similar scatter plots as used at the state-level, confirming that there are far more project types that appear to be overrepresented than underrepresented, which should not be the case unless there are persistent differences in the number of improvement codes per project (as they are not mutually exclusive). The balance table below confirms that this is the case: projects with mile marker data have larger numbers of project codes. In addition, they have higher total costs, and are more likely to have any of the construction types described above (except for new construction). It seems that projects with mile markers are also those that are more complex (higher costs, more project codes), and should not be considered a representative sample of the full set of FMIS data.
+
+
+```{r gis-balance, echo=F}
+bal_df <- sample_2015 %>%
+  transmute(
+    `Total cost ($M)`  = total_cost_mills,
+    `Num. Codes`       = num_detail_codes,
+    `New construction` = has_new_construction,
+    `Reconstruction`   = has_reconstruction,
+    `Rehabilitation`   = has_rehabilitation,
+    `Maintenance`      = has_maintenance,
+    `Construction`     = has_construction,
+    `Preliminary Engineering` = has_pe,
+    `Right of Way` = has_row,
+    Geocoded = factor(has_gis, levels = c(0,1),
+                      labels = c("Does not have MM", "Has MM"))
+  )
+
+datasummary_balance(
+  ~ Geocoded,
+  data = bal_df,
+  output = "default",
+  title = "Geocoded vs. Non-Geocoded FMIS Projects, 1990-2024",
+  stars = T,
+  fmt = fmt_sprintf("%.2f"),
+  notes = paste(
+    "Sample is all FMIS projects completed 2015-2024, separated into projects",
+    "with mile markers (a beginning point and an endpoint) and those without."
+  )
+)
+```
+
+I investigate this relationship more in depth below: there appears to be a strong correlation between the number of improvement codes and shares of projects geocoded at the state level. This could reflect the fact that some states face more complex projects, which may need more types of work and also end up being more thoroughly cataloged. It could also reflect differences in state-level record keeping: states that are more rigorous at cataloging the types of work present in their data are also more likely to record mile marker information. This could signal institutional differences across states that determine the makeup of the FMIS data.
+
+```{r, echo=F, warning=F, message=F, fig.width=6, fig.height=6}
+print(corr_ncodes_gis_share)
+```
+
+```{r, results='asis', echo=F}
+m1 <- lm(pct_gis ~ avg_detail_codes, data = make_state_df(sample_2015))
+m2 <- lm(cost_pct_gis ~ avg_detail_codes, data = make_state_df(sample_2015))
+
+stargazer(m1, m2,
+          title = "Number of Improvement Type Codes and Mile Marker Shares",
+          dep.var.labels = c("\\% Mile Marker Projects", "\\% Mile Marker Spending"),
+          covariate.labels = "Number of Codes",
+          header = F)
+```
+
+
+```{r, include=F}
+knitr::knit_exit()
+```
+
+Linking with HPMS work =
+
+
+```{r}
+plf_gis <- read_dta(file.path(data_dir, "project_level_FMIS_w_GIS.dta")) %>% 
+  filter(gis_length < 10000) %>% 
+  select(recipientid, federal_project_number, projecttitle, state_fips, gis_routeid, gis_beginpoint, gis_endpoint, gis_length, fp_ic, has_new_construction, county_fips, county_name, authconstdate, completedate, completion_year) %>% 
+  filter(state_fips == 53, 
+         county_fips == 53033) %>% 
+  mutate(gis_routeid = gsub("i", "", gis_routeid))
+
+hpms_gis <- read_csv(file.path(data_dir, "geocoding/fmis_gis/hpms_highway_gis.csv")) %>% filter(STFIPS == 53, ROUTE_ID == "002")
+```
+
+```{r}
+hpms_geojson <- read_sf("C:/Users/fm557/Documents/NTAD_National_Highway_Planning_Network_5862765175788916660.geojson")
+
+hpms_geojson_wa <- hpms_geojson %>% filter(STFIPS == 53, ROUTE_ID == "005"
+                                           # ,
+                                           # BEGIN_POIN >= 154.700,
+                                           # END_POINT <= 177.480
+                                           )
+
+sum(st_length(hpms_geojson_wa)) * 0.000621371
+```
+
+```{r}
+get_gis_length <- function(gis_beginpoint, gis_endpoint, hpms_geojson_wa) {
+  hpms_geojson_wa %>%
+    filter(BEGIN_POIN >= gis_beginpoint,
+           END_POINT  <= gis_endpoint) %>%
+    st_length() %>%      # length of each matching segment (meters)
+    sum() %>%            # total length across matching segments
+    as.numeric() * 0.000621371   # meters -> miles, drop units
+}
+
+get_gis_shape <- function(gis_beginpoint, gis_endpoint, hpms_geojson_wa) {
+  crs <- st_crs(hpms_geojson_wa)
+  matched <- hpms_geojson_wa %>%
+    filter(BEGIN_POIN >= gis_beginpoint,
+           END_POINT  <= gis_endpoint)
+  if ((gis_endpoint - gis_beginpoint) == 0 || nrow(matched) == 0) {
+    nearest <- hpms_geojson_wa %>%
+      slice_min(abs(BEGIN_POIN - gis_beginpoint), n = 1, with_ties = FALSE)
+
+    if (nrow(nearest) == 0) {
+      return(st_sfc(st_point(), crs = crs))   # no candidate segments at all
+    }
+
+    begin_xy <- st_coordinates(st_geometry(nearest))[1, c("X", "Y")]
+    return(st_sfc(st_point(begin_xy), crs = crs))
+  }
+
+  matched %>%
+    st_geometry() %>%
+    st_union() %>%
+    st_line_merge()
+}
+
+plf_gis$gis_length_approx <- map2_dbl(
+  plf_gis$gis_beginpoint,
+  plf_gis$gis_endpoint,
+  ~ get_gis_length(.x, .y, hpms_geojson_wa)
+)
+
+# get_gis_shape returns a length-1 sfc per row; concatenate them into one
+# sfc geometry column (c() handles mixed POINT/LINESTRING types and CRS),
+# then promote the data frame to an sf object.
+plf_gis_geom <- map2(
+  plf_gis$gis_beginpoint,
+  plf_gis$gis_endpoint,
+  ~ get_gis_shape(.x, .y, hpms_geojson_wa)
+)
+
+plf_gis$geometry <- do.call(c, plf_gis_geom)
+plf_gis <- st_as_sf(plf_gis)
+```
+
+```{r}
+join_test <- left_join(
+  plf_gis %>% group_by(gis_routeid) %>% summarise(sum(gis_length)), 
+  hpms_geojson_wa %>% group_by(ROUTE_ID) %>% summarise(sum(MILES)), 
+  by = join_by(gis_routeid == ROUTE_ID)
+)
+```
+
