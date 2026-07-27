@@ -320,3 +320,74 @@ ngeo_spending_by_type_bar_75any <- ggplot(geo_by_type_75any,
          nrow(plf_geo %>% filter(any_maj == T)), "project", "projects")) +
   scale_fill_brewer(palette = "Blues") +
   qje_theme()
+
+#=============================================================
+# Structure-type breakdowns (road / bridge / tunnel)
+
+structure_types  <- c("road_cost", "bridge_cost", "tunnel_cost")
+structure_labels <- c("Road", "Bridge", "Tunnel")
+
+create_by_structure <- function(data) {
+  map_dfr(structure_types, function(ct) {
+    others <- setdiff(structure_types, ct)
+    d <- data %>%
+      mutate(
+        has_this   = .data[[ct]] > 0,
+        standalone = .data[[ct]] > 0 &
+          rowSums(across(all_of(others)), na.rm = TRUE) == 0
+      )
+    subsets <- list(filter(d, has_this), filter(d, standalone))
+    tibble(
+      structure_type = ct,
+      group = c("Structure type is\npresent in project", "Structure type is\n the only type found\n in project"),
+      pct_geocoded = map_dbl(subsets, pct_geo),
+      pct_spending_geocoded = map_dbl(subsets, spend_geo),
+      n = map_int(subsets, n_geo)
+    )
+  }) %>%
+    mutate(
+      group = factor(group, levels = c("Structure type is\npresent in project", "Structure type is\n the only type found\n in project")),
+      structure_type = factor(structure_type, levels = structure_types,
+                              labels = structure_labels)
+    )
+}
+
+structure_geo <- create_by_structure(plf_geo)
+
+# share of projects geocoded, by structure type
+structure_geo_by_type_bar <- ggplot(structure_geo,
+                          aes(x = structure_type, y = pct_geocoded, fill = group)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(aes(label = sprintf("%.0f%%", 100 * pct_geocoded)),
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 2.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "% Geocoded", fill = NULL,
+       title = "Geocoding Rate by Structure Type",
+       caption = paste0(
+         "Columns represent the share of projects geocoded by the structure type found in the project.
+         The sample is all projects in which the project county has a single year of PR511 data ever. ",
+         nrow(plf_geo %>% filter(road_cost > 0 | bridge_cost > 0 | tunnel_cost > 0)), " total projects. ",
+         nrow(plf_geo %>% filter(road_cost > 0)), " projects with roadway construction, ",
+         nrow(plf_geo %>% filter(bridge_cost > 0)), " projects with bridge construction, ",
+         nrow(plf_geo %>% filter(tunnel_cost > 0)), " projects with tunnel construction.")) +
+  scale_fill_brewer(palette = "Blues") +
+  qje_theme()
+
+# share of spending geocoded, by structure type
+structure_geo_spending_by_type_bar <- ggplot(structure_geo,
+                          aes(x = structure_type, y = pct_spending_geocoded, fill = group)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(aes(label = sprintf("%.0f%%", 100 * pct_spending_geocoded)),
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 2.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "% Spending Geocoded", fill = NULL,
+       title = "Geocoded Spending Rate by Structure Type",
+       caption = paste0(
+         "Columns represent the share of spending geocoded by the structure type found in the project.
+         The sample is all projects in which the project county has a single year of PR511 data ever. ",
+         nrow(plf_geo %>% filter(road_cost > 0 | bridge_cost > 0 | tunnel_cost > 0)), " total projects. ",
+         nrow(plf_geo %>% filter(road_cost > 0)), " projects with roadway construction, ",
+         nrow(plf_geo %>% filter(bridge_cost > 0)), " projects with bridge construction, ",
+         nrow(plf_geo %>% filter(tunnel_cost > 0)), " projects with tunnel construction.")) +
+  scale_fill_brewer(palette = "Blues") +
+  qje_theme()

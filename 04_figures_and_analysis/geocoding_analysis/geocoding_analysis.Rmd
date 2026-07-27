@@ -44,6 +44,7 @@ options(tinytex.latexmk.warning = FALSE)
 source(file.path(code_dir, "geocoding_load.R"), local=T) # takes awhile to parse the large .dta files, don't need to run unless changing the underlying joined project level data
 ```
 
+
 ```{r, warning=F, message=F, include=F}
 source(file.path(code_dir, "geocoding_clean.R"), local=T)
 ```
@@ -170,7 +171,7 @@ ggsave(file.path(output_dir, "cost_type_breakdown_by_geocoded_any_counties.png")
        cost_break_bar_any)
 ```
 
-
+\newpage
 ## Geocoding Rate Breakdown by Cost Composition
 
 ### Share of Projects
@@ -222,6 +223,28 @@ ggsave(file.path(output_dir, "geocoded_spending_breakdown_by_cost_type.png"),
        geo_spending_by_type_bar)
 ggsave(file.path(output_dir, "not_geocoded_spending_breakdown_by_cost_type.png"),
        ngeo_spending_by_type_bar)
+```
+
+\newpage
+## Geocoding Rate by Structure Type
+
+### Share of Projects
+
+```{r, echo=F, fig.width = 6, fig.height = 4, warning=F, message=F}
+print(structure_geo_by_type_bar)
+```
+
+### Share of Spending
+
+```{r, echo=F, fig.width = 6, fig.height = 4, warning=F, message=F}
+print(structure_geo_spending_by_type_bar)
+```
+
+```{r, include=F}
+ggsave(file.path(output_dir, "geocoded_breakdown_by_structure_type.png"),
+       structure_geo_by_type_bar)
+ggsave(file.path(output_dir, "geocoded_spending_breakdown_by_structure_type.png"),
+       structure_geo_spending_by_type_bar)
 ```
 
 \newpage

@@ -54,7 +54,10 @@ plf_join <- project_level_fmis_geo %>%
     rehabilitation_cost   = if_else(rehabilitation == 1, total_cost_mills, NA_real_),
     maintenance_cost      = if_else(maintenance == 1, total_cost_mills, NA_real_),
     row_cost              = if_else(detail_improvementtype == 16, total_cost_mills, NA_real_),
-    pe_cost               = if_else(detail_improvementtype == 15, total_cost_mills, NA_real_)
+    pe_cost               = if_else(detail_improvementtype == 15, total_cost_mills, NA_real_),
+    road_cost             = if_else(road == 1, total_cost_mills, NA_real_),
+    bridge_cost           = if_else(bridge == 1, total_cost_mills, NA_real_),
+    tunnel_cost           = if_else(tunnel == 1, total_cost_mills, NA_real_)
   ) %>%
   group_by(project_id) %>% 
   summarise(
@@ -65,6 +68,9 @@ plf_join <- project_level_fmis_geo %>%
     maintenance_cost = sum(maintenance_cost, na.rm=T),
     row_cost = sum(row_cost, na.rm=T),
     pe_cost = sum(pe_cost, na.rm=T),
+    road_cost = sum(road_cost, na.rm=T),
+    bridge_cost = sum(bridge_cost, na.rm=T),
+    tunnel_cost = sum(tunnel_cost, na.rm=T),
     state_fips = first(state_fips),
     county_fips = paste(unique(county_fips), collapse = ";"),
     federal_project_number = first(federal_project_number),
@@ -86,7 +92,10 @@ plf_join <- plf_join %>%
     rehabilitation_cost = rehabilitation_cost / cpi,
     maintenance_cost = maintenance_cost / cpi,
     row_cost = row_cost / cpi,
-    pe_cost = pe_cost / cpi
+    pe_cost = pe_cost / cpi,
+    road_cost = road_cost / cpi,
+    bridge_cost = bridge_cost / cpi,
+    tunnel_cost = tunnel_cost / cpi
   )
 
 write.csv(plf_join, file = file.path(data_dir, "geocoding/project_level_FMIS_geocoded.csv"), row.names = F)
