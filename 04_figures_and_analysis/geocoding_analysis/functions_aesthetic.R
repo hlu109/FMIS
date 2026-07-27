@@ -63,6 +63,19 @@ qje_fill <- function(legend_name) {
   )
 }
 
+qje_fill_map <- function(legend_name) {
+  scale_fill_distiller(
+    palette   = "Spectral",
+    direction = -1,
+    labels    = percent_format(accuracy = 1),
+    limits    = c(0, 1),
+    name      = legend_name,
+    na.value  = "grey90",
+    guide     = guide_colorbar(title.position = "top", title.hjust = 0.5,
+                               ticks.colour = "grey30", frame.colour = "grey30")
+  )
+}
+
 # Append "N = X units." to a caption, given a count and singular/plural labels.
 append_n_to_caption <- function(caption, n_units, unit_singular, unit_plural) {
   unit_label <- if (n_units == 1) unit_singular else unit_plural
@@ -74,7 +87,7 @@ make_state_map <- function(data, fill_var, title, subtitle, legend_name, caption
   n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot(data) +
     geom_sf(aes(fill = {{ fill_var }}), color = "white", linewidth = 0.15) +
-    qje_fill(legend_name) +
+    qje_fill_map(legend_name) +
     coord_sf(datum = NA) +
     labs(title = title, subtitle = subtitle,
          caption = append_n_to_caption(caption, n_units, "state", "states")) +
