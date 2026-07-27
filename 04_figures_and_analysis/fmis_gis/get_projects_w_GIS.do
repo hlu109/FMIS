@@ -17,18 +17,33 @@ else if "`user'" == "hl2266"{
 	global raw_data "$data/Raw"
 	global intermediate_data "$data/Intermediate"
 }
+else if "`user'" == "fm557"{
+    global project_root "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+    global output "$project_root/Output/Finn"
+    global data "$project_root/Data"
+	global raw_data "$data/Raw"
+	global intermediate_data "$data/Intermediate"
+}
 * add your username and paths here as an else if condition
 else {
 	 display as error "Set your user"
 }
 * check that output folders exist and create them if not 
-if !direxists("$output") mkdir "$output"
-if !direxists("$intermediate_data") mkdir "$intermediate_data"
+*if !direxists("$output") mkdir "$output"
+*if !direxists("$intermediate_data") mkdir "$intermediate_data"
 
 * ==============================================================================
 
 * load FMIS data
 use "$intermediate_data/project_level_FMIS.dta", clear
+
+* create lite dataset of all projects for analysis
+
+preserve
+keep recipientid federal_project_number projecttitle state_fips gis_routeid gis_beginpoint gis_endpoint gis_length fp_ic has_new_construction county_fips county_name authconstdate completedate completion_year
+
+save "$intermediate_data/project_level_FMIS_w_GIS_lite.dta"
+restore
 
 * filter to projects with GIS data
 keep if !mi(gis_routeid) | !mi(gis_beginpoint) | !mi(gis_endpoint)
