@@ -1,5 +1,8 @@
 sample_2015 <- plf_gis %>% filter(completion_year >= 2015)
 
+sample_2015_gis <- plf_gis %>% filter(completion_year >= 2015,
+                                      has_gis == 1)
+
 state_xwalk <- usmap::us_map() %>%
   sf::st_drop_geometry() %>%
   dplyr::distinct(fips, abbr) %>%
