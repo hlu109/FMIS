@@ -3,18 +3,33 @@ qje_common <- function(base_size = 11) {
   theme(
     legend.title  = element_text(size = base_size, hjust = 0.5),
     legend.text   = element_text(size = base_size - 2),
-    plot.title    = element_text(face = "bold", hjust = 0.5,
-                                 size = base_size + 3,
-                                 margin = margin(b = 4)),
-    plot.subtitle = element_text(hjust = 0.5, color = "grey30",
-                                 size = base_size - 1,
-                                 margin = margin(b = 6)),
+    # Textbox elements measure their height against unit(1, "npc") of the whole
+    # plot, but are drawn in their gtable cell. With the default "panel"
+    # positioning that cell is narrower (y-axis title/text, right-hand legend),
+    # so a wrapped title needs more lines than the row was sized for and bleeds
+    # into the panel. Positioning against the plot makes the two widths agree.
+    plot.title.position   = "plot",
+    plot.caption.position = "plot",
+    plot.title    = ggtext::element_textbox_simple(
+      face = "bold",
+      hjust = 0.5, halign = 0.5,
+      size = base_size + 3,
+      lineheight = 1.15,
+      width = grid::unit(1, "npc"),
+      margin = margin(b = 4)),
+    plot.subtitle = ggtext::element_textbox_simple(
+      hjust = 0.5, halign = 0.5,
+      color = "grey30",
+      size = base_size - 1,
+      lineheight = 1.15,
+      width = grid::unit(1, "npc"),
+      margin = margin(b = 6)),
     plot.caption  = ggtext::element_textbox_simple(
-                                 hjust = 0, halign = 0,
-                                 size = base_size - 3, color = "grey40",
-                                 lineheight = 1.15,
-                                 width = grid::unit(1, "npc"),
-                                 margin = margin(t = 10)),
+      hjust = 0, halign = 0,
+      size = base_size - 3, color = "grey40",
+      lineheight = 1.15,
+      width = grid::unit(1, "npc"),
+      margin = margin(t = 10)),
     plot.margin   = margin(10, 10, 10, 10)
   )
 }
