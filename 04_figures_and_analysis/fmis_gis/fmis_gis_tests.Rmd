@@ -16,8 +16,11 @@ header-includes:
   - \usepackage{graphicx}
   - \usepackage{rotating}
   - \usepackage[normalem]{ulem}
+  - \usepackage{caption}
   - \UseTblrLibrary{booktabs}
   - \UseTblrLibrary{siunitx}
+  - \usepackage{threeparttable}
+  - \captionsetup[figure]{position=top}
 output:
   pdf_document: 
     extra_dependencies: ["booktabs", "multirow", "makecell", "float", "longtable"]
@@ -35,7 +38,7 @@ options(scipen = 0, digits = 6)
 if(!require('pacman')) {
   install.packages('pacman')
 }
-pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext, knitr, ggrepel)
+pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext, knitr, ggrepel, kableExtra)
 
 root_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
 data_dir = file.path(root_dir, "Data", "Intermediate")
@@ -48,104 +51,318 @@ options(tinytex.latexmk.warning = FALSE)
 # options(viewer = NULL)
 
 source(file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "geocoding_analysis", "functions_aesthetic.R"), local=T)
+
+# make figures in latex, pull titles as the figure title rather than within plot
+knitr::opts_chunk$set(fig.pos = "H", fig.topcaption = T)
+fig_cap <- function(p) paste(c(p$labels$title, p$labels$subtitle), collapse = " -- ")
 ```
 
-```{r, include=F}
-# all projects
-plf_lite <- read_dta(file.path(data_dir, "project_level_FMIS_lite.dta")) %>% 
-  mutate(projectid = paste0(recipientid, "_", federal_project_number))
-
-# projects with gis
-plf_only_gis <- read_dta(file.path(data_dir, "project_level_FMIS_w_GIS.dta")) %>%
-  mutate(projectid = paste0(recipientid, "_", federal_project_number)) %>% 
-  select(projectid, gis_beginpoint, gis_endpoint, n_proj_per_routeid)
-  
-
-plf_gis <- plf_lite %>% 
-  left_join(plf_only_gis, by = "projectid") %>% 
-  mutate(has_gis = ifelse(!is.na(gis_beginpoint) & !is.na(gis_endpoint), 1, 0),
-         has_pe = ifelse(str_detect(proj_improv_types, "15"), 1, 0),
-         has_row = ifelse(str_detect(proj_improv_types, "16"), 1, 0)) %>% 
-  filter(completion_year <= 2024) %>% 
-  mutate(num_detail_codes = str_count(proj_improv_types, ";") + 1)
-
-names(plf_gis)
-sum(!is.na(plf_gis$gis_beginpoint))
-sum(!is.na(plf_gis$gis_endpoint))
-table(plf_gis$has_gis)
-
-plf_gis_sample <- plf_gis[1:1000, ]
-```
-
-```{r, include=F}
+```{r, include=F, warning=F, message=F}
+source(file.path(code_dir, "clean_fmis_gis.R"), local=T)
 source(file.path(code_dir, "plot_time_trends.R"), local=T)
+source(file.path(code_dir, "plot_representativeness.R"), local=T)
+source(file.path(code_dir, "make_iija_figures.R"), local=T)
+
+names(plf_only_gis)
+```
+
+# Summary {.unlisted .unnumbered}
+
+- **7/30 IIJA Effects**: Looked at potential effects of the 2021 IIJA on project costs. 
+  - Constructed basic visualizations of costs in pre and post periods
+  - Created DID and event study outputs. These were differentiated by filtering for completed projects, projects that lasted 1 and 2 years, and projects with program codes affected by the IIJA
+  - I found no significant results in the most rigorous specifications, though some negative results in others which I believe are the product of selection for the more sparse post period data.
+  
+- **7/27 Mile Marker Representativeness**: Test if the data with mile markers is representative of the broader sample
+  - I find that it is not: mile marked observations differ in geography, work type, and cost
+  - Projects with mile markers also appear to be more complex (proxied by the number of FHWA improvement codes per observation), even when controlling for cost. This could also be the result of accounting differences between states.
+  
+- **7/24 Basic Trends in Mile Marker Data**: Look at basic patterns across the dataset
+  - I observe that mile markers occur in data primarily in 2010 or later, and come to represent around half of total observations. There are differences across work type and geography, though most states have a high porportion of mile marked observations.
+
+
+\tableofcontents
+
+
+# 7/30 - IIJA Effects
+
+To get a sense of the general feasibility of performing the DID and event study regressions, I look at the number of observations in each sample for the pre (2015-2021) and post (2022-2025) periods. These are separated out by project types. Projects with just authorization year is the largest sample; having a completion year as well restricts this heavily in the post-2022 period. IIJA codes denotes projects in which the program code is present in IIJA apportionments: this includes 6 project types described in depth below in "IIJA Code Subsample".
+
+```{r, echo=F}
+print_pre_post_counts()
 ```
 
 
-# Summary
+\newpage
+## Costs for 2015-2021 period vs. 2022-2024 period — completion-year sample
 
-This memo looks at the availability and distribution of GIS information provided directly by FMIS. GIS information is provided in the form of mile start and endpoints along a given route. There are no observations with partial data: all either have both points or none at all. Generally, this FMIS-provided GIS data begins after 2010; in later years this accounts for around half of all FMIS projects and project-spending. However, this GIS information does not appear to be distributed evenly across different project types, and the differences are even more stark when looking at the percentage of spending, particularly for new construction. I believe this is likely a result of data for new construction being sparse: the number of projects in this period is well below any other work type.
+**Note: I've moved the plots by work type to the appendix, all project types remain the same as before below**
 
-```{r, echo=F, fig.width=8, fig.height=5}
-ggplot(data = plf_gis_year %>% filter(completion_year >= 1990), aes(x = completion_year)) +
-  geom_line(aes(y = pct_gis * 100, col = "% Projects Geocoded")) +
-  geom_line(aes(y = cost_pct_gis * 100, col = "% Spending Geocoded")) +
-  labs(title = "FMIS GIS Data over Time",
-       subtitle = "Full sample of FMIS data, 1990-2024",
-       col = NULL,
-       x = " Project Completion Year", y = "Percentage with GIS",
-       caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded from the figure. All projects with a beginning point also have an endpoint; with GIS denotes a project having these points.") +
-  qje_theme()
-``` 
+First look at if the costs between the pre period (2015-2021) and post period (2022-2024) meaningfully differ. Many states below the 45-degree line could indicate that there is selection going on and the projects completed in the post period are just cheaper by virtue of being short timeframe/simple projects.
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_cy$scatters[["All Project Types"]])}
+iija_cy$scatters[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+## Costs for 2015-2021 period vs. 2022-2024 period — authorization-year sample
+
+Same figures, but built from the sample of projects that have a construction authorization year, regardless of whether they have completed. This adds more recent activity (projects authorized but not yet completed, or completed after 2025). Here, costs are deflated by the authorization-year CPI (as opposed to completion year above. I checked the effect of this rescaling independently by using an auth_year scaled CPI for the previous figures, which showed no change). Figures shift to show (what seems to be) less of a selection bias in post-2022 smaller/less complex projects.
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_ay$scatters[["All Project Types"]])}
+iija_ay$scatters[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+\newpage
+
+## Regression output
+
+Beginning of work on the regressions that were discussed. These follow specification:
+
+$$log(Cost/Mile)_{it} = \alpha + \beta_1 Year\geq2022_{t}  + \beta_2 Shock_{i} + \beta_3 Year\geq2022*Shock_{it}$$
+
+This includes year *i* and state *t* fixed effects, which entirely absorb the beta 1 and beta 2 terms, so the reported coefficient is just interaction. Standard errors are clustered by state. The shock is measured as the change in highway appropriations from 2021 to 2022 divided by state population. Because these new appropriations from the IIJA were entirely determined by appropriations in the previous year, this "shock" is essentially just total appropriations per capita.
+
+In each regression, I include interstate and urban/rural fixed effects, as well as improvement code fixed effects when possible. Columns without a coefficient did not have sufficient observations to support the specified model. I couldn't get these to properly show up in the regression output (after repeated attempts), so I decided to move on, as these results don't indicate significance either way.
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+did_sample_types <- c("All Project Types", "Preliminary Engineering", "Right-of-Way",
+                      "New Construction", "Rehabilitation", "Maintenance",
+                      "Reconstruction")
+
+did_short <- c("All Project Types" = "All", "Preliminary Engineering" = "PE",
+               "Right-of-Way" = "ROW", "New Construction" = "New Con.",
+               "Rehabilitation" = "Rehab.", "Maintenance" = "Maint.",
+               "Reconstruction" = "Recon.")
+
+# Drop models that failed to fit (returned NULL)
+did_etable_args <- function(mods) {
+  mods <- purrr::compact(mods)
+  list(mods = mods, headers = unname(did_short[names(mods)]))
+}
+
+did_dict <- c(log_cost_mile = "log(Cost per Mile)",
+              "post2022:iija_shock_pc" = "Post-2022 $\\times$ Shock",
+              "iija_shock_pc:post2022" = "Post-2022 $\\times$ Shock",
+              state_fips = "State", auth_year = "Year")
+
+did_notes_cy <- c(
+  "@\\footnotesize",
+  "\\emph{Each column is a separate feols regression with State and Year fixed effects; the reported coefficient is the Post-2022 $\\times$ per-capita shock interaction, whose main effects are absorbed by the fixed effects. The sample is projects with a completion year (completed by 2025); costs deflated by the completion-year CPI. Clustered (State) standard-errors in parentheses.}",
+  "\\emph{Signif. codes: *** 0.01, ** 0.05, * 0.1.}")
+
+did_notes_ay <- c(
+  "@\\footnotesize",
+  "\\emph{Each column is a separate feols regression with State and Year fixed effects; the reported coefficient is the Post-2022 $\\times$ per-capita shock interaction, whose main effects are absorbed by the fixed effects. The sample is all projects with a construction authorization year, including those not yet completed; costs deflated by the authorization-year CPI. Clustered (State) standard-errors in parentheses.}",
+  "\\emph{Signif. codes: *** 0.01, ** 0.05, * 0.1.}")
+
+did_notes_cy_1yr <- c(
+  "@\\footnotesize",
+  "\\emph{Each column is a separate feols regression with State and Year fixed effects; the reported coefficient is the Post-2022 $\\times$ per-capita shock interaction, whose main effects are absorbed by the fixed effects. The sample is projects with a completion year (completed by 2025) and having a project length less than or equal to 1 year; costs deflated by the completion-year CPI. Clustered (State) standard-errors in parentheses.}",
+  "\\emph{Signif. codes: *** 0.01, ** 0.05, * 0.1.}")
+
+did_notes_cy_2yr <- c(
+  "@\\footnotesize",
+  "\\emph{Each column is a separate feols regression with State and Year fixed effects; the reported coefficient is the Post-2022 $\\times$ per-capita shock interaction, whose main effects are absorbed by the fixed effects. The sample is projects with a completion year (completed by 2025) and having a project length less than or equal to 2 years; costs deflated by the completion-year CPI. Clustered (State) standard-errors in parentheses.}",
+  "\\emph{Signif. codes: *** 0.01, ** 0.05, * 0.1.}")
+
+did_style <- style.tex("aer", tpt = TRUE,
+                       stats.title = "\\midrule ",
+                       fixef.title = "\\midrule ")
+
+cy_did <- did_etable_args(iija_cy$did[did_sample_types])
+etable(
+  cy_did$mods,
+  headers     = cy_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample",
+  placement   = "H",
+  notes       = did_notes_cy,
+  style.tex   = did_style,
+  tex = TRUE,
+  keep = "times"
+  )
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+ay_did <- did_etable_args(iija_ay$did[did_sample_types])
+etable(
+  ay_did$mods,
+  headers     = ay_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: authorization-year only sample",
+  placement   = "H",
+  notes       = did_notes_ay,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+cy_1yr_did <- did_etable_args(iija_cy_1yr$did[did_sample_types])
+etable(
+  cy_1yr_did$mods,
+  headers     = cy_1yr_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample (1-year projects)",
+  placement   = "H",
+  notes       = did_notes_cy_1yr,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+cy_2yr_did <- did_etable_args(iija_cy_2yr$did[did_sample_types])
+etable(
+  cy_2yr_did$mods,
+  headers     = cy_2yr_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample (2-year projects)",
+  placement   = "H",
+  notes       = did_notes_cy_2yr,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+Event study (all project types), tracing the shock's effect on log cost per mile by authorization year relative to 2021 — pre-2022 coefficients test parallel trends. The sharp drop in 2024 is almost certainly selection - there are 30 observations with an authorization date in this year (as well as a completion date and mile marker data), so it seems to be shorter projects that are cheaper by design. Using a sample without restricting the completion year (as below) shows that this effect doesn't persist without the selection.
+
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy$es_plots[["All Project Types"]])}
+iija_cy$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_ay$es_plots[["All Project Types"]])}
+iija_ay$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy_1yr$es_plots[["All Project Types"]])}
+iija_cy_1yr$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy_2yr$es_plots[["All Project Types"]])}
+iija_cy_2yr$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+\newpage
+### IIJA Code Subsample
+
+The [FHWA website](https://highways.dot.gov/iija/fact-sheets/apportionment) lists the following program codes that the IIJA apportions funds to (I exclude new programs as these would not have valid pretrends):
+
+- National Highway Performance Program (NHPP);
+- Surface Transportation Block Grant Program (STBG);
+- Highway Safety Improvement Program (HSIP);
+- Congestion Mitigation and Air Quality Improvement Program (CMAQ);
+- National Highway Freight Program (NHFP);
+- Metropolitan Planning (PL);
+
+The distribution of these codes among data where there is mile marker data and an authorization year between 2015 and 2025. The first table requires there be a completion year (no unfinished projects), whereas the second table is all projects authorized in this period.
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+ay_codes_did <- did_etable_args(iija_ay_codes$did[did_sample_types])
+etable(
+  ay_codes_did$mods,
+  headers     = ay_codes_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: authorization-year only sample (only IIJA program codes",
+  placement   = "H",
+  notes       = did_notes_ay,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+cy_codes_did <- did_etable_args(iija_cy_codes$did[did_sample_types])
+etable(
+  cy_codes_did$mods,
+  headers     = cy_codes_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample (only IIJA program codes)",
+  placement   = "H",
+  notes       = did_notes_cy,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+cy_1yr_codes_did <- did_etable_args(iija_cy_1yr_codes$did[did_sample_types])
+etable(
+  cy_1yr_codes_did$mods,
+  headers     = cy_1yr_codes_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample (1-year projects, only IIJA program codes)",
+  placement   = "H",
+  notes       = did_notes_cy_1yr,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, warning=F, message=F, results='asis'}
+cy_2yr_codes_did <- did_etable_args(iija_cy_2yr_codes$did[did_sample_types])
+etable(
+  cy_2yr_codes_did$mods,
+  headers     = cy_2yr_codes_did$headers,
+  dict        = did_dict,
+  fitstat     = ~ n + r2,
+  signif.code = c("*" = .1, "**" = .05, "***" = .01),
+  caption     = "IIJA shock DiD by cost type: completion-year sample (2-year projects, only IIJA program codes)",
+  placement   = "H",
+  notes       = did_notes_cy_2yr,
+  style.tex   = did_style,
+  keep = "times",
+  tex = TRUE)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy_codes$es_plots[["All Project Types"]])}
+iija_cy_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_ay_codes$es_plots[["All Project Types"]])}
+iija_ay_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy_1yr_codes$es_plots[["All Project Types"]])}
+iija_cy_1yr_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5, warning=F, fig.cap=fig_cap(iija_cy_2yr_codes$es_plots[["All Project Types"]])}
+iija_cy_2yr_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
+```
+
+\newpage
+## Aggregate trends over time
+
+These figures are a replication of the aggregate trends over time in a previous section, but use the year of construction authorization as the x variable rather than the year of completion.
 
 ```{r, echo=F, fig.width=8, fig.height=5}
 ggplot(
-  data = plf_gis_year_type %>% filter(completion_year >= 1990),
-  aes(x = completion_year, y = pct_gis * 100, col = work_type)
+  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
+  aes(x = auth_year, y = n, col = work_type)
 ) +
   geom_line() +
   facet_wrap(~ definition) +
   labs(
-    title = "FMIS Geocoding over Time, by Work Type",
-    subtitle = "Full sample of FMIS data, 1990-2024",
+    title = "Number of FMIS Projects over Time, by Work Type",
+    subtitle = "FMIS Projects Authorized from 1990-2023",
     col = NULL,
-    x = "Project Completion Year", y = "% Projects Geocoded",
-    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
-  ) +
-  qje_theme()
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-ggplot(
-  data = plf_gis_year_type %>% filter(completion_year >= 1990),
-  aes(x = completion_year, y = cost_pct_gis * 100, col = work_type)
-) +
-  geom_line() +
-  facet_wrap(~ definition) +
-  labs(
-    title = "FMIS Spending Geocoding over Time, by Work Type",
-    subtitle = "Full sample of FMIS data, 1990-2024",
-    col = NULL,
-    x = "Project Completion Year", y = "% Spending Geocoded",
-    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
-  ) +
-  qje_theme()
-```
-
-## Aggregate Work Type Trends over Time
-
-```{r, echo=F, fig.width=8, fig.height=5}
-ggplot(
-  data = plf_gis_year_type %>% filter(completion_year >= 1990),
-  aes(x = completion_year, y = n, col = work_type)
-) +
-  geom_line() +
-  facet_wrap(~ definition) +
-  labs(
-    title = "# FMIS Projects over Time, by Work Type",
-    subtitle = "FMIS Projects completed from 1990-2024",
-    col = NULL,
-    x = "Project Completion Year", y = "# Projects",
+    x = "Project Construction Authorization Year", y = "# Projects",
     caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
   ) +
   qje_theme()
@@ -153,85 +370,28 @@ ggplot(
 
 ```{r, echo=F, fig.width=8, fig.height=5}
 ggplot(
-  data = plf_gis_year_type %>% filter(completion_year >= 1990),
-  aes(x = completion_year, y = cost, col = work_type)
+  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
+  aes(x = auth_year, y = cost, col = work_type)
 ) +
   geom_line() +
   facet_wrap(~ definition) +
   labs(
     title = "FMIS Spending over Time, by Work Type",
-    subtitle = "FMIS Projects completed from 1990-2024",
+    subtitle = "FMIS Spending Authorized from 1990-2023",
     col = NULL,
-    x = "Project Completion Year", y = "Spending ($ Millions)",
+    x = "Project Construction Authorization Year", y = "Spending ($ Millions)",
     caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
   ) +
   qje_theme()
 ```
 
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_df <- function(data) {
-df <- inner_join(
-  us_map() %>% mutate(state_fips = as.numeric(fips)),
-  data %>% 
-    filter(completion_year >= 2015) %>% 
-  group_by(state_fips) %>% 
-  summarise(n = n(),
-            n_gis = sum(has_gis),
-            pct_gis = n_gis / n,
-            cost = sum(total_cost_mills),
-            cost_gis = sum(total_cost_mills[has_gis == 1]),
-            cost_pct_gis = cost_gis / cost,
-            avg_detail_codes = mean(num_detail_codes)),
-  by = "state_fips"
-)
-}
 
-make_state_map(make_state_df(plf_gis), pct_gis, legend_name = "% Projects Geocoded", title = "FMIS GIS Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
 
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
 
-```{r, echo=F}
-kable(make_state_df(plf_gis) %>% 
-  select(abbr, cost_pct_gis) %>% 
-  st_drop_geometry() %>% 
-  arrange(-cost_pct_gis), format = "latex", booktabs = TRUE)
-```
 
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_new_construction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, New Construction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_reconstruction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Reconstruction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_rehabilitation == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Rehabilitation", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_maintenance == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Maintenance", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_pe == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, PE", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-make_state_map(make_state_df(plf_gis %>% filter(has_row == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, ROW", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
-```
-
-\newpage
-# Representativeness of the Mile Markers GIS Subsample
+# 7/27 - Mile Marker Subsample Representativeness
 
 In this section, I investigate the degree to which the sample of projects with mile marker data is representative of the full sample of projects. I first look at state-level shares: if the subsample of mile marker projects is representative, then each states' share of total projects (and total spending) should be similar to its shares in the smaller subsample. I plot these two shares below. Some large states like California and New York are noticeably underrepresented in terms of their share of projects in the mile markers sample; this discrepancy is even higher when looking at shares of spending.
-
-```{r representativeness, include=F}
-source(file.path(code_dir, "plot_representativeness.R"), local=T)
-```
 
 ## By State
 
@@ -324,25 +484,263 @@ print(corr_ncodes_gis_share)
 ```
 
 ```{r, results='asis', echo=F}
-m1 <- lm(pct_gis ~ avg_detail_codes, data = make_state_df(sample_2015))
-m2 <- lm(cost_pct_gis ~ avg_detail_codes, data = make_state_df(sample_2015))
+m1 <- lm(pct_gis ~ avg_detail_codes + avg_cost, data = make_state_df(sample_2015))
+m2 <- lm(cost_pct_gis ~ avg_detail_codes + avg_cost, data = make_state_df(sample_2015))
 
 stargazer(m1, m2,
           title = "Number of Improvement Type Codes and Mile Marker Shares",
           dep.var.labels = c("\\% Mile Marker Projects", "\\% Mile Marker Spending"),
-          covariate.labels = "Number of Codes",
+          covariate.labels = c("Number of Codes", "Avg. Project Cost"),
           header = F)
 ```
 
+# 7/24 - Trends in mile marker availability across time and geography
 
-```{r, include=F}
+## Mile marker trends over time
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(data = plf_gis_year %>% filter(completion_year >= 1990), aes(x = completion_year)) +
+  geom_line(aes(y = pct_gis * 100, col = "% Projects Geocoded")) +
+  geom_line(aes(y = cost_pct_gis * 100, col = "% Spending Geocoded")) +
+  labs(title = "FMIS GIS Data over Time",
+       subtitle = "Full sample of FMIS data, 1990-2024",
+       col = NULL,
+       x = " Project Completion Year", y = "Percentage with GIS",
+       caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded from the figure. All projects with a beginning point also have an endpoint; with GIS denotes a project having these points.") +
+  qje_theme()
+``` 
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = pct_gis * 100, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Geocoding over Time, by Work Type",
+    subtitle = "Full sample of FMIS data, 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "% Projects Geocoded",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = cost_pct_gis * 100, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Spending Geocoding over Time, by Work Type",
+    subtitle = "Full sample of FMIS data, 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "% Spending Geocoded",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other. With GIS denotes a project having both a beginning point and an endpoint."
+  ) +
+  qje_theme()
+```
+
+## Aggregate trends over time
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = n, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "Number of FMIS Projects over Time, by Work Type",
+    subtitle = "FMIS Projects completed from 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "# Projects",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_type %>% filter(completion_year >= 1990),
+  aes(x = completion_year, y = cost, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Spending over Time, by Work Type",
+    subtitle = "FMIS Projects completed from 1990-2024",
+    col = NULL,
+    x = "Project Completion Year", y = "Spending ($ Millions)",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
+```{r, results='asis', echo=F}
+plf_gis %>% filter(completion_year >= 2015) %>% 
+  filter(has_gis == 1) %>% 
+  summarise(total_new_construction = sum(has_new_construction),
+            total_reconstruction   = sum(has_reconstruction),
+            total_rehabilitation   = sum(has_rehabilitation),
+            total_maintenance      = sum(has_maintenance),
+            total_pe               = sum(has_pe),
+            total_row              = sum(has_row)) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "Construction Type",
+               values_to = "Total Observations with Mile Markers") %>% 
+  kable()
+```
+
+## State level mile marker availability
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis), pct_gis, legend_name = "% Projects Geocoded", title = "FMIS GIS Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F}
+kable(make_state_df(plf_gis) %>% 
+  select(abbr, cost_pct_gis) %>% 
+  st_drop_geometry() %>% 
+  arrange(-cost_pct_gis), format = "latex", booktabs = TRUE)
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_new_construction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, New Construction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_reconstruction == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Reconstruction", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_rehabilitation == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Rehabilitation", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_maintenance == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, Maintenance", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_pe == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, PE", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+make_state_map(make_state_df(plf_gis %>% filter(has_row == 1)), cost_pct_gis, legend_name = "% Spending Geocoded", title = "FMIS GIS Spending Share by State, ROW", subtitle = "FMIS Projects Completed from 2015-2024", caption = "Data is the sample of all FMIS projects completed from 2015-2024.")
+```
+
+# Appendix
+
+## Scatter Plots for Pre and Post costs by Work Type
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_cy$scatters[["New Construction"]])}
+iija_cy$scatters[["New Construction"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=8, warning=F, fig.cap=fig_cap(iija_cy$scatters[["Reconstruction"]])}
+iija_cy$scatters[["Reconstruction"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=10, warning=F, fig.cap=fig_cap(iija_cy$scatters[["Maintenance"]])}
+iija_cy$scatters[["Maintenance"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=8, warning=F, fig.cap=fig_cap(iija_cy$scatters[["Rehabilitation"]])}
+iija_cy$scatters[["Rehabilitation"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_cy$scatters[["Preliminary Engineering"]])}
+iija_cy$scatters[["Preliminary Engineering"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_cy$scatters[["Right-of-Way"]])}
+iija_cy$scatters[["Right-of-Way"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=8, warning=F, fig.cap=fig_cap(iija_ay$scatters[["New Construction"]])}
+iija_ay$scatters[["New Construction"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=9, warning=F, fig.cap=fig_cap(iija_ay$scatters[["Reconstruction"]])}
+iija_ay$scatters[["Reconstruction"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=9, warning=F, fig.cap=fig_cap(iija_ay$scatters[["Maintenance"]])}
+iija_ay$scatters[["Maintenance"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=10, warning=F, fig.cap=fig_cap(iija_ay$scatters[["Rehabilitation"]])}
+iija_ay$scatters[["Rehabilitation"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_ay$scatters[["Preliminary Engineering"]])}
+iija_ay$scatters[["Preliminary Engineering"]] + labs(title = NULL, subtitle = NULL)
+```
+
+```{r, echo=F, fig.width=8, fig.height=6, warning=F, fig.cap=fig_cap(iija_ay$scatters[["Right-of-Way"]])}
+iija_ay$scatters[["Right-of-Way"]] + labs(title = NULL, subtitle = NULL)
+```
+
+
+```{r representativeness, include=F}
 knitr::knit_exit()
 ```
+
+\newpage
+
+# Workspace
+
+## check on costs per mile over time
+
+```{r}
+plf_gis_cy %>% 
+  group_by(completion_year) %>% 
+  summarise(log_cost_mile = mean(log_cost_mile, na.rm=T))
+
+ggplot(data = plf_gis_cy %>% 
+  group_by(auth_year) %>% 
+    filter(auth_year >= 2015) %>% 
+  summarise(log_cost_mile = mean(log_cost_mile, na.rm=T)), aes (x = auth_year, y = log_cost_mile)) +
+  geom_line()
+```
+
+
+## Check on data sparsity
+
+```{r}
+auth_date_cols <- c("authsprdate", "authpedate", "authrowdate", "authconstdate", "authotherdate")
+
+auth_date_cols <- c("authconstdate")
+
+plf_gis %>% 
+  filter(has_gis == 1,
+         year(authconstdate) >= 2022) %>% 
+  mutate(
+    has_completion_date = as.integer(!is.na(completedate)),
+    has_auth_date       = as.integer(if_any(all_of(auth_date_cols), ~ !is.na(.x)))
+  ) %>% 
+  summarise(
+    n_projects             = n(),
+    total_spending         = sum(total_cost_mills, na.rm = TRUE),
+    share_proj_auth        = mean(has_auth_date),
+    share_spend_auth       = sum(total_cost_mills * has_auth_date,       na.rm = TRUE) / sum(total_cost_mills, na.rm = TRUE)
+  ) %>% 
+  kable()
+```
+
+## Assorted
 
 Linking with HPMS work =
 
 
-```{r}
+```{r, eval=F}
 plf_gis <- read_dta(file.path(data_dir, "project_level_FMIS_w_GIS.dta")) %>% 
   filter(gis_length < 10000) %>% 
   select(recipientid, federal_project_number, projecttitle, state_fips, gis_routeid, gis_beginpoint, gis_endpoint, gis_length, fp_ic, has_new_construction, county_fips, county_name, authconstdate, completedate, completion_year) %>% 
@@ -353,7 +751,7 @@ plf_gis <- read_dta(file.path(data_dir, "project_level_FMIS_w_GIS.dta")) %>%
 hpms_gis <- read_csv(file.path(data_dir, "geocoding/fmis_gis/hpms_highway_gis.csv")) %>% filter(STFIPS == 53, ROUTE_ID == "002")
 ```
 
-```{r}
+```{r, eval=F}
 hpms_geojson <- read_sf("C:/Users/fm557/Documents/NTAD_National_Highway_Planning_Network_5862765175788916660.geojson")
 
 hpms_geojson_wa <- hpms_geojson %>% filter(STFIPS == 53, ROUTE_ID == "005"
@@ -365,7 +763,7 @@ hpms_geojson_wa <- hpms_geojson %>% filter(STFIPS == 53, ROUTE_ID == "005"
 sum(st_length(hpms_geojson_wa)) * 0.000621371
 ```
 
-```{r}
+```{r, eval=F}
 get_gis_length <- function(gis_beginpoint, gis_endpoint, hpms_geojson_wa) {
   hpms_geojson_wa %>%
     filter(BEGIN_POIN >= gis_beginpoint,
@@ -417,7 +815,7 @@ plf_gis$geometry <- do.call(c, plf_gis_geom)
 plf_gis <- st_as_sf(plf_gis)
 ```
 
-```{r}
+```{r, eval=F}
 join_test <- left_join(
   plf_gis %>% group_by(gis_routeid) %>% summarise(sum(gis_length)), 
   hpms_geojson_wa %>% group_by(ROUTE_ID) %>% summarise(sum(MILES)), 
