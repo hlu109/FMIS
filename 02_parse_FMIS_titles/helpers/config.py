@@ -3,7 +3,7 @@ import getpass
 from pathlib import Path
 from datetime import datetime
 
-from Project import Project
+from .Project import Project
 
 
 # Set File Paths -------------------------------------------
@@ -68,7 +68,7 @@ RANDOM_SEED = 42
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 IDENTIFIER = f"{RUN_PREFIX}_{timestamp}"
 
-PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / f"prompt v{prompt_version}.md"
+PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / "prompts" / f"prompt v{prompt_version}.md"
 
 GEMINI_DIR = GEOCODING_DIR / "title_parsing_gemini_output"
 LOG_DIR = GEOCODING_DIR / "title_parsing_gemini_logs"

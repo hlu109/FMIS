@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from google.genai import errors
 from datetime import datetime
 
-from Project import Project, project_to_dataframe
+from .Project import Project, project_to_dataframe
 
 
 # ==============================================================================

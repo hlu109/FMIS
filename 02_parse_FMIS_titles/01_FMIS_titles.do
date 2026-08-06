@@ -64,7 +64,7 @@ gen below_median_cost = total_cost_bills_adjusted < r(p50)
 
 * keep only project titles and some key variables
 * Ella also specifically requested dates 
-keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear has_new_construction post_1970_auth below_median_cost
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear has_new_construction post_1970_auth below_median_cost lastactiondate
 save "$geocoding_inputs_dir/FMIS_interstate_project_titles.dta", replace
 
 * restrict to projects with new construction
@@ -75,6 +75,6 @@ summarize total_cost_bills_adjusted, detail
 drop below_median_cost
 gen below_median_cost = total_cost_bills_adjusted < r(p50)
 
-keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear post_1970_auth below_median_cost
+keep recipientid federal_project_number projecttitle projectdescription state_fips state_name county_fips county_name route_fpn total_cost_bills_adjusted completion_year authconstyear post_1970_auth below_median_cost lastactiondate
 save "$geocoding_inputs_dir/FMIS_interstate_newconstr_project_titles.dta", replace
 
