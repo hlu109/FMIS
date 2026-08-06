@@ -3,7 +3,10 @@ import getpass
 from pathlib import Path
 from datetime import datetime
 
-from .Project import Project
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
+from helpers.Project import Project
 
 
 # Set File Paths -------------------------------------------
