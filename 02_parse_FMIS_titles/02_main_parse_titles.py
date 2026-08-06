@@ -8,7 +8,7 @@ import pandas as pd
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from helpers import config
+import config
 from helpers.gemini_utils import process_titles, write_log, log_config, RateLimitException
 from utils.sample_utils import stratified_sample, stratified_sample_summary
 

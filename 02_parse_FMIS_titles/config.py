@@ -43,10 +43,10 @@ GEMINI_MODEL_ID = "gemini-2.5-flash"
 prompt_version = 5
 
 # SET FILE IDENTIFIERS 
-RUN_PREFIX = f"interstate_oneyearPR511_v{prompt_version}"
+RUN_PREFIX = f"interstate_newconstr_1yrPR511_ct_rt_v{prompt_version}"
 
 # SET FILE PATHS 
-INPUT_PATH = GEOCODING_DIR / "inputs" / "FMIS_interstate_project_titles_oneyearPR511.dta"
+INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocoding_eval" / "splits" / "pr511_val_fmis_interstate_newconstr_project_titles.dta"
 
 # SET SCHEMA
 page_schema = Project
