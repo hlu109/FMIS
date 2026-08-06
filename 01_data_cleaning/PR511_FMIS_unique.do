@@ -56,7 +56,7 @@ restore
 collapse (max) max_chains = chain_count, by(st county)
 tab max_chains
 keep if max_chains == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 // sort county_fips
 keep st county_fips
 save "$pr511_intermediate/pr511_cty_max_one_chain_per_yr.dta", replace
@@ -85,7 +85,7 @@ restore
 collapse (max) max_chains = chain_count, by(st county route)
 tab max_chains
 keep if max_chains == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 keep st county_fips route
 save "$pr511_intermediate/pr511_cty_rt_max_one_chain_per_yr.dta", replace
 
@@ -94,7 +94,7 @@ use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 bysort st county chain_id: keep if _n == 1
 collapse (count) n_distinct = chain_id, by(st county)
 keep if n_distinct == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 keep st county_fips
 save "$pr511_intermediate/pr511_cty_single_chain_ever.dta", replace
 
@@ -103,7 +103,7 @@ use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
 bysort st county route chain_id: keep if _n == 1
 collapse (count) n_distinct = chain_id, by(st county route)
 keep if n_distinct == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 keep st county_fips route
 save "$pr511_intermediate/pr511_cty_rt_single_chain_ever.dta", replace
 
@@ -115,7 +115,7 @@ gen one = 1
 collapse (max) one, by(st county open_year)
 collapse (count) n_years = open_year, by(st county)
 keep if n_years == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 keep st county_fips
 save "$pr511_intermediate/pr511_cty_single_openyr_ever.dta", replace
 
@@ -126,7 +126,7 @@ gen one = 1
 collapse (max) one, by(st county route open_year)
 collapse (count) n_years = open_year, by(st county route)
 keep if n_years == 1
-gen double county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f"))
 keep st county_fips route
 save "$pr511_intermediate/pr511_cty_rt_single_openyr_ever.dta", replace
 

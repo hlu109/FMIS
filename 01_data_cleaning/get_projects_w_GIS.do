@@ -37,28 +37,41 @@ else {
 * load FMIS data
 use "$intermediate_data/project_level_FMIS.dta", clear
 
-* create lite dataset of all projects for analysis
+// * create lite dataset of all projects for analysis
 
-preserve
-keep recipientid federal_project_number projecttitle state_fips gis_routeid gis_beginpoint gis_endpoint gis_length fp_ic has_new_construction county_fips county_name authconstdate completedate completion_year
+// preserve
+// keep recipientid federal_project_number projecttitle state_fips gis_routeid gis_beginpoint gis_endpoint fp_ic has_new_construction county_fips county_name authconstdate completedate completion_year
 
-save "$intermediate_data/project_level_FMIS_w_GIS_lite.dta"
-restore
+// save "$intermediate_data/project_level_FMIS_w_GIS_lite.dta"
+// restore
 
 * filter to projects with GIS data
 keep if !mi(gis_routeid) | !mi(gis_beginpoint) | !mi(gis_endpoint)
 
+* a bunch of projects have 0 as both begin and end point; drop these 
+drop if gis_beginpoint == 0 & gis_endpoint == 0
+
+* clean typo in data 
+replace gis_endpoint = 28.01 if gis_endpoint == 2801
+replace gis_endpoint = 1.579 if gis_endpoint == 15790
+
 * compute project length using GIS mile points 
 gen gis_length = gis_endpoint - gis_beginpoint
 
+* assert that lengths are logical
+assert gis_length >= 0 
+assert gis_length < 500
+
 duplicates tag gis_routeid recipientid federal_project_number, gen(n_proj_per_routeid)
 // duplicates drop gis_routeid recipientid federal_project_number, force
+
+* assert sample size is stable
+assert _N == 136359
+
 save "$intermediate_data/project_level_FMIS_w_GIS.dta", replace
 
 * ==============================================================================
 * filter projects and data view for manual spot checks of the mile points 
-
-keep if gis_length < 10000 // manually drop one observation in which the mile endpoint is 15790. Based on the context of the project and the starting mileage, this is clearly a typo and should probably be 1.579
 
 sum gis_beginpoint
 sum gis_endpoint

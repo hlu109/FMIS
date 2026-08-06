@@ -81,7 +81,7 @@ drop _chain_solo _chain_seq _solo_id
 keep chain_id sh st state county region open_year open_month route mp_start mp_end seg_len lane paveway rte rtereal stgp 
 
 * construct a county fips variable for convenience
-gen int county_fips = real(string(st, "%02.0f") + string(county, "%03.0f")) if !mi(st) & !mi(county)
+gen long county_fips = real(string(st, "%02.0f") + string(county, "%03.0f")) if !mi(st) & !mi(county)
 
 save "$pr511_intermediate/PR511_hubbardmazzeo.dta", replace
 
