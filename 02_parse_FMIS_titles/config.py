@@ -1,4 +1,5 @@
 import os
+import sys
 import getpass
 from pathlib import Path
 from datetime import datetime
@@ -49,7 +50,7 @@ prompt_version = 5
 RUN_PREFIX = f"interstate_newconstr_1yrPR511_ct_rt_v{prompt_version}"
 
 # SET FILE PATHS 
-INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocoding_eval" / "splits" / "pr511_val_fmis_interstate_newconstr_project_titles.dta"
+INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "pr511_val_fmis_interstate_newconstr_project_titles.dta"
 
 # SET SCHEMA
 page_schema = Project
