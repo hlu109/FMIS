@@ -23,6 +23,16 @@ def write_log(message, log_dir, identifier):
         file.write(f"[{timestamp}] {message}\n\n")
 
 
+def write_run_boundary(log_dir, identifier, label):
+    """Writes a labeled separator line to the run's log file, marking where a script invocation begins or ends (makes reruns/resumes easy to spot when scanning the log)."""
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    file_path = os.path.join(log_dir, f"log_{identifier}.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(file_path, "a", encoding="utf-8") as file:
+        file.write(f"{'*' * 30} RUN {label} [{timestamp}] {'*' * 30}\n\n")
+
+
 def _log_and_print(message, log_dir=None, identifier=None):
     """Print a message and optionally write it to a log file."""
     print(message)
@@ -37,30 +47,55 @@ def _format_stratum_counts(label, counts):
 
 
 def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
-               input_path=None, row_indices=None, sample_n=None,
+               input_path=None, output_path=None, run_dir=None, data_struct=None,
+               row_indices=None, sample_n=None,
                sample_stratify_by=None, random_seed=None,
                population_stratum_counts=None,
                allocated_stratum_counts=None,
-               sample_stratum_counts=None):
+               sample_stratum_counts=None,
+               reuse_old_results=False, resume_run_identifier=None):
     """Logs prompt text and configuration values for a Gemini run."""
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    separator = f"{'*' * 30} [{timestamp}] {'*' * 30}\n"
+
+    # archive the prompt text; append with a separator (rather than overwrite) so drift is visible if the prompt file changes between reruns of a resumed identifier
     with open(prompt_text_path, "r", encoding="utf-8") as file:
         prompt_text = file.read()
     with open(os.path.join(log_dir, f"prompt_text_{identifier}.txt"), "a",
               encoding="utf-8") as file:
+        file.write(separator)
         file.write(prompt_text)
+        file.write("\n\n")
+
+    # archive the full data structure/output schema separately since it's too long to inline in the main log; append with a separator so schema drift across reruns is visible rather than silently overwritten
+    data_struct_path = os.path.join(log_dir, f"data_struct_{identifier}.txt")
+    if data_struct is not None:
+        with open(data_struct_path, "a", encoding="utf-8") as file:
+            file.write(separator)
+            json.dump(data_struct.model_json_schema(), file, indent=2)
+            file.write("\n\n")
 
     file_path = os.path.join(log_dir, f"log_{identifier}.txt")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # archive other config parameters
     with open(file_path, "a", encoding="utf-8") as file:
         file.write(f"[{timestamp}] \n\n")
         file.write(f"CONFIG PARAMETERS\n\n")
+        file.write(f"Run identifier: {identifier}\n")
         file.write(f"Input file: {input_path}\n")
+        file.write(f"Output CSV: {output_path}\n")
+        file.write(f"Intermediate JSON dir: {run_dir}\n")
         file.write(f"Prompt text file: {prompt_text_path}\n")
-        file.write(f"Gemini model: {gemini_model_id}\n\n")
+        if data_struct is not None:
+            file.write(f"Data structure file: {data_struct_path}\n")
+        file.write(f"Gemini model: {gemini_model_id}\n")
+        if reuse_old_results:
+            file.write(f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n")
+        else:
+            file.write(f"Reuse old results: False\n\n")
 
         if sample_n is not None:
             file.write(f"Sample: n={sample_n}, seed={random_seed}\n")
@@ -265,7 +300,8 @@ def process_titles(genai_client,
                    intermediate_dir: str,
                    row_indices: list = None,
                    log_dir=None,
-                   identifier=None):
+                   identifier=None,
+                   reuse_old_results: bool = False):
     """
     Extracts structured endpoint data from FMIS project titles and saves results.
 
@@ -276,11 +312,14 @@ def process_titles(genai_client,
         prompt_text (str): Prompt text for the API.
         model_id (str): Gemini model ID.
         outfile_path (str): Path to save final CSV.
-        intermediate_dir (str): Folder for intermediate JSON outputs.
+        intermediate_dir (str): Folder for intermediate JSON outputs. When
+            reuse_old_results is True, this is also where prior JSONs are read from.
         row_indices (list, optional): Specific DataFrame indices to process.
             If None, processes all rows.
         log_dir (str, optional): Directory for writing Gemini error logs.
         identifier (str, optional): Run identifier for the log filename.
+        reuse_old_results (bool): If True, rows whose intermediate JSON already
+            exists in intermediate_dir are loaded from disk instead of re-queried.
 
     Returns:
         pd.DataFrame: Aggregated structured data extracted from all titles.
@@ -294,8 +333,9 @@ def process_titles(genai_client,
     all_dataframes: list[pd.DataFrame] = []
     start_time = time.time()
 
-    # track issues in real time 
+    # track issues and track runtime in real time
     error_count = 0
+    processed_count = 0  # rows that made a Gemini call; excludes rows reused from cached JSON
 
     try:
         for i, (idx, row) in enumerate(df_subset.iterrows()):
@@ -305,23 +345,26 @@ def process_titles(genai_client,
             json_path = os.path.join(intermediate_dir, 
                                      f"parsed_title_{proj_id}.json")
 
-            # Resume support: load intermediate JSON if it already exists
-            # TODO: need to allow selection of past run timestamp/identifier 
-            # if os.path.exists(json_path):
-            #     print(f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, skipping LLM.")
-            #     with open(json_path, "r", encoding="utf-8") as f:
-            #         result_json = json.load(f)
-            #     # TODO: replace with a json_to_dataframe function 
-            #     result = Project(**{k: v for k, v in result_json.items()
-            #                        if k in Project.model_fields})
-            #     row_df = project_to_dataframe(result)
-            #     row_df["row_index"] = idx
-            #     row_df["recipient_id"] = recipient_id
-            #     row_df["federal_project_number"] = fpn
-            #     row_df["model_id"] = result_json.get("model_id")
-            #     row_df["project_title"] = result_json.get("project_title")
-            #     all_dataframes.append(row_df)
-            #     continue
+            # Resume support: load intermediate JSON if it already exists rather than re-querying Gemini
+            if reuse_old_results and os.path.exists(json_path):
+                print(f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, reusing cached result.")
+                with open(json_path, "r", encoding="utf-8") as f:
+                    result_json = json.load(f)
+                # extract Project fields from result_json
+                result = Project(**{k: v for k, v in result_json.items()
+                                   if k in Project.model_fields})
+                row_df = project_to_dataframe(result)
+                # separately extract runtime metadata from result_json
+                metadata_keys = [
+                    "recipient_id", "federal_project_number", "completion_year",
+                    "authconstyear", "row_index", "model_id", "project_title",
+                    "state_fips", "state_name", "county_fips", "county_name", "route_fpn",
+                ]
+                for key in metadata_keys:
+                    if key in result_json:
+                        row_df[key] = result_json[key]
+                all_dataframes.append(row_df)
+                continue
 
             print(f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}")
 
@@ -360,6 +403,8 @@ def process_titles(genai_client,
                     all_dataframes, outfile_path, log_dir, identifier,
                     "Fatal rate limit stop")
                 raise
+
+            processed_count += 1
 
             if result:
                 runtime_metadata = {
@@ -402,9 +447,9 @@ def process_titles(genai_client,
                 error_count += 1
 
             total_time_elapsed = time.time() - start_time
-            avg_time_per_project = total_time_elapsed / (i + 1)
+            avg_time_per_project = total_time_elapsed / processed_count
             print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs")
-            print(f"Average time per project so far: {avg_time_per_project:.2f} s")
+            print(f"Average time per Gemini query so far: {avg_time_per_project:.2f} s")
             print(f"Projects with no Gemini output so far: {error_count}")
 
             if (i + 1) % 10 == 0:
@@ -412,7 +457,7 @@ def process_titles(genai_client,
                                log_dir, identifier)
                 _log_and_print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs",
                                log_dir, identifier)
-                _log_and_print(f"Average time per project so far: {avg_time_per_project:.2f} s",
+                _log_and_print(f"Average time per Gemini query so far: {avg_time_per_project:.2f} s",
                                log_dir, identifier)
                 _log_and_print(f"Projects with no Gemini output so far: {error_count}",
                                log_dir, identifier)

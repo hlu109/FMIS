@@ -46,11 +46,15 @@ GEMINI_MODEL_ID = "gemini-2.5-flash"
 # SET GEMINI PROMPT 
 prompt_version = 5
 
-# SET FILE IDENTIFIERS 
-RUN_PREFIX = f"interstate_newconstr_1yrPR511_ct_rt_v{prompt_version}"
+# SET FILE IDENTIFIERS
+RUN_PREFIX = f"interstate_newconstr_1yrPR511_ct_v{prompt_version}"
+
+# SET RESUME PARAMETERS
+REUSE_OLD_RESULTS = False
+RESUME_RUN_IDENTIFIER = None
 
 # SET FILE PATHS 
-INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "pr511_val_fmis_interstate_newconstr_project_titles.dta"
+INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "pr511_cty_val_fmis_interstate_newconstr_project_titles.dta"
 
 # SET SCHEMA
 page_schema = Project
@@ -68,9 +72,15 @@ SAMPLE_N = None                # if set (and ROW_INDICES is None), sample this m
 RANDOM_SEED = 42
 
 # ------------------------------------------------------------------------------
-# AUTO SET REMAINING FILE PATHS 
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-IDENTIFIER = f"{RUN_PREFIX}_{timestamp}"
+# AUTO SET REMAINING FILE PATHS
+if REUSE_OLD_RESULTS:
+    if not RESUME_RUN_IDENTIFIER:
+        raise ValueError("REUSE_OLD_RESULTS is True but RESUME_RUN_IDENTIFIER is not set.")
+    # reuse the prior run's identifier so intermediate JSONs, the output CSV, and the log file all resolve to the same paths as the run being resumed
+    IDENTIFIER = RESUME_RUN_IDENTIFIER
+else:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    IDENTIFIER = f"{RUN_PREFIX}_{timestamp}"
 
 PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / "prompts" / f"prompt v{prompt_version}.md"
 
