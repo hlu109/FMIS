@@ -64,7 +64,8 @@ pr511_cty_cluster_df <- pr511_cty %>%
 stopifnot(nrow(pr511_cty_cluster_df) == 263)
 
 pr511_cty_splits <- build_splits_stratified(
-  "pr511_cty", pr511_cty_cluster_df, strata_cols = c("state_fips"), val_frac = 0.5
+  "pr511_cty", pr511_cty_cluster_df, strata_cols = c("state_fips"), 
+  val_frac = 0.5, seed_salt = "pr511_cty_1"
 )
 # don't intentionally stratify by open_year_decade for now because it makes the state stratification too lumpy – but the results split pretty well along decade anyway
 
@@ -108,7 +109,8 @@ pr511_cty_rt_cluster_df <- pr511_cty_rt %>%
 stopifnot(nrow(pr511_cty_rt_cluster_df) == (511 - 263))
 
 pr511_cty_rt_splits <- build_splits_stratified(
-  "pr511_cty_rt", pr511_cty_rt_cluster_df, strata_cols = c("state_fips"), val_frac = 0.5
+  "pr511_cty_rt", pr511_cty_rt_cluster_df, strata_cols = c("state_fips"), 
+  val_frac = 0.5, seed_salt = "pr511_cty_rt_1"
 ) 
 # don't intentionally stratify by open_year_decade because it makes the state stratification too lumpy – but the results split pretty well along decade anyway
 
@@ -168,8 +170,8 @@ message(
   length(val_pids_cty), " val, ", length(test_pids_cty), " test (",
   length(overlap_pids_cty), " multi-county overlap projects dropped)."
 )
-stopifnot(length(val_pids_cty) == 854)
-stopifnot(length(test_pids_cty) == 663)
+stopifnot(length(val_pids_cty) == 706)
+stopifnot(length(test_pids_cty) == 811)
 stopifnot(length(overlap_pids_cty) == 26)
 
 
@@ -211,8 +213,8 @@ message(
   length(overlap_pids_cty_rt), " multi-county overlap projects dropped)."
 )
 
-stopifnot(length(val_pids_cty_rt) == 414)
-stopifnot(length(test_pids_cty_rt) == 669)
+stopifnot(length(val_pids_cty_rt) == 553)
+stopifnot(length(test_pids_cty_rt) == 530)
 stopifnot(length(overlap_pids_cty_rt) == 14)
 
 message("Splits build complete. Output: ", splits_dir)
