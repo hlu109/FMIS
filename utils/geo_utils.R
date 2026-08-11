@@ -7,7 +7,7 @@ library(geos)
 library(dplyr)
 library(stringr)
 
-METRIC_CRS <- 5070  # CONUS Albers
+METRIC_CRS <- 5070 # CONUS Albers
 MILES_TO_METERS <- 1609.344
 
 miles_to_meters <- function(mi) {
@@ -32,13 +32,13 @@ to_metric_crs <- function(x) {
 # ---- linear referencing ----
 
 position_along_route <- function(point, route) {
-  # Projects a point onto the nearest distance along a route, and returns the distance (in miles) from the start of the route to the projected point. 
+  # Projects a point onto the nearest distance along a route, and returns the distance (in miles) from the start of the route to the projected point.
   #
   # TODO: right now the 'start' of the route is arbitrarily based on however the linestring was constructed. we should define this so that it starts 0 at the south end for north-south routes and 0 at the west end for east-west routes. also caveat that the position along route is not necessarily the same as the actual mile marker.
   #
   # TODO: check if HPMS/NHPN linestrings are actually in traversal order.
   #
-  # Transforms inputs to METRIC_CRS internally. 
+  # Transforms inputs to METRIC_CRS internally.
   #
   # Args:
   #   point: an sfc/sf POINT (length 1).
@@ -48,12 +48,18 @@ position_along_route <- function(point, route) {
   route <- to_metric_crs(route)
 
   if (sf::st_geometry_type(sf::st_geometry(route))[1] != "LINESTRING") {
-    stop("position_along_route: route must be a single LINESTRING, not ", sf::st_geometry_type(sf::st_geometry(route))[1])
+    stop(
+      "position_along_route: route must be a single LINESTRING, not ",
+      sf::st_geometry_type(sf::st_geometry(route))[1]
+    )
   }
   if (nrow(sf::st_coordinates(sf::st_geometry(route))) < 2) {
     stop("position_along_route: route has fewer than 2 vertices.")
   }
 
-  dist_m <- geos::geos_project(geos::as_geos_geometry(route), geos::as_geos_geometry(point)) # get distance of point 2 projected onto linestring 1 from the origin of linestring 1
+  dist_m <- geos::geos_project(
+    geos::as_geos_geometry(route),
+    geos::as_geos_geometry(point)
+  ) # get distance of point 2 projected onto linestring 1 from the origin of linestring 1
   return(meters_to_miles(dist_m))
 }

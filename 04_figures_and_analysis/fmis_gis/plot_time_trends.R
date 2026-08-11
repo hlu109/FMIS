@@ -1,14 +1,16 @@
 # =============================================
 # Simple yearly breakdown of spending/projects
 
-plf_gis_year <- plf_gis %>% 
-  group_by(completion_year) %>% 
-  summarise(n = n(),
-            n_gis = sum(has_gis),
-            pct_gis = n_gis / n,
-            cost = sum(total_cost_mills),
-            cost_gis = sum(total_cost_mills[has_gis == 1]),
-            cost_pct_gis = cost_gis / cost)
+plf_gis_year <- plf_gis %>%
+  group_by(completion_year) %>%
+  summarise(
+    n = n(),
+    n_gis = sum(has_gis),
+    pct_gis = n_gis / n,
+    cost = sum(total_cost_mills),
+    cost_gis = sum(total_cost_mills[has_gis == 1]),
+    cost_pct_gis = cost_gis / cost
+  )
 
 
 # =============================================
@@ -26,9 +28,9 @@ work_types <- c(
 
 work_type_labels <- c(
   has_new_construction = "New Construction",
-  has_reconstruction   = "Reconstruction",
-  has_rehabilitation   = "Rehabilitation",
-  has_maintenance      = "Maintenance",
+  has_reconstruction = "Reconstruction",
+  has_rehabilitation = "Rehabilitation",
+  has_maintenance = "Maintenance",
   has_pe = "Preliminary Engineering",
   has_row = "Right of Way"
 )
@@ -40,46 +42,62 @@ summarise_gis_year <- function(df, wt, mode, year_var) {
   } else {
     df <- df %>% filter(.data[[wt]] == 1)
   }
-  
+
   df %>%
-    group_by({{year_var}}) %>%
+    group_by({{ year_var }}) %>%
     summarise(
-      n     = n(),
+      n = n(),
       n_gis = sum(has_gis),
-      cost      = sum(total_cost_mills),
-      cost_gis  = sum(total_cost_mills[has_gis == 1]),
+      cost = sum(total_cost_mills),
+      cost_gis = sum(total_cost_mills[has_gis == 1]),
       .groups = "drop"
     ) %>%
     mutate(
-      pct_gis      = n_gis / n,
+      pct_gis = n_gis / n,
       cost_pct_gis = cost_gis / cost,
-      work_type    = wt,
-      definition   = mode
+      work_type = wt,
+      definition = mode
     )
 }
 
 plf_gis_year_type <- tidyr::expand_grid(
-  wt   = work_types,
+  wt = work_types,
   mode = c("has", "only")
 ) %>%
-  purrr::pmap_dfr(function(wt, mode) summarise_gis_year(plf_gis, wt, mode, completion_year)) %>%
+  purrr::pmap_dfr(function(wt, mode) {
+    summarise_gis_year(plf_gis, wt, mode, completion_year)
+  }) %>%
   mutate(
-    work_type  = factor(work_type, levels = work_types, labels = work_type_labels),
-    definition = factor(definition,
-                        levels = c("has", "only"),
-                        labels = c("Has this type", "Has only this type"))
+    work_type = factor(
+      work_type,
+      levels = work_types,
+      labels = work_type_labels
+    ),
+    definition = factor(
+      definition,
+      levels = c("has", "only"),
+      labels = c("Has this type", "Has only this type")
+    )
   )
 
 plf_gis_year_authconst_type <- tidyr::expand_grid(
-  wt   = work_types,
+  wt = work_types,
   mode = c("has", "only")
 ) %>%
-  purrr::pmap_dfr(function(wt, mode) summarise_gis_year(plf_gis, wt, mode, auth_year)) %>%
+  purrr::pmap_dfr(function(wt, mode) {
+    summarise_gis_year(plf_gis, wt, mode, auth_year)
+  }) %>%
   mutate(
-    work_type  = factor(work_type, levels = work_types, labels = work_type_labels),
-    definition = factor(definition,
-                        levels = c("has", "only"),
-                        labels = c("Has this type", "Has only this type"))
+    work_type = factor(
+      work_type,
+      levels = work_types,
+      labels = work_type_labels
+    ),
+    definition = factor(
+      definition,
+      levels = c("has", "only"),
+      labels = c("Has this type", "Has only this type")
+    )
   )
 
 # state df helper function
@@ -87,17 +105,19 @@ plf_gis_year_authconst_type <- tidyr::expand_grid(
 make_state_df <- function(data) {
   df <- inner_join(
     us_map() %>% mutate(state_fips = as.numeric(fips)),
-    data %>% 
-      filter(completion_year >= 2015) %>% 
-      group_by(state_fips) %>% 
-      summarise(n = n(),
-                n_gis = sum(has_gis),
-                pct_gis = n_gis / n,
-                cost = sum(total_cost_mills),
-                cost_gis = sum(total_cost_mills[has_gis == 1]),
-                cost_pct_gis = cost_gis / cost,
-                avg_detail_codes = mean(num_detail_codes),
-                avg_cost = mean(total_cost_mills)),
+    data %>%
+      filter(completion_year >= 2015) %>%
+      group_by(state_fips) %>%
+      summarise(
+        n = n(),
+        n_gis = sum(has_gis),
+        pct_gis = n_gis / n,
+        cost = sum(total_cost_mills),
+        cost_gis = sum(total_cost_mills[has_gis == 1]),
+        cost_pct_gis = cost_gis / cost,
+        avg_detail_codes = mean(num_detail_codes),
+        avg_cost = mean(total_cost_mills)
+      ),
     by = "state_fips"
   )
 }

@@ -30,7 +30,8 @@ def main():
     print(f"Intermediate JSONs: {config.RUN_DIR}")
     print(f"Final CSV: {config.OUTPUT_PATH}")
     if config.REUSE_OLD_RESULTS:
-        print(f"Resuming run '{config.RESUME_RUN_IDENTIFIER}': existing JSONs will be reused.")
+        print(
+            f"Resuming run '{config.RESUME_RUN_IDENTIFIER}': existing JSONs will be reused.")
 
     write_run_boundary(config.LOG_DIR, config.IDENTIFIER, "START")
 
@@ -77,7 +78,6 @@ def main():
     else:
         row_indices = None
         auto_sample = False
-
 
     log_config(
         prompt_text_path=config.PROMPT_TEXT_PATH,

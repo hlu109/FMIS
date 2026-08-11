@@ -7,7 +7,7 @@ library(lwgeom)
 crow_flies_error <- function(pred_seg, true_seg) {
   # Sums endpoint distances between two segments using as-the-crow-flies distance.
   #
-  # Robust to orientation of segments. (Takes the smaller of the two endpoint pairings.) Does not account for road curvature. 
+  # Robust to orientation of segments. (Takes the smaller of the two endpoint pairings.) Does not account for road curvature.
   #
   # Args:
   #   pred_seg: length-1 sfc/sf LINESTRING, in CONUS Albers
@@ -18,10 +18,16 @@ crow_flies_error <- function(pred_seg, true_seg) {
 
   # Assert that the inputs are in the correct CRS
   if (sf::st_crs(pred_seg) != sf::st_crs(5070)) {
-    stop(sprintf("pred_seg must be in EPSG:5070, got %s", if (is.na(sf::st_crs(pred_seg))) "no CRS" else sf::st_crs(pred_seg)$input))
+    stop(sprintf(
+      "pred_seg must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(pred_seg))) "no CRS" else sf::st_crs(pred_seg)$input
+    ))
   }
   if (sf::st_crs(true_seg) != sf::st_crs(5070)) {
-    stop(sprintf("true_seg must be in EPSG:5070, got %s", if (is.na(sf::st_crs(true_seg))) "no CRS" else sf::st_crs(true_seg)$input))
+    stop(sprintf(
+      "true_seg must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(true_seg))) "no CRS" else sf::st_crs(true_seg)$input
+    ))
   }
 
   p1 <- lwgeom::st_startpoint(pred_seg)
@@ -29,8 +35,10 @@ crow_flies_error <- function(pred_seg, true_seg) {
   t1 <- lwgeom::st_startpoint(true_seg)
   t2 <- lwgeom::st_endpoint(true_seg)
 
-  same <- as.numeric(sf::st_distance(p1, t1)) + as.numeric(sf::st_distance(p2, t2))
-  swapped <- as.numeric(sf::st_distance(p1, t2)) + as.numeric(sf::st_distance(p2, t1))
+  same <- as.numeric(sf::st_distance(p1, t1)) +
+    as.numeric(sf::st_distance(p2, t2))
+  swapped <- as.numeric(sf::st_distance(p1, t2)) +
+    as.numeric(sf::st_distance(p2, t1))
   return(meters_to_miles(min(same, swapped)))
 }
 
@@ -49,17 +57,26 @@ along_route_error <- function(pred_seg, true_seg, route) {
 
   # Assert that the inputs are in the correct CRS
   if (sf::st_crs(pred_seg) != sf::st_crs(5070)) {
-    stop(sprintf("pred_seg must be in EPSG:5070, got %s", if (is.na(sf::st_crs(pred_seg))) "no CRS" else sf::st_crs(pred_seg)$input))
+    stop(sprintf(
+      "pred_seg must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(pred_seg))) "no CRS" else sf::st_crs(pred_seg)$input
+    ))
   }
   if (sf::st_crs(true_seg) != sf::st_crs(5070)) {
-    stop(sprintf("true_seg must be in EPSG:5070, got %s", if (is.na(sf::st_crs(true_seg))) "no CRS" else sf::st_crs(true_seg)$input))
+    stop(sprintf(
+      "true_seg must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(true_seg))) "no CRS" else sf::st_crs(true_seg)$input
+    ))
   }
   if (sf::st_crs(route) != sf::st_crs(5070)) {
-    stop(sprintf("route must be in EPSG:5070, got %s", if (is.na(sf::st_crs(route))) "no CRS" else sf::st_crs(route)$input))
+    stop(sprintf(
+      "route must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(route))) "no CRS" else sf::st_crs(route)$input
+    ))
   }
 
-  pred_ext <- segment_position_along_route(pred_seg, route) # start and end position points (miles) along route 
-  true_ext <- segment_position_along_route(true_seg, route) # start and end position points (miles) along route 
+  pred_ext <- segment_position_along_route(pred_seg, route) # start and end position points (miles) along route
+  true_ext <- segment_position_along_route(true_seg, route) # start and end position points (miles) along route
 
   same <- abs(pred_ext[1] - true_ext[1]) + abs(pred_ext[2] - true_ext[2])
   swapped <- abs(pred_ext[1] - true_ext[2]) + abs(pred_ext[2] - true_ext[1])
@@ -75,7 +92,10 @@ segment_length <- function(seg) {
   # Returns:
   #   numeric scalar, miles. 0 for a POINT (degenerate segment).
   if (sf::st_crs(seg) != sf::st_crs(5070)) {
-    stop(sprintf("seg must be in EPSG:5070, got %s", if (is.na(sf::st_crs(seg))) "no CRS" else sf::st_crs(seg)$input))
+    stop(sprintf(
+      "seg must be in EPSG:5070, got %s",
+      if (is.na(sf::st_crs(seg))) "no CRS" else sf::st_crs(seg)$input
+    ))
   }
   return(meters_to_miles(as.numeric(sf::st_length(seg))))
 }

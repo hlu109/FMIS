@@ -1,8 +1,8 @@
 # ==============================================================================
 # Regressions of FMIS construction duration on PR-511 mileage.
-# Tests whether project duration scales with mileage. 
+# Tests whether project duration scales with mileage.
 # ==============================================================================
-# Setup 
+# Setup
 library(haven)
 library(dplyr)
 library(tidyr)
@@ -20,7 +20,6 @@ if (user == "andersonkovesci") {
   data_dir <- file.path(project_root, "Data")
   raw_data_dir <- file.path(data_dir, "Raw")
   intermediate_data_dir <- file.path(data_dir, "Intermediate")
-
 } else if (user == "hl2266") {
   project_root <- "C:/Users/hl2266/YLS Dropbox/Hannah Lu/shared/FHWA cost data"
   output_dir <- file.path(project_root, "Output", "Hannah")
@@ -43,18 +42,24 @@ dir.create(regr_dir, recursive = TRUE, showWarnings = FALSE)
 # ==============================================================================
 # Helpers
 
-# format the fixed effects rows for modelsummary output 
+# format the fixed effects rows for modelsummary output
 gof_map_combined <- modelsummary::gof_map
 fe_rows <- data.frame(
   raw = c(
-    "FE: factor(state_fips)", "FE: state_fips",
-    "FE: factor(authconstyear)", "FE: authconstyear",
-    "FE: factor(completion_year)", "FE: completion_year"
+    "FE: factor(state_fips)",
+    "FE: state_fips",
+    "FE: factor(authconstyear)",
+    "FE: authconstyear",
+    "FE: factor(completion_year)",
+    "FE: completion_year"
   ),
   clean = c(
-    "State FE", "State FE",
-    "Authorization year FE", "Authorization year FE",
-    "Completion year FE", "Completion year FE"
+    "State FE",
+    "State FE",
+    "Authorization year FE",
+    "Authorization year FE",
+    "Completion year FE",
+    "Completion year FE"
   ),
   fmt = 0,
   omit = FALSE,
@@ -70,12 +75,15 @@ for (i in seq_len(nrow(fe_rows))) {
 }
 
 # ==============================================================================
-# Data 
+# Data
 
 cpi_df <- read_dta(file.path(intermediate_data_dir, "CPI_2025.dta"))
 
 # FMIS project panel
-fmis_panel <- read_dta(file.path(intermediate_data_dir, "project_level_FMIS_lite.dta")) %>%
+fmis_panel <- read_dta(file.path(
+  intermediate_data_dir,
+  "project_level_FMIS_lite.dta"
+)) %>%
   filter(fp_ic == 1, has_new_construction == 1) %>%
   filter(!is.na(authconstdate), !is.na(completedate)) %>%
   mutate(
@@ -85,7 +93,7 @@ fmis_panel <- read_dta(file.path(intermediate_data_dir, "project_level_FMIS_lite
     county_fips = as.numeric(county_fips),
     countyid = as.numeric(countyid)
   )
-# adjust for inflation 
+# adjust for inflation
 fmis_panel <- fmis_panel %>%
   rename(year = completion_year) %>%
   left_join(cpi_df, by = "year") %>%
@@ -98,15 +106,22 @@ fmis_panel <- fmis_panel %>%
 
 fmis_panel <- fmis_panel %>%
   select(
-    recipientid, federal_project_number,
-    state_fips, county_fips, countyid, route,
-    const_duration, authconstyear, completion_year,
+    recipientid,
+    federal_project_number,
+    state_fips,
+    county_fips,
+    countyid,
+    route,
+    const_duration,
+    authconstyear,
+    completion_year,
     total_cost_mills_adj
   )
 
-# PR-511 cell mileage 
+# PR-511 cell mileage
 pr511 <- read_dta(
-  file.path(pr511_intermediate, "PR511_hubbardmazzeo_chained.dta")) %>%
+  file.path(pr511_intermediate, "PR511_hubbardmazzeo_chained.dta")
+) %>%
   filter(!is.na(open_year)) %>%
   mutate(
     st = as.integer(st),
@@ -124,16 +139,19 @@ cty_rt_yr_mi <- pr511 %>%
   group_by(county_fips, route, open_year) %>%
   summarise(mi = sum(chain_len, na.rm = TRUE), .groups = "drop")
 
-# Joined panels per obs level 
+# Joined panels per obs level
 # (always join on completion_year regardless of year FE variable)
 panel_cty <- fmis_panel %>%
   inner_join(cty_yr_mi, by = c("county_fips", "completion_year" = "open_year"))
 
 panel_cty_rt <- fmis_panel %>%
   filter(!is.na(route)) %>%
-  inner_join(cty_rt_yr_mi, by = c("county_fips", "route", "completion_year" = "open_year"))
+  inner_join(
+    cty_rt_yr_mi,
+    by = c("county_fips", "route", "completion_year" = "open_year")
+  )
 
-# TODO: decide how to handle zero years? 
+# TODO: decide how to handle zero years?
 
 # ==============================================================================
 # Regressions
@@ -161,9 +179,9 @@ for (lvl in names(levels_cfg)) {
   df <- cfg$panel %>%
     filter(const_duration > 0, mi > 0) %>%
     group_by(across(all_of(c(cfg$cell_keys, "completion_year")))) %>%
-    mutate(n_proj = n()) %>% 
+    mutate(n_proj = n()) %>%
     ungroup()
-  
+
   # filter time range
   df_auth <- df %>%
     filter(authconstyear >= 1960, authconstyear <= 1995) %>%
@@ -177,7 +195,7 @@ for (lvl in names(levels_cfg)) {
       log_const_duration = log(const_duration),
       log_mi = log(mi)
     )
- 
+
   # compute baseline FMIS observation counts and spending before PR-511 matching for a footnote reference
   fmis_baseline <- fmis_panel
   if (lvl == "cty_rt") {
@@ -206,7 +224,9 @@ for (lvl in names(levels_cfg)) {
     summarise(spend = sum(total_cost_mills_adj, na.rm = TRUE)) %>%
     pull(spend)
   spend_share_auth <- 100 * spend_matched_auth / spend_baseline_auth
-  spend_share_completion <- 100 * spend_matched_completion / spend_baseline_completion
+  spend_share_completion <- 100 *
+    spend_matched_completion /
+    spend_baseline_completion
 
   # regression models
   m1 <- feols(
@@ -246,13 +266,17 @@ for (lvl in names(levels_cfg)) {
     vcov = ~county_fips
   )
   log_m3 <- feols(
-    log_const_duration ~ log_mi + n_proj | factor(state_fips) + factor(authconstyear),
+    log_const_duration ~ log_mi +
+      n_proj |
+      factor(state_fips) + factor(authconstyear),
     data = df_auth,
     weights = ~total_cost_mills_adj,
     vcov = ~county_fips
   )
   log_m4 <- feols(
-    log_const_duration ~ log_mi + n_proj | factor(state_fips) + factor(completion_year),
+    log_const_duration ~ log_mi +
+      n_proj |
+      factor(state_fips) + factor(completion_year),
     data = df_completion,
     weights = ~total_cost_mills_adj,
     vcov = ~county_fips
@@ -273,7 +297,10 @@ for (lvl in names(levels_cfg)) {
     c(
       "Miles",
       "Log miles",
-      sprintf("Number of FMIS projects in same %s x completion year cell", cfg$label)
+      sprintf(
+        "Number of FMIS projects in same %s x completion year cell",
+        cfg$label
+      )
     ),
     c("mi", "log_mi", "n_proj")
   )
@@ -282,14 +309,18 @@ for (lvl in names(levels_cfg)) {
     "Significance levels: + p<0.1, * p<0.05, ** p<0.01, *** p<0.001.",
     "Standard errors clustered at the county level and reported in parentheses.",
     "Observations are at the FMIS project level.",
-    sprintf("PR-511 mileage is aggregated to the %s level and merged with the FMIS panel using %s variables and setting PR-511 opening year equal to the FMIS completion year.", cfg$label, cfg$label),
+    sprintf(
+      "PR-511 mileage is aggregated to the %s level and merged with the FMIS panel using %s variables and setting PR-511 opening year equal to the FMIS completion year.",
+      cfg$label,
+      cfg$label
+    ),
     sprintf(
       "PR-511 mileage is duplicated across multiple FMIS projects in the same %s x opening year cell.",
       cfg$label
     ),
     "Sample contains FMIS projects with at least one Interstate Construction reimbursement, at least one new-construction improvement type, and non-missing construction authorization and completion dates.",
     "Time range is restricted so that the FE year variable (authorization or completion year respectively) is between 1960 and 1995.",
-    "Sample restricted to observations with positive duration and mileage.",  
+    "Sample restricted to observations with positive duration and mileage.",
     "Regressions are weighted by project cost. Cost is inflation-adjusted to 2025 USD.",
     "Route is inferred from the first 3 characters of the federal project number.",
     sprintf(
@@ -323,12 +354,11 @@ for (lvl in names(levels_cfg)) {
     )
   )
 
+  # ==============================================================================
+  # Figures
+  # ==============================================================================
 
-# ==============================================================================
-# Figures
-# ==============================================================================
-
-  # Scatter plots: duration vs PR-511 miles 
+  # Scatter plots: duration vs PR-511 miles
   p_auth <- ggplot(df_auth, aes(x = mi, y = const_duration)) +
     geom_point(alpha = 0.25) +
     labs(

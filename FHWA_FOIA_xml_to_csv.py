@@ -23,10 +23,13 @@ if username == "nw428":
 elif username == "andersonkovesci":
     input_dir = "/Users/andersonkovesci/Dropbox/FHWA cost data/Data/Raw/FOIA_2025"
     output_dir = "/Users/andersonkovesci/Dropbox/FHWA cost data/Data/CSVs"
-else: 
-    raise ValueError("Username not recognized. Please set input/output paths manually.")
+else:
+    raise ValueError(
+        "Username not recognized. Please set input/output paths manually.")
 
-#%%
+# %%
+
+
 def clean_text(text):
     if text is None:
         return ""
@@ -34,6 +37,7 @@ def clean_text(text):
     text = re.sub(r'[\r\n\t]+', ' ', text)
     text = re.sub(r'\s{2,}', ' ', text)
     return text.strip()
+
 
 def parse_project_details(xml_file):
     tree = ET.parse(xml_file)
@@ -53,8 +57,8 @@ def parse_project_details(xml_file):
             project_data['RecipientProjectNumber'] = ''
 
         for child in project:
-            if child.tag not in ['Details', 'Expenditures', 'ProjectGroups', 'RelatedProjects', 
-                                  'UserDefinedFields', 'LegacyBridgeInfo']:
+            if child.tag not in ['Details', 'Expenditures', 'ProjectGroups', 'RelatedProjects',
+                                 'UserDefinedFields', 'LegacyBridgeInfo']:
                 project_data[child.tag] = clean_text(child.text)
 
         # Extract ProjectGroups
@@ -129,7 +133,7 @@ def parse_project_details(xml_file):
         # Process each Detail - one row per detail
         for detail in project.findall('Details/Detail'):
             row = project_data.copy()
-            
+
             # Add detail-level fields
             for item in detail:
                 if item.tag not in ['Locations', 'UserDefinedFields']:
@@ -157,25 +161,22 @@ def parse_project_details(xml_file):
                     clean_text(udf.findtext('ValueBoolean'))
                 ) != ''
             ])
-            
+
             # Initialize all location fields as empty
             # NonGIS fields
-            for field in ['StateId', 'CongDistId', 'CountyId', 'UrbanId', 'UrbanOrRural', 
-                         'FunctionalSystem', 'SystemCode', 'GeneralOwnership', 'StructureNumber',
-                         'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
-                         'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
+            for field in [
+                'StateId', 'CongDistId', 'CountyId', 'UrbanId',
+                'UrbanOrRural', 'FunctionalSystem', 'SystemCode', 'GeneralOwnership', 'StructureNumber', 'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
+                'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost'
+            ]:
                 row[f'NonGIS_{field}'] = ''
-            
+
             # GIS fields
-            for field in ['StateId', 'RouteId', 'BeginPoint', 'EndPoint', 'StructureNumber',
-                         'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
-                         'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
+            for field in ['StateId', 'RouteId', 'BeginPoint', 'EndPoint', 'StructureNumber', 'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
                 row[f'GIS_{field}'] = ''
-            
+
             # GISBreakdown fields
-            for field in ['CongDistId', 'CountyId', 'UrbanId', 'UrbanOrRural', 'FunctionalSystem',
-                         'SystemCode', 'GeneralOwnership', 'ACFunds', 'FederalFunds', 'StateFunds',
-                         'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
+            for field in ['CongDistId', 'CountyId', 'UrbanId', 'UrbanOrRural', 'FunctionalSystem', 'SystemCode', 'GeneralOwnership', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
                 row[f'GISBreakdown_{field}'] = ''
 
             # Now populate with data if it exists
@@ -185,13 +186,13 @@ def parse_project_details(xml_file):
                 if nongis is not None:
                     for item in nongis:
                         row[f'NonGIS_{item.tag}'] = clean_text(item.text)
-                
+
                 gis = locations.find('GIS')
                 if gis is not None:
                     for item in gis:
                         if item.tag != 'GISBreakdown':
                             row[f'GIS_{item.tag}'] = clean_text(item.text)
-                    
+
                     breakdowns = gis.findall('GISBreakdown')
 
                     if not breakdowns:
@@ -203,17 +204,19 @@ def parse_project_details(xml_file):
                             row_copy['GISBreakdown_index'] = i + 1
 
                             for item in breakdown:
-                                row_copy[f'GISBreakdown_{item.tag}'] = clean_text(item.text)
+                                row_copy[f'GISBreakdown_{item.tag}'] = clean_text(
+                                    item.text)
 
                             rows.append(row_copy)
 
                         continue
-            
+
             rows.append(row)
 
     return pd.DataFrame(rows)
 
-#%%
+
+# %%
 # Create output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)
 combined_data = []

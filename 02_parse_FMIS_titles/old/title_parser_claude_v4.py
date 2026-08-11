@@ -10,8 +10,9 @@ if username == "hl2266":
 elif username == "andersonkovesci":
     input_dir = "/Users/andersonkovesci/Dropbox/FHWA cost data/Data/Hannah sandbox/FMIS_interstate_titles_and_costs.dta"
     output_dir = '/Users/andersonkovesci/Dropbox/FHWA cost data/Data/Hannah sandbox/FMIS_title_description_quality_claude.csv'
-else: 
-    raise ValueError("Username not recognized. Please set input/output paths manually.")
+else:
+    raise ValueError(
+        "Username not recognized. Please set input/output paths manually.")
 
 df = pd.read_stata(input_dir, convert_categoricals=False)
 print(f"Loaded {len(df)} rows")
@@ -19,6 +20,8 @@ print(f"Loaded {len(df)} rows")
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. FPN ROUTE CANDIDATE
 # ═══════════════════════════════════════════════════════════════════════════
+
+
 def extract_fpn_route(fpn):
     if pd.isna(fpn) or not fpn:
         return np.nan
@@ -33,11 +36,15 @@ def extract_fpn_route(fpn):
                 return int(candidate)
     return np.nan
 
-df['fpn_route_candidate'] = df['federal_project_number'].apply(extract_fpn_route)
+
+df['fpn_route_candidate'] = df['federal_project_number'].apply(
+    extract_fpn_route)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. ROUTE EXTRACTION
 # ═══════════════════════════════════════════════════════════════════════════
+
+
 def find_all_interstate_routes(title):
     if pd.isna(title) or not title.strip():
         return []
@@ -58,15 +65,18 @@ def find_all_interstate_routes(title):
                 routes.append(val)
     return routes
 
+
 def classify_segment_route(title, all_routes):
     if pd.isna(title) or not title.strip():
         return ('', np.nan, '')
     t = title.upper().strip()
     if not all_routes:
         m = re.search(r'\b(?:US|U\.S\.)\s*(?:RT\.?\s*)?(\d{1,3})\b', t)
-        if m: return (m.group(0).strip(), np.nan, 'non-interstate')
+        if m:
+            return (m.group(0).strip(), np.nan, 'non-interstate')
         m = re.search(r'\b(?:SR|SH|RTE?|ROUTE)\s*[\s-]?(\d{1,4})\b', t)
-        if m: return (m.group(0).strip(), np.nan, 'non-interstate')
+        if m:
+            return (m.group(0).strip(), np.nan, 'non-interstate')
         return ('', np.nan, '')
     if len(all_routes) == 1:
         return (_find_raw(t, all_routes[0]), all_routes[0], 'interstate')
@@ -77,16 +87,18 @@ def classify_segment_route(title, all_routes):
     for rn in all_routes:
         is_xref = False
         for xp in [rf'(?:OVER|UNDER|OV|OVR)\s+I[\s-]*{rn}(?=[^0-9]|$)',
-                    rf'(?:OVER|UNDER|OV|OVR)\s+IH\s*{rn}(?=[^0-9]|$)',
-                    rf'\bTO\s+I[\s-]*{rn}(?=[^0-9]|$)(?!\s*[-,])',
-                    rf'\bAT\s+I[\s-]*{rn}(?=[^0-9]|$)',
-                    rf'@\s*I[\s-]*{rn}(?=[^0-9]|$)']:
+                   rf'(?:OVER|UNDER|OV|OVR)\s+IH\s*{rn}(?=[^0-9]|$)',
+                   rf'\bTO\s+I[\s-]*{rn}(?=[^0-9]|$)(?!\s*[-,])',
+                   rf'\bAT\s+I[\s-]*{rn}(?=[^0-9]|$)',
+                   rf'@\s*I[\s-]*{rn}(?=[^0-9]|$)']:
             if re.search(xp, t):
-                is_xref = True; break
+                is_xref = True
+                break
         if not is_xref:
             fr_pat = rf'(?:FR(?:OM|\.)?|FM)\s+I[\s-]*{rn}(?=[^0-9]|$)'
             to_pat = rf'\bTO\s+I[\s-]*{rn}(?=[^0-9]|$)'
-            route_leads = bool(re.match(rf'(?:I[\s-]*{rn}|IH\s*{rn}|IR[\s-]*{rn}|FAI\s*{rn})', t))
+            route_leads = bool(
+                re.match(rf'(?:I[\s-]*{rn}|IH\s*{rn}|IR[\s-]*{rn}|FAI\s*{rn})', t))
             if (re.search(fr_pat, t) or re.search(to_pat, t)) and not route_leads and len(all_routes) > 1:
                 is_xref = True
         if not is_xref:
@@ -98,15 +110,19 @@ def classify_segment_route(title, all_routes):
     else:
         return (_find_raw(t, all_routes[0]), all_routes[0], 'interstate')
 
+
 def _find_raw(t, rn):
     for pat in [rf'INTERSTATE\s+{rn}', rf'IH\s*{rn}', rf'FAI[\s-]*{rn}',
                 rf'IR[\s-]*{rn}', rf'IS\s+{rn}', rf'I[\s-]*{rn}[A-Za-z]?']:
         m = re.search(pat, t)
-        if m: return m.group(0).strip()
+        if m:
+            return m.group(0).strip()
     return f'I-{rn}'
 
+
 df['_all_i'] = df['projecttitle'].apply(find_all_interstate_routes)
-rr = df.apply(lambda r: classify_segment_route(r['projecttitle'], r['_all_i']), axis=1)
+rr = df.apply(lambda r: classify_segment_route(
+    r['projecttitle'], r['_all_i']), axis=1)
 df['route_raw'] = [r[0] for r in rr]
 df['route_number'] = [r[1] for r in rr]
 df['route_type'] = [r[2] for r in rr]
@@ -117,19 +133,22 @@ print(df['route_type'].value_counts(dropna=False))
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. PRECISION SCORING
 # ═══════════════════════════════════════════════════════════════════════════
+
+
 def score_precision(text):
     if not text:
         return 0
     u = text.upper().strip()
     if len(u) < 2:
         return 0
-    
+
     # 6 = Milepost
     if re.search(r'\b(?:MP|MM|MILEPOST|MILE\s*MARKER|MILEPOINT|LM)\s*\d', u):
         return 6
-    
+
     # Offset pattern
-    offset = re.search(r'(\d+\.?\d*)\s*MI\.?\s*([NSEW]\.?)\s*(?:OF\s+)?(.*)', u)
+    offset = re.search(
+        r'(\d+\.?\d*)\s*MI\.?\s*([NSEW]\.?)\s*(?:OF\s+)?(.*)', u)
     if offset:
         anchor = offset.group(3)
         precise = any(re.search(p, anchor) for p in [
@@ -152,7 +171,7 @@ def score_precision(text):
             r'\b\w+\s+(?:ST|AVE|BLVD|RD|ROAD|DR|LN|WAY|PKWY|PIKE|HWY)\b',
         ])
         return 4 if precise else 3
-    
+
     # 5 = Intersection/interchange/precise linear feature
     prec5 = [
         r'\b(?:SR|SH|US|CR|FM|RT|RTE|NM|TH|CTH|CSAH|ROUTE)\s*[\s-]?\d{1,4}\b',
@@ -186,7 +205,7 @@ def score_precision(text):
     for p in prec5:
         if re.search(p, u):
             return 5
-    
+
     # 1 = Vague
     if re.search(r'\b(?:STATEWIDE|VARIOUS|DISTRICTWIDE|DIST\.?\s*WIDE|REGIONWIDE|MULTIPLE)\b', u):
         return 1
@@ -215,6 +234,7 @@ WORK_TYPE_RE = (
     r'RCI|CPR|HPP|HBP|STP|HRRR|HSIP|CMAQ|NFA|NHPP|STBG)'
 )
 
+
 def clean_ep(text):
     if not text:
         return ''
@@ -241,7 +261,8 @@ def strip_route_prefix(tu):
         '', tu
     ).strip()
     # SR X (I-Y) pattern (Florida)
-    stripped = re.sub(r'^SR\s*\d+[A-Z]?\s*\(I-?\d+\)\s*[,;:]?\s*', '', stripped).strip()
+    stripped = re.sub(
+        r'^SR\s*\d+[A-Z]?\s*\(I-?\d+\)\s*[,;:]?\s*', '', stripped).strip()
     # Ohio coded: "CUY IR 480 05.40"
     stripped = re.sub(r'^[A-Z]{2,3}\s+IR\s+\d{1,4}\s*', '', stripped).strip()
     # "US-I-25," prefix
@@ -261,7 +282,7 @@ def extract_project_type(title):
             r'REPAIR|SAFETY|UTIL|DESIGN|STUDY|MAINT|INSTALL|OVERLAY|MILL|PATCH|'
             r'MARK|DRAIN|SEED|LANDSCAPE|FENCE|GRAD|SURVEY|CONST|ENGINEER|'
             r'PLANNING|PRELIMINARY|RIGHT|ACQUI|EMERGENCY|RESTOR|DECK|PAINT|'
-            r'SUBSTRUCTURE|SUPERSTRUCTURE)', last, re.I):
+                r'SUBSTRUCTURE|SUPERSTRUCTURE)', last, re.I):
             return last
     if ',' in title:
         parts = title.rsplit(',', 1)
@@ -273,13 +294,14 @@ def extract_project_type(title):
             r'DESIGN|MISC|INCID|INSTALL|UPGRADE|IMPROV|MILL|MICRO|PMS|HTP|HMA|PCC|'
             r'BIT|CONC|SEED|EROSI|BARRIER|NOISE|MEDIAN|CLEAR|DEMO|SURVEY|STRS|'
             r'STRUCT|ACQUI|FENC|DELINEAT|MONUMENT|RIGHT|LANDSCAP|ARCHAEO|LIGHTING|'
-            r'GRADING|CHANNELIZ|EMBANKMENT|EXCAVAT|RECONST|SLIDE)', last, re.I):
+                r'GRADING|CHANNELIZ|EMBANKMENT|EXCAVAT|RECONST|SLIDE)', last, re.I):
             return last
     return ''
 
 
 def looks_like_location(text):
-    if not text: return False
+    if not text:
+        return False
     u = text.upper()
     pats = [
         r'\b(?:ST|AVE|BLVD|RD|DR|LN|HWY|PKWY|PIKE|CREEK|RIVER|BRIDGE|BR\b|'
@@ -291,7 +313,8 @@ def looks_like_location(text):
         r'\b(?:RIVER|CREEK|LAKE)\b',
     ]
     for p in pats:
-        if re.search(p, u): return True
+        if re.search(p, u):
+            return True
     if re.match(r'^[A-Z][A-Za-z\.\' ]+$', text.strip()) and len(text.strip()) < 40:
         return True
     return False
@@ -323,16 +346,16 @@ def parse_title(title):
     }
     if pd.isna(title) or not title.strip():
         return result
-    
+
     tu = title.strip().upper()
     result['project_type_raw'] = extract_project_type(title.strip())
-    
+
     # ── Mileposts (check first, highest priority) ──
     mp = _try_mileposts(tu)
     if mp:
         result.update(mp)
         return result
-    
+
     # ── Ohio coded format: "CUY IR 480 05.40" -> milepost ──
     ohio = re.match(r'^([A-Z]{2,3})\s+IR\s+(\d{1,4})\s+(\d+\.?\d*)', tu)
     if ohio:
@@ -355,26 +378,28 @@ def parse_title(title):
             result['precision_b'] = 6
             result['milepost_end'] = mp2
         return result
-    
+
     # Normalize directional.TO
     tu_norm = re.sub(r'([NSEW])\.TO\s', r'\1 TO ', tu)
     tu_norm = re.sub(r'([NSEW]),?\s*TO\s', r'\1 TO ', tu_norm)
-    
+
     loc = strip_route_prefix(tu_norm)
-    
+
     # ── Check if title starts with work type (location is elsewhere) ──
     # e.g., "Mill and Overlay on I-35 in Coffey County"
     # e.g., "Bridge deck replacement on I-55 over Sangamon River"
     if is_work_type_start(tu):
-        # Look for location after "ON I-XX" or "ON IH XX" 
+        # Look for location after "ON I-XX" or "ON IH XX"
         loc_after = _try_location_after_on(tu_norm)
         if loc_after:
             result['endpoint_a_raw'] = loc_after[0]
-            result['endpoint_b_raw'] = loc_after[1] if len(loc_after) > 1 else ''
+            result['endpoint_b_raw'] = loc_after[1] if len(
+                loc_after) > 1 else ''
             result['precision_a'] = score_precision(loc_after[0])
-            result['precision_b'] = score_precision(loc_after[1]) if len(loc_after) > 1 and loc_after[1] else 0
+            result['precision_b'] = score_precision(loc_after[1]) if len(
+                loc_after) > 1 and loc_after[1] else 0
             return result
-    
+
     # ── FROM...TO ──
     ft = _try_from_to(tu_norm)
     if ft:
@@ -383,7 +408,7 @@ def parse_title(title):
         result['precision_a'] = score_precision(ft[0])
         result['precision_b'] = score_precision(ft[1]) if ft[1] else 0
         return result
-    
+
     # ── BETWEEN...AND ──
     bt = _try_between(tu_norm)
     if bt:
@@ -392,7 +417,7 @@ def parse_title(title):
         result['precision_a'] = score_precision(bt[0])
         result['precision_b'] = score_precision(bt[1]) if bt[1] else 0
         return result
-    
+
     # ── A TO B (no FROM) ──
     at = _try_a_to_b(loc)
     if at:
@@ -401,7 +426,7 @@ def parse_title(title):
         result['precision_a'] = score_precision(at[0])
         result['precision_b'] = score_precision(at[1]) if at[1] else 0
         return result
-    
+
     # ── Dash-separated ──
     da = _try_dash(loc)
     if da:
@@ -410,35 +435,35 @@ def parse_title(title):
         result['precision_a'] = score_precision(da[0])
         result['precision_b'] = score_precision(da[1]) if da[1] else 0
         return result
-    
+
     # ── AT / @ / UNDER / OVER / NEAR / ON ──
     ai = _try_at_in(loc, tu_norm)
     if ai:
         result['endpoint_a_raw'] = ai
         result['precision_a'] = score_precision(ai)
         return result
-    
+
     # ── Offset: "X MI N OF Y" ──
     off = _try_offset(tu_norm)
     if off:
         result['endpoint_a_raw'] = off
         result['precision_a'] = score_precision(off)
         return result
-    
+
     # ── Leading location name ──
     ll = _try_leading(loc)
     if ll:
         result['endpoint_a_raw'] = ll
         result['precision_a'] = score_precision(ll)
         return result
-    
+
     # ── Fallback: any location-looking text in the stripped portion ──
     fb = _try_fallback(loc)
     if fb:
         result['endpoint_a_raw'] = fb
         result['precision_a'] = score_precision(fb)
         return result
-    
+
     return result
 
 
@@ -475,7 +500,8 @@ def _try_location_after_on(tu):
         if not rest:
             return None
         # Try FROM...TO in the rest
-        ft = re.search(r'(?:FR(?:OM|\.)?|FM)\s+(.+?)\s+TO\s+(.+?)(?:\s*[,;]|$)', rest)
+        ft = re.search(
+            r'(?:FR(?:OM|\.)?|FM)\s+(.+?)\s+TO\s+(.+?)(?:\s*[,;]|$)', rest)
         if ft:
             return (clean_ep(ft.group(1)), clean_ep(ft.group(2)))
         # Try BETWEEN...AND
@@ -483,7 +509,8 @@ def _try_location_after_on(tu):
         if bt:
             return (clean_ep(bt.group(1)), clean_ep(bt.group(2)))
         # Try IN/AT/NEAR
-        loc = re.search(r'(?:IN|AT|NEAR|@|OVER|UNDER)\s+(.+?)(?:\s*[,;.]|$)', rest)
+        loc = re.search(
+            r'(?:IN|AT|NEAR|@|OVER|UNDER)\s+(.+?)(?:\s*[,;.]|$)', rest)
         if loc:
             ep = clean_ep(loc.group(1))
             if ep and len(ep) > 2:
@@ -492,21 +519,21 @@ def _try_location_after_on(tu):
         ep = clean_ep(rest)
         if ep and len(ep) > 2 and not is_work_type_start(ep):
             return (ep,)
-    
+
     # Also try "OVER <feature> ON I-XX"
     m = re.search(r'\bOVER\s+(.+?)\s+ON\s+(?:I[\s-]*\d|IH\s*\d)', tu)
     if m:
         ep = clean_ep(m.group(1))
         if ep and len(ep) > 2:
             return (ep,)
-    
+
     # "AT <loc> ON I-XX"
     m = re.search(r'(?:\bAT\b|@)\s+(.+?)\s+ON\s+(?:I[\s-]*\d|IH\s*\d)', tu)
     if m:
         ep = clean_ep(m.group(1))
         if ep and len(ep) > 2:
             return (ep,)
-    
+
     return None
 
 
@@ -580,7 +607,7 @@ def _try_dash(loc):
         b = clean_ep(m.group(2))
         if (a and b and len(a) > 2 and len(b) > 2 and
             looks_like_location(a) and looks_like_location(b) and
-            not is_work_type_start(a) and not is_work_type_start(b)):
+                not is_work_type_start(a) and not is_work_type_start(b)):
             return (a, b)
     return None
 
@@ -645,7 +672,8 @@ def _try_fallback(loc):
     if m:
         return m.group(1)
     # Look for street names
-    m = re.search(r'(\b[A-Z]+\s+(?:ST|AVE|BLVD|RD|ROAD|DR|LN|HWY|PKWY)\b)', loc)
+    m = re.search(
+        r'(\b[A-Z]+\s+(?:ST|AVE|BLVD|RD|ROAD|DR|LN|HWY|PKWY)\b)', loc)
     if m:
         return m.group(1)
     # Look for EXIT
@@ -701,8 +729,8 @@ for col in ['endpoint_a_raw', 'endpoint_b_raw', 'precision_a', 'precision_b',
 # For rows where A is fine but B is missing: only fill B fields from title
 missing_b_only = missing_b & ~missing_a
 df.loc[missing_b_only, 'endpoint_b_raw'] = title_df.loc[missing_b_only, 'endpoint_b_raw']
-df.loc[missing_b_only, 'precision_b']    = title_df.loc[missing_b_only, 'precision_b']
-df.loc[missing_b_only, 'milepost_end']   = title_df.loc[missing_b_only, 'milepost_end']
+df.loc[missing_b_only, 'precision_b'] = title_df.loc[missing_b_only, 'precision_b']
+df.loc[missing_b_only, 'milepost_end'] = title_df.loc[missing_b_only, 'milepost_end']
 
 # project_type_raw: only fill from title where description left it blank
 title_no_type_mask = any_missing & (df['project_type_raw'] == '')
@@ -713,7 +741,8 @@ df.loc[title_no_type_mask, 'project_type_raw'] = title_df.loc[
 # Track source
 df['location_source'] = 'description'
 df.loc[missing_a & (df['precision_a'] > 0), 'location_source'] = 'title'
-df.loc[missing_b_only & (df['precision_b'] > 0), 'location_source'] = 'title (b only)'
+df.loc[missing_b_only & (df['precision_b'] > 0),
+       'location_source'] = 'title (b only)'
 df.loc[df['precision_a'] == 0, 'location_source'] = 'none'
 
 print("\n=== PRECISION A ===")
@@ -772,4 +801,5 @@ for tt in tests:
     print(f"    route: {seg[0]} ({seg[1]}) [{seg[2]}]")
     print(f"    ep_a: '{r['endpoint_a_raw'][:55]}'  prec: {r['precision_a']}")
     print(f"    ep_b: '{r['endpoint_b_raw'][:55]}'  prec: {r['precision_b']}")
-    if not np.isnan(r['milepost_start']): print(f"    mp: {r['milepost_start']} - {r['milepost_end']}")
+    if not np.isnan(r['milepost_start']):
+        print(f"    mp: {r['milepost_start']} - {r['milepost_end']}")
