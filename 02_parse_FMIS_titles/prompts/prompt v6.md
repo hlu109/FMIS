@@ -31,7 +31,7 @@ Set the flags below after writing `flags_reasoning`. If any is `True`, set `main
 
 **`route_reasoning`**: Before populating `main_route` (and the segment extent fields below), write 1 sentence explaining how you identify the main route and where in the title it appears, or why it can't be identified. You may cite `route_fpn` if relevant. You should also consider concurrencies and historical renumberings. 
 
-Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names. If `route_fpn` differs from `main_route`, treat this as evidence that there may be an alternate name, particularly in the case that the )
+Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names. If `route_fpn` differs from `main_route`, treat this as evidence that there may be an alternate name, but only in the case that the `route_fpn` could represent an interstate.)
 
 The main route can belong to 5 roadway types: interstate, US route, state route, local road, and other. The main route often appears at the start of the title, written in one of these forms:
 
