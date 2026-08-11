@@ -57,20 +57,32 @@ egen cluster_id = group(projecttitle county_fips)
 
 * compare identical GIS endpoints 
 egen gis_endpoint_id = group(gis_beginpoint gis_endpoint)
-duplicates tag cluster_id, gen(dup_cluster_id)
+duplicates tag cluster_id, gen(title_x_cty_cluster_sizes)
+replace title_x_cty_cluster_sizes = 1 + title_x_cty_cluster_sizes
 duplicates tag gis_endpoint_id, gen(dup_gis_endpoint_id)
 
+* if we use project title x county for clustering, check the size of the clusters 
+preserve
+duplicates drop cluster_id, force
+tab title_x_cty_cluster_sizes
+restore
 
-order projecttitle projectdescription num_ids num_county_x_title cluster_id dup_cluster_id gis_endpoint_id gis_begin gis_endpoint dup_gis_endpoint_id completion_year
-
+order projecttitle projectdescription num_ids num_county_x_title cluster_id title_x_cty_cluster_sizes gis_endpoint_id gis_begin gis_endpoint dup_gis_endpoint_id completion_year
 tab dup_gis 
+
+
+preserve
+keep if title_x_cty_cluster_sizes > 10
+gsort -title_x_cty_cluster_sizes
+restore 
 
 preserve 
-drop if dup_cluster_id == 0
+drop if title_x_cty_cluster_sizes == 1
 tab dup_gis 
+exit
 restore 
 // preserve
-keep if dup_cluster_id == 0
+keep if title_x_cty_cluster_sizes == 1
 tab dup_gis 
 keep if dup_gis_endpoint_id != 0
 sort gis_endpoint_id
