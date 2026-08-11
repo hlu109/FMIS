@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Random and stratified sampling helper functions for pandas DataFrames. 
+# Random and stratified sampling helper functions for pandas DataFrames.
 # ------------------------------------------------------------------------------
 
 import pandas as pd
@@ -76,7 +76,8 @@ def stratified_sample(df, n, stratify_by=None, seed=42):
     for stratum_key, group in df.groupby(group_key, group_keys=False):
         n_s = int(counts[stratum_key])
         if n_s > 0:
-            parts.append(group.sample(n=min(n_s, len(group)), random_state=seed))
+            parts.append(group.sample(
+                n=min(n_s, len(group)), random_state=seed))
 
     return pd.concat(parts)
 

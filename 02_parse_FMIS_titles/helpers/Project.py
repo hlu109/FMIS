@@ -4,16 +4,23 @@ from typing import Literal, Optional
 
 
 class MainRoute(BaseModel):
-    route_type: Optional[Literal["interstate", "us_route", "state_route", "local_road", "other"]] = None
+    route_type: Optional[Literal["interstate", "us_route",
+                                 "state_route", "local_road", "other"]] = None
     route_num: Optional[int] = None
     route_num_match_status: Optional[Literal[
-        "matches_route_fpn", "concurrent_higher_class", "historical_renumbering",
-        "vanity_or_alt_name", "spur_or_business_route",
+        "matches_route_fpn",
+        "concurrent_higher_class",
+        "historical_renumbering",
+        "vanity_or_alt_name",
+        "spur_or_business_route",
         "other"
     ]] = None
     alt_names: Optional[str] = None
+
+
 # Maximum number of LocationRef entries per endpoint stored in the flat table.
 MAX_ANCHORS = 3
+
 
 class LocationRef(BaseModel):
     """
@@ -37,10 +44,12 @@ class LocationRef(BaseModel):
 
     # relative positional information
     rel_type: Optional[Literal["at", "offset", "side_of", "near"]] = None
-    rel_direction: Optional[Literal["N", "S", "E", "W", "NE", "NW", "SE", "SW"]] = None
+    rel_direction: Optional[Literal["N", "S",
+                                    "E", "W", "NE", "NW", "SE", "SW"]] = None
     rel_dist: Optional[float] = None
     rel_dist_unit: Optional[str] = None       # e.g., "mi", "km", "ft"
-    rel_qualifier: Optional[Literal["exact", "approx"]] = None  # only when rel_type == "offset"
+    rel_qualifier: Optional[Literal["exact", "approx"]
+                            ] = None  # only when rel_type == "offset"
 
 
 class Endpoint(BaseModel):
@@ -57,7 +66,8 @@ class Project(BaseModel):
     route_reasoning: Optional[str] = None
     segment_length: Optional[float] = None
     segment_length_unit: Optional[str] = None   # "mi", "km", "ft"
-    segment_direction: Optional[Literal["N", "S", "E", "W", "NE", "NW", "SE", "SW"]] = None
+    segment_direction: Optional[Literal["N", "S",
+                                        "E", "W", "NE", "NW", "SE", "SW"]] = None
     main_route: Optional[MainRoute] = None
     endpoint_a: Optional[Endpoint] = None
     endpoint_b: Optional[Endpoint] = None
@@ -77,8 +87,8 @@ ANCHOR_TYPE_TO_PRECISION = {
     "ohio_coded_mp": "6", "station": "6",
     # 5 — exit number
     "exit_number": "5",
-    # 4 — intersections / crossings / boundaries 
-    "highway": "4", "road": "4", 
+    # 4 — intersections / crossings / boundaries
+    "highway": "4", "road": "4",
     "named_junct_interchange": "4",
     "railroad_crossing": "4",
     "named_bridge": "4", "tunnel": "4",
@@ -159,6 +169,7 @@ def _flatten_endpoint(endpoint: Optional[Endpoint], suffix: str) -> dict:
             row[f"{prefix}_ref{i+1}_{f}"] = data.get(f)
         row[f"{prefix}_ref{i+1}_precision"] = prec
     return row
+
 
 def project_to_dataframe(project: Project) -> pd.DataFrame:
     """Flatten a Project into a single-row DataFrame."""

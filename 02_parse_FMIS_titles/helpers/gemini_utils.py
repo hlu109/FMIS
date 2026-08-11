@@ -93,7 +93,8 @@ def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
             file.write(f"Data structure file: {data_struct_path}\n")
         file.write(f"Gemini model: {gemini_model_id}\n")
         if reuse_old_results:
-            file.write(f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n")
+            file.write(
+                f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n")
         else:
             file.write(f"Reuse old results: False\n\n")
 
@@ -128,12 +129,13 @@ def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
 
 
 # ==============================================================================
-# Gemini 
+# Gemini
 # ==============================================================================
 
 
 class RateLimitException(Exception):
     """Raised when 429 retries are exhausted; signals the full run should stop."""
+
 
 def extract_title_data(genai_client,
                        project_input: dict,
@@ -164,7 +166,7 @@ def extract_title_data(genai_client,
         # wait should we return dict instead of project?
     """
     # limit output size
-    max_token_output = 80000 # TODO check what is appropriate for this 
+    max_token_output = 80000  # TODO check what is appropriate for this
     max_retries = 7
     base_wait = 3  # this is in seconds!
     project_input_json_str = json.dumps(project_input)
@@ -202,7 +204,7 @@ def extract_title_data(genai_client,
 
             return response.parsed
 
-        # handle errors using gemini error classes 
+        # handle errors using gemini error classes
         except errors.ServerError as e:
             wait_time = base_wait * (2 ** attempt)
             m = f"Server error {e.code} on attempt {attempt + 1}. Retrying in {wait_time:.1f}s..."
@@ -211,16 +213,17 @@ def extract_title_data(genai_client,
                 log_dir, identifier)
             time.sleep(wait_time)
         except errors.ClientError as e:
-            if e.code == 429: # rate limit error 
-                # rate limits are per minute and per day. first try to wait a minute, if that doesn't work, then wait until the end of the day (compute how much time left).... or maybe we should kill it 
+            if e.code == 429:  # rate limit error
+                # rate limits are per minute and per day. first try to wait a minute, if that doesn't work, then wait until the end of the day (compute how much time left).... or maybe we should kill it
 
-                if attempt == max_retries - 1: 
+                if attempt == max_retries - 1:
                     # kill the full run if we've retried several times and still have a rate limit (this likely means we hit the rate limit for the full day rather than per minute so we probably screwed up and should downgrade to a lower model)
                     m = "Max rate limit retries reached. Giving up on this row."
                     _log_and_print(
                         f"recipient_id={recipient_id} \t\nfpn={federal_project_number} \t\nmodel_id={model_id} \t\n{m}",
                         log_dir, identifier)
-                    raise RateLimitException("Max rate limit retries reached. Killing rest of the full run.")
+                    raise RateLimitException(
+                        "Max rate limit retries reached. Killing rest of the full run.")
 
                 wait_time = 60 * (2 ** attempt)
                 m = f"Rate limit (429 error) on attempt {attempt + 1}. Retrying in {wait_time:.1f}s..."
@@ -260,7 +263,7 @@ def _format_state_fips(value):
 
 
 def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_dir,
-                        identifier, reason) -> pd.DataFrame | None:
+                          identifier, reason) -> pd.DataFrame | None:
     """Save accumulated rows to CSV; returns the DataFrame if any rows were saved.
 
     Parameters:
@@ -274,7 +277,7 @@ def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_
 
     partial_df = pd.concat(all_dataframes, ignore_index=True)
 
-    # rearrange order of columns 
+    # rearrange order of columns
     front_cols = [
         "project_title", "state_name", "county_name", "route_fpn",
     ]
@@ -342,17 +345,18 @@ def process_titles(genai_client,
             recipient_id = _format_state_fips(row.get("recipientid"))
             fpn = row.get("federal_project_number", "")
             proj_id = f"{recipient_id}_{fpn}"
-            json_path = os.path.join(intermediate_dir, 
+            json_path = os.path.join(intermediate_dir,
                                      f"parsed_title_{proj_id}.json")
 
             # Resume support: load intermediate JSON if it already exists rather than re-querying Gemini
             if reuse_old_results and os.path.exists(json_path):
-                print(f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, reusing cached result.")
+                print(
+                    f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, reusing cached result.")
                 with open(json_path, "r", encoding="utf-8") as f:
                     result_json = json.load(f)
                 # extract Project fields from result_json
                 result = Project(**{k: v for k, v in result_json.items()
-                                   if k in Project.model_fields})
+                                    if k in Project.model_fields})
                 row_df = project_to_dataframe(result)
                 # separately extract runtime metadata from result_json
                 metadata_keys = [
@@ -366,7 +370,8 @@ def process_titles(genai_client,
                 all_dataframes.append(row_df)
                 continue
 
-            print(f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}")
+            print(
+                f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}")
 
             project_input = {
                 "project_title": str(row.get("projecttitle", "")),
@@ -378,8 +383,8 @@ def process_titles(genai_client,
             }
 
             if project_input["project_title"] == "":
-                # skip projects with no title; don't raise any error, there are too many of these in FMIS and this is a known issue. 
-                continue 
+                # skip projects with no title; don't raise any error, there are too many of these in FMIS and this is a known issue.
+                continue
 
             try:
                 result = extract_title_data(
@@ -417,7 +422,7 @@ def process_titles(genai_client,
                 }
                 runtime_metadata.update(project_input)
 
-                # add additional metadata to the json 
+                # add additional metadata to the json
                 result_json = result.model_dump()
                 result_json.update(runtime_metadata)
 
@@ -432,10 +437,10 @@ def process_titles(genai_client,
                 row_df = project_to_dataframe(result)
 
                 # add metadata to final dataframe
-                # TODO: this stuff is kind of redundant with update runtime metadata above but right now we have to do it separately since project_to_dataframe only works on Project objects. we should refactor so it works on dicts/jsons? 
+                # TODO: this stuff is kind of redundant with update runtime metadata above but right now we have to do it separately since project_to_dataframe only works on Project objects. we should refactor so it works on dicts/jsons?
                 for key, value in runtime_metadata.items():
                     row_df[key] = value
-            
+
                 if row_df is not None:
                     all_dataframes.append(row_df)
 
@@ -449,7 +454,8 @@ def process_titles(genai_client,
             total_time_elapsed = time.time() - start_time
             avg_time_per_project = total_time_elapsed / processed_count
             print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs")
-            print(f"Average time per Gemini query so far: {avg_time_per_project:.2f} s")
+            print(
+                f"Average time per Gemini query so far: {avg_time_per_project:.2f} s")
             print(f"Projects with no Gemini output so far: {error_count}")
 
             if (i + 1) % 10 == 0:
@@ -461,7 +467,6 @@ def process_titles(genai_client,
                                log_dir, identifier)
                 _log_and_print(f"Projects with no Gemini output so far: {error_count}",
                                log_dir, identifier)
-
 
     except KeyboardInterrupt:
         row_info = (
@@ -476,13 +481,14 @@ def process_titles(genai_client,
             "Keyboard interrupt")
         raise
 
-    # log error counts to log file 
-    _log_and_print(f"Total projects with no Gemini output: {error_count}", log_dir, identifier)
+    # log error counts to log file
+    _log_and_print(
+        f"Total projects with no Gemini output: {error_count}", log_dir, identifier)
 
     if all_dataframes:
         final_df = pd.concat(all_dataframes, ignore_index=True)
 
-        # rearrange order of columns 
+        # rearrange order of columns
         front_cols = [
             "project_title", "state_name", "county_name", "route_fpn",
         ]
