@@ -1,4 +1,4 @@
-# This script contains helper functions for figure generation. 
+# This script contains helper functions for figure generation.
 
 # Setup ------------------------------------
 library(dplyr)

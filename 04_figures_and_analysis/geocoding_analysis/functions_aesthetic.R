@@ -1,36 +1,43 @@
 # Had Claude create these aesthetics; based off of QJE standards
 qje_common <- function(base_size = 11) {
   theme(
-    legend.title  = element_text(size = base_size, hjust = 0.5),
-    legend.text   = element_text(size = base_size - 2),
+    legend.title = element_text(size = base_size, hjust = 0.5),
+    legend.text = element_text(size = base_size - 2),
     # Textbox elements measure their height against unit(1, "npc") of the whole
     # plot, but are drawn in their gtable cell. With the default "panel"
     # positioning that cell is narrower (y-axis title/text, right-hand legend),
     # so a wrapped title needs more lines than the row was sized for and bleeds
     # into the panel. Positioning against the plot makes the two widths agree.
-    plot.title.position   = "plot",
+    plot.title.position = "plot",
     plot.caption.position = "plot",
-    plot.title    = ggtext::element_textbox_simple(
+    plot.title = ggtext::element_textbox_simple(
       face = "bold",
-      hjust = 0.5, halign = 0.5,
+      hjust = 0.5,
+      halign = 0.5,
       size = base_size + 3,
       lineheight = 1.15,
       width = grid::unit(1, "npc"),
-      margin = margin(b = 4)),
+      margin = margin(b = 4)
+    ),
     plot.subtitle = ggtext::element_textbox_simple(
-      hjust = 0.5, halign = 0.5,
+      hjust = 0.5,
+      halign = 0.5,
       color = "grey30",
       size = base_size - 1,
       lineheight = 1.15,
       width = grid::unit(1, "npc"),
-      margin = margin(b = 6)),
-    plot.caption  = ggtext::element_textbox_simple(
-      hjust = 0, halign = 0,
-      size = base_size - 3, color = "grey40",
+      margin = margin(b = 6)
+    ),
+    plot.caption = ggtext::element_textbox_simple(
+      hjust = 0,
+      halign = 0,
+      size = base_size - 3,
+      color = "grey40",
       lineheight = 1.15,
       width = grid::unit(1, "npc"),
-      margin = margin(t = 10)),
-    plot.margin   = margin(10, 10, 10, 10)
+      margin = margin(t = 10)
+    ),
+    plot.margin = margin(10, 10, 10, 10)
   )
 }
 
@@ -40,8 +47,8 @@ qje_theme_map <- function(base_size = 11) {
   theme_void(base_size = base_size) +
     qje_common(base_size) +
     theme(
-      legend.position   = "bottom",
-      legend.key.width  = unit(2.2, "cm"),
+      legend.position = "bottom",
+      legend.key.width = unit(2.2, "cm"),
       legend.key.height = unit(0.35, "cm")
     )
 }
@@ -53,10 +60,10 @@ qje_theme <- function(base_size = 11) {
   theme_classic(base_size = base_size) +
     qje_common(base_size) +
     theme(
-      axis.line   = element_line(color = "grey20", linewidth = 0.3),
-      axis.ticks  = element_line(color = "grey20", linewidth = 0.3),
-      axis.title  = element_text(size = base_size, color = "grey20"),
-      axis.text   = element_text(size = base_size - 2, color = "grey20"),
+      axis.line = element_line(color = "grey20", linewidth = 0.3),
+      axis.ticks = element_line(color = "grey20", linewidth = 0.3),
+      axis.title = element_text(size = base_size, color = "grey20"),
+      axis.text = element_text(size = base_size - 2, color = "grey20"),
       axis.title.x = element_text(margin = margin(t = 6)),
       axis.title.y = element_text(margin = margin(r = 6)),
       legend.position = "right",
@@ -67,54 +74,88 @@ qje_theme <- function(base_size = 11) {
 # shared sequential fill scale (percent-formatted)
 qje_fill <- function(legend_name) {
   scale_fill_distiller(
-    palette   = "Blues",
+    palette = "Blues",
     direction = 1,
-    labels    = percent_format(accuracy = 1),
-    limits    = c(0, 1),
-    name      = legend_name,
-    na.value  = "grey90",
-    guide     = guide_colorbar(title.position = "top", title.hjust = 0.5,
-                               ticks.colour = "grey30", frame.colour = "grey30")
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 1),
+    name = legend_name,
+    na.value = "grey90",
+    guide = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      ticks.colour = "grey30",
+      frame.colour = "grey30"
+    )
   )
 }
 
 qje_fill_map <- function(legend_name) {
   scale_fill_distiller(
-    palette   = "Spectral",
+    palette = "Spectral",
     direction = -1,
-    labels    = percent_format(accuracy = 1),
-    limits    = c(0, 1),
-    name      = legend_name,
-    na.value  = "grey90",
-    guide     = guide_colorbar(title.position = "top", title.hjust = 0.5,
-                               ticks.colour = "grey30", frame.colour = "grey30")
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 1),
+    name = legend_name,
+    na.value = "grey90",
+    guide = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      ticks.colour = "grey30",
+      frame.colour = "grey30"
+    )
   )
 }
 
 # Append "N = X units." to a caption, given a count and singular/plural labels.
 append_n_to_caption <- function(caption, n_units, unit_singular, unit_plural) {
   unit_label <- if (n_units == 1) unit_singular else unit_plural
-  paste0(caption, " N = ", format(n_units, big.mark = ","), " ", unit_label, ".")
+  paste0(
+    caption,
+    " N = ",
+    format(n_units, big.mark = ","),
+    " ",
+    unit_label,
+    "."
+  )
 }
 
 # state choropleth
-make_state_map <- function(data, fill_var, title, subtitle, legend_name, caption) {
+make_state_map <- function(
+  data,
+  fill_var,
+  title,
+  subtitle,
+  legend_name,
+  caption
+) {
   n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot(data) +
     geom_sf(aes(fill = {{ fill_var }}), color = "white", linewidth = 0.15) +
     qje_fill_map(legend_name) +
     coord_sf(datum = NA) +
-    labs(title = title, subtitle = subtitle,
-         caption = append_n_to_caption(caption, n_units, "state", "states")) +
+    labs(
+      title = title,
+      subtitle = subtitle,
+      caption = append_n_to_caption(caption, n_units, "state", "states")
+    ) +
     qje_theme_map()
 }
 
-make_state_map_decade <- function(data, states, fill_var, title, subtitle, legend_name, caption, time_var) {
+make_state_map_decade <- function(
+  data,
+  states,
+  fill_var,
+  title,
+  subtitle,
+  legend_name,
+  caption,
+  time_var
+) {
   n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot() +
-    geom_sf(data = states, fill = "grey90", color = NA) +                    
-    geom_sf(data = data, aes(fill = {{ fill_var }}), color = NA) +           
-    geom_sf(data = states, fill = NA, color = "white", linewidth = 0.2) +   
+    geom_sf(data = states, fill = "grey90", color = NA) +
+    geom_sf(data = data, aes(fill = {{ fill_var }}), color = NA) +
+    geom_sf(data = states, fill = NA, color = "white", linewidth = 0.2) +
     qje_fill(legend_name) +
     coord_sf(datum = NA) +
     labs(title = title, subtitle = subtitle, caption = caption) +
@@ -123,14 +164,25 @@ make_state_map_decade <- function(data, states, fill_var, title, subtitle, legen
 }
 
 # county choropleth (county fill + state borders overlaid for legibility)
-make_county_map <- function(data, states, fill_var, title, subtitle, legend_name, caption) {
+make_county_map <- function(
+  data,
+  states,
+  fill_var,
+  title,
+  subtitle,
+  legend_name,
+  caption
+) {
   n_units <- sum(!is.na(dplyr::pull(data, {{ fill_var }})))
   ggplot() +
     geom_sf(data = data, aes(fill = {{ fill_var }}), color = NA) +
     geom_sf(data = states, fill = NA, color = "white", linewidth = 0.2) +
     qje_fill(legend_name) +
     coord_sf(datum = NA) +
-    labs(title = title, subtitle = subtitle,
-         caption = append_n_to_caption(caption, n_units, "county", "counties")) +
+    labs(
+      title = title,
+      subtitle = subtitle,
+      caption = append_n_to_caption(caption, n_units, "county", "counties")
+    ) +
     qje_theme_map()
 }
