@@ -1,6 +1,6 @@
 /*==============================================================================
  	FMIS data processing 
-    This script saves a copy of the FMIS project-level data with only the projects that have GIS data. 
+    This script saves a copy of the FMIS project-level data with only the projects that have GIS data, and performs some further cleaning. 
 ==============================================================================*/
 * Set user
 local user = c(username)

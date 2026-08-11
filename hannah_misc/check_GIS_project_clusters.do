@@ -1,5 +1,5 @@
 /*==============================================================================
-    This script filters the FMIS GIS data so I can check what are appropriate stratification variables to use for val/test random sampling. 
+    This script filters the FMIS GIS data so I can check what are appropriate clustering and stratification variables to use for val/test random sampling while avoiding leakage issues. 
 ==============================================================================*/
 * Set user
 local user = c(username)
