@@ -68,6 +68,7 @@ ROW_INDICES = None
 # if set (and ROW_INDICES is None), sample this many rows
 SAMPLE_N = 200
 # SAMPLE_N = None # use full dataset
+SAMPLE_STRATIFY_BY = None
 # SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
 RANDOM_SEED = 42
 
