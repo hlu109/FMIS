@@ -37,19 +37,11 @@ else {
 * load FMIS data
 use "$intermediate_data/project_level_FMIS.dta", clear
 
-// * create lite dataset of all projects for analysis
-
-// preserve
-// keep recipientid federal_project_number projecttitle state_fips gis_routeid gis_beginpoint gis_endpoint fp_ic has_new_construction county_fips county_name authconstdate completedate completion_year
-
-// save "$intermediate_data/project_level_FMIS_w_GIS_lite.dta"
-// restore
-
 * filter to projects with GIS data
 keep if !mi(gis_routeid) | !mi(gis_beginpoint) | !mi(gis_endpoint)
 
-* a bunch of projects have 0 as both begin and end point; drop these 
-drop if gis_beginpoint == 0 & gis_endpoint == 0
+* add state name as its own string variable
+decode state_fips, gen(state_name)
 
 * clean typo in data 
 replace gis_endpoint = 28.01 if gis_endpoint == 2801
@@ -66,7 +58,14 @@ duplicates tag gis_routeid recipientid federal_project_number, gen(n_proj_per_ro
 // duplicates drop gis_routeid recipientid federal_project_number, force
 
 * assert sample size is stable
-assert _N == 136359
+assert _N == 137846
+
+* remove projects with negligible length 
+drop if gis_beginpoint == 0 & gis_endpoint == 0
+drop if gis_beginpoint == 0 & gis_endpoint <= 0.1 
+
+* assert sample size is stable
+assert _N == 135041
 
 save "$intermediate_data/project_level_FMIS_w_GIS.dta", replace
 
