@@ -31,7 +31,8 @@ def main():
     print(f"Final CSV: {config.OUTPUT_PATH}")
     if config.REUSE_OLD_RESULTS:
         print(
-            f"Resuming run '{config.RESUME_RUN_IDENTIFIER}': existing JSONs will be reused.")
+            f"Resuming run '{config.RESUME_RUN_IDENTIFIER}': existing JSONs will be reused."
+        )
 
     write_run_boundary(config.LOG_DIR, config.IDENTIFIER, "START")
 
@@ -63,12 +64,14 @@ def main():
         auto_sample = False
     elif config.SAMPLE_N is not None:
         row_indices = stratified_sample(
-            df, n=config.SAMPLE_N,
+            df,
+            n=config.SAMPLE_N,
             stratify_by=config.SAMPLE_STRATIFY_BY,
             seed=config.RANDOM_SEED,
         ).index.tolist()
-        summary = stratified_sample_summary(
-            df, config.SAMPLE_N, config.SAMPLE_STRATIFY_BY, row_indices)
+        summary = stratified_sample_summary(df, config.SAMPLE_N,
+                                            config.SAMPLE_STRATIFY_BY,
+                                            row_indices)
         auto_sample = True
 
         if summary:

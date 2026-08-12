@@ -8,10 +8,10 @@ from datetime import datetime
 
 from .Project import Project, project_to_dataframe
 
-
 # ==============================================================================
 # Logging
 # ==============================================================================
+
 
 def write_log(message, log_dir, identifier):
     """Appends a timestamped message to a run-specific log file."""
@@ -46,14 +46,23 @@ def _format_stratum_counts(label, counts):
     return f"{label}:\n{counts.to_string()}\n\n"
 
 
-def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
-               input_path=None, output_path=None, run_dir=None, data_struct=None,
-               row_indices=None, sample_n=None,
-               sample_stratify_by=None, random_seed=None,
+def log_config(prompt_text_path,
+               gemini_model_id,
+               identifier,
+               log_dir,
+               input_path=None,
+               output_path=None,
+               run_dir=None,
+               data_struct=None,
+               row_indices=None,
+               sample_n=None,
+               sample_stratify_by=None,
+               random_seed=None,
                population_stratum_counts=None,
                allocated_stratum_counts=None,
                sample_stratum_counts=None,
-               reuse_old_results=False, resume_run_identifier=None):
+               reuse_old_results=False,
+               resume_run_identifier=None):
     """Logs prompt text and configuration values for a Gemini run."""
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -64,7 +73,8 @@ def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
     # archive the prompt text; append with a separator (rather than overwrite) so drift is visible if the prompt file changes between reruns of a resumed identifier
     with open(prompt_text_path, "r", encoding="utf-8") as file:
         prompt_text = file.read()
-    with open(os.path.join(log_dir, f"prompt_text_{identifier}.txt"), "a",
+    with open(os.path.join(log_dir, f"prompt_text_{identifier}.txt"),
+              "a",
               encoding="utf-8") as file:
         file.write(separator)
         file.write(prompt_text)
@@ -94,7 +104,8 @@ def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
         file.write(f"Gemini model: {gemini_model_id}\n")
         if reuse_old_results:
             file.write(
-                f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n")
+                f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n"
+            )
         else:
             file.write(f"Reuse old results: False\n\n")
 
@@ -102,12 +113,15 @@ def log_config(prompt_text_path, gemini_model_id, identifier, log_dir,
             file.write(f"Sample: n={sample_n}, seed={random_seed}\n")
             if sample_stratify_by is not None:
                 file.write(f"Stratify variables: {sample_stratify_by}\n")
-                file.write(_format_stratum_counts(
-                    "Population counts by stratum", population_stratum_counts))
-                file.write(_format_stratum_counts(
-                    "Target allocation by stratum", allocated_stratum_counts))
-                file.write(_format_stratum_counts(
-                    "Realized sample counts by stratum", sample_stratum_counts))
+                file.write(
+                    _format_stratum_counts("Population counts by stratum",
+                                           population_stratum_counts))
+                file.write(
+                    _format_stratum_counts("Target allocation by stratum",
+                                           allocated_stratum_counts))
+                file.write(
+                    _format_stratum_counts("Realized sample counts by stratum",
+                                           sample_stratum_counts))
             else:
                 file.write("Stratify variables: none (simple random sample)\n")
             if row_indices:
@@ -206,7 +220,7 @@ def extract_title_data(genai_client,
 
         # handle errors using gemini error classes
         except errors.ServerError as e:
-            wait_time = base_wait * (2 ** attempt)
+            wait_time = base_wait * (2**attempt)
             m = f"Server error {e.code} on attempt {attempt + 1}. Retrying in {wait_time:.1f}s..."
             _log_and_print(
                 f"recipient_id={recipient_id} \t\nfpn={federal_project_number} \t\nmodel_id={model_id} \t\nextract_attempt={attempt + 1} \t\n{m}",
@@ -223,9 +237,10 @@ def extract_title_data(genai_client,
                         f"recipient_id={recipient_id} \t\nfpn={federal_project_number} \t\nmodel_id={model_id} \t\n{m}",
                         log_dir, identifier)
                     raise RateLimitException(
-                        "Max rate limit retries reached. Killing rest of the full run.")
+                        "Max rate limit retries reached. Killing rest of the full run."
+                    )
 
-                wait_time = 60 * (2 ** attempt)
+                wait_time = 60 * (2**attempt)
                 m = f"Rate limit (429 error) on attempt {attempt + 1}. Retrying in {wait_time:.1f}s..."
                 _log_and_print(
                     f"recipient_id={recipient_id} \t\nfpn={federal_project_number} \t\nmodel_id={model_id} \t\nextract_attempt={attempt + 1} \t\n{m}",
@@ -255,6 +270,7 @@ def extract_title_data(genai_client,
 # Processing loop
 # ==============================================================================
 
+
 def _format_state_fips(value):
     """Format state FIPS as a 2-digit zero-padded string."""
     if pd.isna(value):
@@ -262,35 +278,36 @@ def _format_state_fips(value):
     return f"{int(value):02d}"
 
 
-def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path, log_dir,
-                          identifier, reason) -> pd.DataFrame | None:
+def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path,
+                          log_dir, identifier, reason) -> pd.DataFrame | None:
     """Save accumulated rows to CSV; returns the DataFrame if any rows were saved.
 
     Parameters:
         all_dataframes: List of one-row DataFrames to concatenate and save.
     """
     if not all_dataframes:
-        _log_and_print(
-            f"{reason}: no partial results to save.",
-            log_dir, identifier)
+        _log_and_print(f"{reason}: no partial results to save.", log_dir,
+                       identifier)
         return None
 
     partial_df = pd.concat(all_dataframes, ignore_index=True)
 
     # rearrange order of columns
     front_cols = [
-        "project_title", "state_name", "county_name", "route_fpn",
+        "project_title",
+        "state_name",
+        "county_name",
+        "route_fpn",
     ]
-    partial_df = partial_df[front_cols + [
-        col for col in partial_df.columns if col not in front_cols
-    ]]
+    partial_df = partial_df[
+        front_cols +
+        [col for col in partial_df.columns if col not in front_cols]]
 
     partial_df.to_csv(outfile_path, index=False)
 
     _log_and_print(
         f"{reason}: partial results saved to {outfile_path} "
-        f"({partial_df.shape[0]} rows).",
-        log_dir, identifier)
+        f"({partial_df.shape[0]} rows).", log_dir, identifier)
     return partial_df
 
 
@@ -351,18 +368,32 @@ def process_titles(genai_client,
             # Resume support: load intermediate JSON if it already exists rather than re-querying Gemini
             if reuse_old_results and os.path.exists(json_path):
                 print(
-                    f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, reusing cached result.")
+                    f"  Row {idx} ({i + 1}/{total_rows}): intermediate JSON exists, reusing cached result."
+                )
                 with open(json_path, "r", encoding="utf-8") as f:
                     result_json = json.load(f)
                 # extract Project fields from result_json
-                result = Project(**{k: v for k, v in result_json.items()
-                                    if k in Project.model_fields})
+                result = Project(
+                    **{
+                        k: v
+                        for k, v in result_json.items()
+                        if k in Project.model_fields
+                    })
                 row_df = project_to_dataframe(result)
                 # separately extract runtime metadata from result_json
                 metadata_keys = [
-                    "recipient_id", "federal_project_number", "completion_year",
-                    "authconstyear", "row_index", "model_id", "project_title",
-                    "state_fips", "state_name", "county_fips", "county_name", "route_fpn",
+                    "recipient_id",
+                    "federal_project_number",
+                    "completion_year",
+                    "authconstyear",
+                    "row_index",
+                    "model_id",
+                    "project_title",
+                    "state_fips",
+                    "state_name",
+                    "county_fips",
+                    "county_name",
+                    "route_fpn",
                 ]
                 for key in metadata_keys:
                     if key in result_json:
@@ -371,15 +402,23 @@ def process_titles(genai_client,
                 continue
 
             print(
-                f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}")
+                f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}"
+            )
 
             project_input = {
-                "project_title": str(row.get("projecttitle", "")),
-                "state_fips": _format_state_fips(row.get("state_fips")),
-                "state_name": str(row.get("state_name", "")),
-                "county_fips": row.get("county_fips"),
-                "county_name": str(row.get("county_name", "")),
-                "route_fpn": int(row["route_fpn"]) if pd.notna(row.get("route_fpn")) else None,
+                "project_title":
+                str(row.get("projecttitle", "")),
+                "state_fips":
+                _format_state_fips(row.get("state_fips")),
+                "state_name":
+                str(row.get("state_name", "")),
+                "county_fips":
+                row.get("county_fips"),
+                "county_name":
+                str(row.get("county_name", "")),
+                "route_fpn":
+                int(row["route_fpn"])
+                if pd.notna(row.get("route_fpn")) else None,
             }
 
             if project_input["project_title"] == "":
@@ -387,26 +426,22 @@ def process_titles(genai_client,
                 continue
 
             try:
-                result = extract_title_data(
-                    genai_client,
-                    project_input=project_input,
-                    data_struct=data_struct,
-                    prompt_text=prompt_text,
-                    model_id=model_id,
-                    recipient_id=recipient_id,
-                    federal_project_number=fpn,
-                    log_dir=log_dir,
-                    identifier=identifier
-                )
+                result = extract_title_data(genai_client,
+                                            project_input=project_input,
+                                            data_struct=data_struct,
+                                            prompt_text=prompt_text,
+                                            model_id=model_id,
+                                            recipient_id=recipient_id,
+                                            federal_project_number=fpn,
+                                            log_dir=log_dir,
+                                            identifier=identifier)
             except RateLimitException as e:
                 m = (
                     f"FATAL rate limit error on row {idx} ({i + 1}/{total_rows}): "
-                    f"{recipient_id} / {fpn}. {e}"
-                )
+                    f"{recipient_id} / {fpn}. {e}")
                 _log_and_print(m, log_dir, identifier)
-                _save_partial_results(
-                    all_dataframes, outfile_path, log_dir, identifier,
-                    "Fatal rate limit stop")
+                _save_partial_results(all_dataframes, outfile_path, log_dir,
+                                      identifier, "Fatal rate limit stop")
                 raise
 
             processed_count += 1
@@ -430,9 +465,7 @@ def process_titles(genai_client,
                 # (for the future - to handle unplanned termination and be able to resume from existing progress)
                 with open(json_path, "w", encoding="utf-8") as f:
                     json.dump(result_json, f, indent=4, ensure_ascii=False)
-                print(
-                    f"  Saved intermediate JSON to {json_path}"
-                )
+                print(f"  Saved intermediate JSON to {json_path}")
 
                 row_df = project_to_dataframe(result)
 
@@ -455,46 +488,50 @@ def process_titles(genai_client,
             avg_time_per_project = total_time_elapsed / processed_count
             print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs")
             print(
-                f"Average time per Gemini query so far: {avg_time_per_project:.2f} s")
+                f"Average time per Gemini query so far: {avg_time_per_project:.2f} s"
+            )
             print(f"Projects with no Gemini output so far: {error_count}")
 
             if (i + 1) % 10 == 0:
-                _log_and_print(f"Progress: {i + 1}/{total_rows}",
-                               log_dir, identifier)
-                _log_and_print(f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs",
-                               log_dir, identifier)
-                _log_and_print(f"Average time per Gemini query so far: {avg_time_per_project:.2f} s",
-                               log_dir, identifier)
-                _log_and_print(f"Projects with no Gemini output so far: {error_count}",
-                               log_dir, identifier)
+                _log_and_print(f"Progress: {i + 1}/{total_rows}", log_dir,
+                               identifier)
+                _log_and_print(
+                    f"Total time elapsed: {total_time_elapsed / 3600:.2f} hrs",
+                    log_dir, identifier)
+                _log_and_print(
+                    f"Average time per Gemini query so far: {avg_time_per_project:.2f} s",
+                    log_dir, identifier)
+                _log_and_print(
+                    f"Projects with no Gemini output so far: {error_count}",
+                    log_dir, identifier)
 
     except KeyboardInterrupt:
         row_info = (
             f"on row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}"
-            if "idx" in locals() else "during processing"
-        )
-        _log_and_print(
-            f"RUN INTERRUPTED by user {row_info}.",
-            log_dir, identifier)
-        _save_partial_results(
-            all_dataframes, outfile_path, log_dir, identifier,
-            "Keyboard interrupt")
+            if "idx" in locals() else "during processing")
+        _log_and_print(f"RUN INTERRUPTED by user {row_info}.", log_dir,
+                       identifier)
+        _save_partial_results(all_dataframes, outfile_path, log_dir,
+                              identifier, "Keyboard interrupt")
         raise
 
     # log error counts to log file
-    _log_and_print(
-        f"Total projects with no Gemini output: {error_count}", log_dir, identifier)
+    _log_and_print(f"Total projects with no Gemini output: {error_count}",
+                   log_dir, identifier)
 
     if all_dataframes:
         final_df = pd.concat(all_dataframes, ignore_index=True)
 
         # rearrange order of columns
         front_cols = [
-            "project_title", "state_name", "county_name", "route_fpn",
+            "project_title",
+            "state_name",
+            "county_name",
+            "route_fpn",
         ]
-        final_df = final_df[front_cols + [
-            col for col in final_df.columns if col not in front_cols
-        ]]
+        final_df = final_df[
+            front_cols +
+            [col for col in final_df.columns if col not in front_cols]]
 
         print(f"\n Generated dataframe with {final_df.shape[0]} rows")
         final_df.to_csv(outfile_path, index=False)

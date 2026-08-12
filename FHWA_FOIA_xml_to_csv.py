@@ -57,38 +57,35 @@ def parse_project_details(xml_file):
             project_data['RecipientProjectNumber'] = ''
 
         for child in project:
-            if child.tag not in ['Details', 'Expenditures', 'ProjectGroups', 'RelatedProjects',
-                                 'UserDefinedFields', 'LegacyBridgeInfo']:
+            if child.tag not in [
+                    'Details', 'Expenditures', 'ProjectGroups',
+                    'RelatedProjects', 'UserDefinedFields', 'LegacyBridgeInfo'
+            ]:
                 project_data[child.tag] = clean_text(child.text)
 
         # Extract ProjectGroups
         project_groups = project.findall('ProjectGroups/ProjectGroup')
         project_data['GroupCategory'] = '; '.join([
-            clean_text(pg.findtext('GroupCategory'))
-            for pg in project_groups
+            clean_text(pg.findtext('GroupCategory')) for pg in project_groups
             if clean_text(pg.findtext('GroupCategory')) != ''
         ])
         project_data['GroupCode'] = '; '.join([
-            clean_text(pg.findtext('GroupCode'))
-            for pg in project_groups
+            clean_text(pg.findtext('GroupCode')) for pg in project_groups
             if clean_text(pg.findtext('GroupCode')) != ''
         ])
         project_data['GroupName'] = '; '.join([
-            clean_text(pg.findtext('GroupName'))
-            for pg in project_groups
+            clean_text(pg.findtext('GroupName')) for pg in project_groups
             if clean_text(pg.findtext('GroupName')) != ''
         ])
         project_data['IFP'] = '; '.join([
-            clean_text(pg.findtext('IFP'))
-            for pg in project_groups
+            clean_text(pg.findtext('IFP')) for pg in project_groups
             if clean_text(pg.findtext('IFP')) != ''
         ])
 
         # Extract RelatedProjects
         related_projects = project.findall('RelatedProjects/RelatedProject')
         project_data['Related_RecipientId'] = '; '.join([
-            clean_text(rp.findtext('RecipientId'))
-            for rp in related_projects
+            clean_text(rp.findtext('RecipientId')) for rp in related_projects
             if clean_text(rp.findtext('RecipientId')) != ''
         ])
         project_data['Related_FederalProjectNumber'] = '; '.join([
@@ -111,23 +108,19 @@ def parse_project_details(xml_file):
         project_udfs = project.findall('UserDefinedFields/UserDefinedField')
 
         project_data['ProjUDF_FieldName'] = '; '.join([
-            clean_text(udf.findtext('FieldName'))
-            for udf in project_udfs
+            clean_text(udf.findtext('FieldName')) for udf in project_udfs
             if clean_text(udf.findtext('FieldName')) != ''
         ])
 
         project_data['ProjUDF_Value'] = '; '.join([
-            clean_text(udf.findtext('ValueText')) or
-            clean_text(udf.findtext('ValueNumber')) or
-            clean_text(udf.findtext('ValueDate')) or
-            clean_text(udf.findtext('ValueBoolean'))
-            for udf in project_udfs
-            if (
-                clean_text(udf.findtext('ValueText')) or
-                clean_text(udf.findtext('ValueNumber')) or
-                clean_text(udf.findtext('ValueDate')) or
-                clean_text(udf.findtext('ValueBoolean'))
-            ) != ''
+            clean_text(udf.findtext('ValueText'))
+            or clean_text(udf.findtext('ValueNumber'))
+            or clean_text(udf.findtext('ValueDate'))
+            or clean_text(udf.findtext('ValueBoolean')) for udf in project_udfs
+            if (clean_text(udf.findtext('ValueText'))
+                or clean_text(udf.findtext('ValueNumber'))
+                or clean_text(udf.findtext('ValueDate'))
+                or clean_text(udf.findtext('ValueBoolean'))) != ''
         ])
 
         # Process each Detail - one row per detail
@@ -143,40 +136,51 @@ def parse_project_details(xml_file):
             detail_udfs = detail.findall('UserDefinedFields/UserDefinedField')
 
             row['DetailUDF_FieldName'] = '; '.join([
-                clean_text(udf.findtext('FieldName'))
-                for udf in detail_udfs
+                clean_text(udf.findtext('FieldName')) for udf in detail_udfs
                 if clean_text(udf.findtext('FieldName')) != ''
             ])
 
             row['DetailUDF_Value'] = '; '.join([
-                clean_text(udf.findtext('ValueText')) or
-                clean_text(udf.findtext('ValueNumber')) or
-                clean_text(udf.findtext('ValueDate')) or
-                clean_text(udf.findtext('ValueBoolean'))
+                clean_text(udf.findtext('ValueText'))
+                or clean_text(udf.findtext('ValueNumber'))
+                or clean_text(udf.findtext('ValueDate'))
+                or clean_text(udf.findtext('ValueBoolean'))
                 for udf in detail_udfs
-                if (
-                    clean_text(udf.findtext('ValueText')) or
-                    clean_text(udf.findtext('ValueNumber')) or
-                    clean_text(udf.findtext('ValueDate')) or
-                    clean_text(udf.findtext('ValueBoolean'))
-                ) != ''
+                if (clean_text(udf.findtext('ValueText'))
+                    or clean_text(udf.findtext('ValueNumber'))
+                    or clean_text(udf.findtext('ValueDate'))
+                    or clean_text(udf.findtext('ValueBoolean'))) != ''
             ])
 
             # Initialize all location fields as empty
             # NonGIS fields
             for field in [
-                'StateId', 'CongDistId', 'CountyId', 'UrbanId',
-                'UrbanOrRural', 'FunctionalSystem', 'SystemCode', 'GeneralOwnership', 'StructureNumber', 'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
-                'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost'
+                    'StateId', 'CongDistId', 'CountyId', 'UrbanId',
+                    'UrbanOrRural', 'FunctionalSystem', 'SystemCode',
+                    'GeneralOwnership', 'StructureNumber', 'PercentFunds',
+                    'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
+                    'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds',
+                    'TotalCost'
             ]:
                 row[f'NonGIS_{field}'] = ''
 
             # GIS fields
-            for field in ['StateId', 'RouteId', 'BeginPoint', 'EndPoint', 'StructureNumber', 'PercentFunds', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
+            for field in [
+                    'StateId', 'RouteId', 'BeginPoint', 'EndPoint',
+                    'StructureNumber', 'PercentFunds', 'ACFunds',
+                    'FederalFunds', 'StateFunds', 'LocalFunds', 'PrivateFunds',
+                    'NonMonetaryFunds', 'OtherFunds', 'TotalCost'
+            ]:
                 row[f'GIS_{field}'] = ''
 
             # GISBreakdown fields
-            for field in ['CongDistId', 'CountyId', 'UrbanId', 'UrbanOrRural', 'FunctionalSystem', 'SystemCode', 'GeneralOwnership', 'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds', 'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds', 'TotalCost']:
+            for field in [
+                    'CongDistId', 'CountyId', 'UrbanId', 'UrbanOrRural',
+                    'FunctionalSystem', 'SystemCode', 'GeneralOwnership',
+                    'ACFunds', 'FederalFunds', 'StateFunds', 'LocalFunds',
+                    'PrivateFunds', 'NonMonetaryFunds', 'OtherFunds',
+                    'TotalCost'
+            ]:
                 row[f'GISBreakdown_{field}'] = ''
 
             # Now populate with data if it exists
@@ -204,8 +208,9 @@ def parse_project_details(xml_file):
                             row_copy['GISBreakdown_index'] = i + 1
 
                             for item in breakdown:
-                                row_copy[f'GISBreakdown_{item.tag}'] = clean_text(
-                                    item.text)
+                                row_copy[
+                                    f'GISBreakdown_{item.tag}'] = clean_text(
+                                        item.text)
 
                             rows.append(row_copy)
 

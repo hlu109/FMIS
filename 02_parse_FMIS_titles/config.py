@@ -9,7 +9,6 @@ sys.path.insert(0, str(project_root))
 
 from helpers.Project import Project
 
-
 # Set File Paths -------------------------------------------
 username = getpass.getuser()
 print(f"Running as user: {username}")
