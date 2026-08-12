@@ -62,7 +62,8 @@ def log_config(prompt_text_path,
                allocated_stratum_counts=None,
                sample_stratum_counts=None,
                reuse_old_results=False,
-               resume_run_identifier=None):
+               resume_run_identifier=None,
+               note=None):
     """Logs prompt text and configuration values for a Gemini run."""
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -94,6 +95,8 @@ def log_config(prompt_text_path,
     with open(file_path, "a", encoding="utf-8") as file:
         file.write(f"[{timestamp}] \n\n")
         file.write(f"CONFIG PARAMETERS\n\n")
+        if note:
+            file.write(f"Note: {note}\n")
         file.write(f"Run identifier: {identifier}\n")
         file.write(f"Input file: {input_path}\n")
         file.write(f"Output CSV: {output_path}\n")

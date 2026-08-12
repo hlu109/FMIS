@@ -97,6 +97,7 @@ def main():
         random_seed=config.RANDOM_SEED if auto_sample else None,
         reuse_old_results=config.REUSE_OLD_RESULTS,
         resume_run_identifier=config.RESUME_RUN_IDENTIFIER,
+        note=config.NOTE,
         population_stratum_counts=population_stratum_counts,
         allocated_stratum_counts=allocated_stratum_counts,
         sample_stratum_counts=sample_stratum_counts,

@@ -37,6 +37,9 @@ print(f"PROJECT_ROOT: {PROJECT_ROOT}")
 # SET PARAMETERS
 # ------------------------------------------------------------------------------
 
+# Optional note to log purpose of the run (default set to None)
+NOTE = "Testing new Gemini prompt to work on non-interstates without route_FPN metadata."
+
 # Set API Parameters
 GEMINI_MODEL_ID = "gemini-2.5-flash"
 # GEMINI_MODEL_ID = "gemini-2.5-pro"
@@ -47,15 +50,14 @@ GEMINI_MODEL_ID = "gemini-2.5-flash"
 prompt_version = 6
 
 # SET FILE IDENTIFIERS
-RUN_PREFIX = f"VAL_fmis_gis_5k_v{prompt_version}"
+RUN_PREFIX = f"VAL_fmis_gis_200_test_noninterstate_prompt_v{prompt_version}"
 
 # SET RESUME PARAMETERS
 REUSE_OLD_RESULTS = False
 RESUME_RUN_IDENTIFIER = None
 
 # SET FILE PATHS
-INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / \
-    "splits" / "VAL_fmis_gis_project_titles.dta"
+INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "VAL_fmis_gis_project_titles.dta"
 
 # SET SCHEMA
 page_schema = Project
@@ -64,7 +66,7 @@ page_schema = Project
 ROW_INDICES = None
 # ROW_INDICES = [27, 28, 29, 30]          # manual override; if set, skip auto sample
 # if set (and ROW_INDICES is None), sample this many rows
-SAMPLE_N = 5000
+SAMPLE_N = 200
 # SAMPLE_N = None # use full dataset
 # SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
 RANDOM_SEED = 42
@@ -81,8 +83,7 @@ else:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     IDENTIFIER = f"{RUN_PREFIX}_{timestamp}"
 
-PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / \
-    "prompts" / f"prompt v{prompt_version}.md"
+PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / "prompts" / f"prompt v{prompt_version}.md"
 
 GEMINI_DIR = GEOCODING_DIR / "title_parsing_gemini_output"
 LOG_DIR = GEOCODING_DIR / "title_parsing_gemini_logs"

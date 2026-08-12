@@ -13,7 +13,7 @@ You will receive a JSON object containing::
 - `state_name` (string): the state name resolved from `state_fips` 
 - `county_fips` (string): the 5-digit FIPS code for the dominant county where the project is located. there may be multiple FIPS codes, which are concatenated by semicolon. 
 - `county_name` (string): the county names resolved from `county_fips`. multiple names are concatenated by semicolon. 
-- `route_fpn` (integer or null): metadata with the main route number extracted from an alternate source. If a highway in the title matches this number, treat it as strong evidence that highway is the main route and do **not** code it as an endpoint.
+- `route_fpn` (integer or null): Optional metadata with the main route number extracted from an alternate source. If a highway in the title matches this number, treat it as strong evidence that highway is the main route and do **not** code it as an endpoint. Do **NOT** use `route_fpn` to populate `main_route` fields if the route does not appear in the title text. This variable is not available for non-interstates. 
 
 
 ## Title-level flags
@@ -33,7 +33,7 @@ Set the flags below after writing `flags_reasoning`. If any is `True`, set `main
 
 Identify the main route: the highway on which the project takes place. Set `main_route` to `null` if any title-level flag is `True`, or if the main route cannot be identified using the title, input metadata, and context about the US highway system. Do **NOT** backfill from `route_fpn`. (You may only use `route_fpn` if you need it to resolve concurrent designations, alternate names, or vanity names. If `route_fpn` differs from `main_route`, treat this as evidence that there may be an alternate name, but only in the case that the `route_fpn` could represent an interstate.)
 
-The main route can belong to 5 roadway types: interstate, US route, state route, local road, and other. The main route often appears at the start of the title, written in one of these forms:
+The main route can belong to 5 roadway types. The main route often appears at the start of the title, written in one of these forms:
 
 ### Interstate
 
@@ -47,44 +47,40 @@ The main route can belong to 5 roadway types: interstate, US route, state route,
 
 ### U.S. Route
  
-- `US 6` / `US-6` / `US6` - space, dash, or no separator
-- `U.S. 6` / `U.S.6` / `U S 6` - punctuation
+- `US 6` / `US-6` / `US6`
+- `U.S. 6` / `U.S.6` / `U S 6`
 - `US RT 6` / `US RTE 6` / `US HWY 6` / `USHWY 6`
 - `USR 6` — "US Route"
-- `USH 6` — "US Highway" (WI)
+- `USH 6` — "US Highway"
 - `UR 6` — "US Route"
-- `FAP 6` — "Federal Aid Primary" (legacy)
+- `FAP 6` — "Federal Aid Primary"
 
 ### State Route/State Highway
 
-- `SR 1` / `SR-1` / `SR1` / `S.R. 1` — "State Route" / "State Road" (FL)
-- `SH 1` / `SH-1` — "State Highway" (TX, OK, IN, etc.)
-- `STH 1` — "State Trunk Highway" (WI)
+- `SR 1` / `SR-1` / `SR1` / `S.R. 1` — "State Route" / "State Road"
+- `SH 1` / `SH-1` — "State Highway"
+- `STH 1` — "State Trunk Highway"
 - `STA 1` — "State"
 - `State Route 1` / `State Highway 1` / `Route 1` / `RT 1` / `RTE 1`
 - `CA 1` / `PA 66` / `NY 17` / `OH 2` — postal-abbrev prefix style
 - `M-1` — Michigan state trunkline prefix
 - `A1A` — some named/lettered state routes (FL)
-- `FAS 1` — "Federal Aid Secondary" (legacy)
+- `FAS 1` — "Federal Aid Secondary"
 
-### Local Road (county, township, or municipal/local)
+### Local Road (anything not highway)
 
 - `CR 1` / `CR-1` / `CR1` / `C.R. 1`
 - `CO RD 1` / `CO RT 1` / `CORD 1`
 - `County Road 1` / `County Route 1` / `County Highway 1`
 - `CH 1` — County Highway
-- `CTH 1` / `CTH A` — County Trunk Highway (WI; often **lettered**, e.g. `County A`, `Cty A`)
-- `CSAH 1` — County State Aid Highway (MN)
+- `CTH 1` / `CTH A` — County Trunk Highway
+- `CSAH 1` — County State Aid Highway
 - `CFR` / `CS` — county functional/secondary designations (state-specific)
-
 - `TR 1` / `TWP RD 1` / `Township Road 1` / `T-1`
 
-- For local roads, this is usually **just the street name** (`MAIN ST`, `1ST AVE`) — no route code
-- `LOCAL` / `LOCAL RD` / `LOCAL ST`
-- `CITY ST` / `MUN` — municipal/city street
-- `CS 1` — city street numbered (state-specific)
+- For local roads, this is usually **just the street name** (`MAIN ST`, `1ST AVE`) — no route code.
 
-However, it is also possible that the main route is present but does not appear at the start. 
+It is also possible that the main route is present but does not appear at the start of the title. 
 
 It is also possible that the main route is referred to by an alternate name or vanity name rather than the route number. Think of `route_designation` as the cleaned and standardized version of the raw text while `route_type` and `route_num` reflect the canonical, present-day parsed data. They may differ when the title uses a concurrent designation, an alternate/vanity name, or a historically renumbered route.
 
