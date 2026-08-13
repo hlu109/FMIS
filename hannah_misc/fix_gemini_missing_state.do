@@ -41,6 +41,11 @@ label values state_fips state_fips_lbl
 drop state_name
 decode state_fips, gen(state_name)
 
+* export delimited writes the state name value label out instead of the original numeric data, so restore the numeric fips code
+gen str2 state_fips_digits = string(state_fips, "%02.0f")
+drop state_fips
+rename state_fips_digits state_fips
+
 order project_title state_name
 
 * save
