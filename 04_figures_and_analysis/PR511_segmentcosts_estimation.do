@@ -42,15 +42,37 @@ if !direxists("$out_dir") mkdir "$out_dir"
 * Segment-length variable in PR511_hubbardmazzeo_chained.dta.
 local miles_var chain_len
 
-* parameterize t window for costs. I set this to 5 as of now
-local prof_lo -5
-local prof_hi 5
+local windows `" "w11 11-year -4 6" "w5 5-year -1 3" "full full-range . ." "'
+
+local win_names  ""
+local win_labels ""
+local win_lo     ""
+local win_hi     ""
+foreach spec of local windows {
+    gettoken nm rest : spec
+    gettoken lb rest : rest
+    gettoken lo rest : rest
+    gettoken hi rest : rest
+    local win_names  `win_names' `nm'
+    local win_labels `win_labels' `lb'
+    local win_lo     `win_lo' `lo'
+    local win_hi     `win_hi' `hi'
+}
+local nwin : word count `win_names'
+
+forvalues wi = 1/`nwin' {
+
+local wname   : word `wi' of `win_names'
+local wlabel  : word `wi' of `win_labels'
+local prof_lo : word `wi' of `win_lo'
+local prof_hi : word `wi' of `win_hi'
 
 * ==============================================================================
 * Make cost profile based on single year structure
 * ==============================================================================
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singleyear.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_rt_single_openyr_ever.dta", clear
+
 collapse (mean) total_cost_mills_adj new_construction_cost_mills_adj ///
     row_cost_mills_adj pe_cost_mills_adj, by(event_time)
 	
@@ -60,12 +82,12 @@ rename row_cost_mills_adj              f_row
 rename pe_cost_mills_adj               f_pe
 
 * optional truncation of the profile support
-if "`prof_lo'" != "" {
+if "`prof_lo'" != "" & "`prof_lo'" != "." {
     foreach f of varlist f_* {
         replace `f' = 0 if event_time < `prof_lo'
     }
 }
-if "`prof_hi'" != "" {
+if "`prof_hi'" != "" & "`prof_hi'" != "." {
     foreach f of varlist f_* {
         replace `f' = 0 if event_time > `prof_hi'
     }
@@ -228,12 +250,35 @@ gen byte no_open_year = 0
 append using `undated_chains'
 replace no_open_year = 1 if no_open_year == .
 
-label variable est_total    "Estimated total cost, millions 2025 USD"
-label variable est_newc     "Estimated new-construction cost, millions 2025 USD"
-label variable est_row      "Estimated right-of-way cost, millions 2025 USD"
-label variable est_pe       "Estimated preliminary-engineering cost, millions 2025 USD"
+* tag this window's estimates with a suffix so multiple windows can coexist
+rename est_total est_total_`wname'
+rename est_newc  est_newc_`wname'
+rename est_row   est_row_`wname'
+rename est_pe    est_pe_`wname'
+
+label variable est_total_`wname' "Estimated total cost, millions 2025 USD (window [`prof_lo',`prof_hi'])"
+label variable est_newc_`wname'  "Estimated new-construction cost, millions 2025 USD (window [`prof_lo',`prof_hi'])"
+label variable est_row_`wname'   "Estimated right-of-way cost, millions 2025 USD (window [`prof_lo',`prof_hi'])"
+label variable est_pe_`wname'    "Estimated preliminary-engineering cost, millions 2025 USD (window [`prof_lo',`prof_hi'])"
 label variable miles        "Chain miles"
 label variable no_open_year "1 = chain has no open_year; not estimated"
+
+tempfile est_`wname'
+save `est_`wname''
+
+}
+
+* ==============================================================================
+* Combine the per-window estimates into one by-chain dataset
+* ==============================================================================
+
+local w1 : word 1 of `win_names'
+use `est_`w1'', clear
+forvalues wi = 2/`nwin' {
+    local wname : word `wi' of `win_names'
+    merge 1:1 chain_id using `est_`wname'', ///
+        keepusing(est_total_`wname' est_newc_`wname' est_row_`wname' est_pe_`wname') nogen
+}
 
 order chain_id county_fips state_fips countyid open_year miles no_open_year est_*
 sort county_fips open_year chain_id
@@ -251,24 +296,46 @@ count if no_open_year == 0
 display "Number of PR-511 chains with a cost estimate: " r(N)
 count if no_open_year == 1
 display "Number of PR-511 chains left un-estimated (no open_year): " r(N)
-summarize est_total est_newc est_row est_pe miles if no_open_year == 0, detail
 
-* distribution of estimated total cost per opening
+local wi = 0
+foreach wname of local win_names {
+    local ++wi
+    local wlabel : word `wi' of `win_labels'
+    summarize est_total_`wname' est_newc_`wname' est_row_`wname' est_pe_`wname' miles if no_open_year == 0, detail
+
+    * distribution of estimated total cost per opening
+    twoway ///
+        (histogram est_total_`wname', frequency), ///
+        title("Estimated total cost for PR-511 chains", size(medsmall)) ///
+        subtitle("Allocated from the single-year profile scaled by miles (`wlabel' window)", size(vsmall)) ///
+        xtitle("Estimated total cost (millions of 2025 USD)", size(small)) ///
+        ytitle("Number of chains", size(small)) ///
+        xlabel(, labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal)) ///
+        note( ///
+            "Each county-year's FMIS Interstate Construction spending is split across that county's openings" ///
+            "in proportion to miles opened times the single-year event-study profile f(event_time)." ///
+            `"Interstate receipts are identified by the "Interstate Construction" funding program code."' ///
+            "FMIS data from 1950 to 2000.", ///
+             size(vsmall) span ///
+        ) ///
+        legend(off) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_segmentcost_hist_totalcost_`wname'.png", replace width(2400)
+}
+
 twoway ///
-    (histogram est_total, frequency), ///
-    title("Estimated total cost for PR-511 chains", size(medsmall)) ///
-    subtitle("Allocated from the single-year profile scaled by miles", size(vsmall)) ///
-    xtitle("Estimated total cost (millions of 2025 USD)", size(small)) ///
-    ytitle("Number of chains", size(small)) ///
-    xlabel(, labsize(small)) ///
-    ylabel(, labsize(small) angle(horizontal)) ///
-    note( ///
-        "Each county-year's FMIS Interstate Construction spending is split across that county's openings" ///
-        "in proportion to miles opened times the single-year event-study profile f(event_time)." ///
-        `"Interstate receipts are identified by the "Interstate Construction" funding program code."' ///
-        "FMIS data from 1950 to 2000.", ///
-         size(vsmall) span ///
-    ) ///
-    legend(off) ///
-    ysize(4) xsize(6)
-graph export "$out_dir/pr511_segmentcost_hist_totalcost.png", replace width(2400)
+	(scatter est_total_w11 est_total_full) ///
+	(function y = x, range(0 2000)), ///
+	title("5-year and 11-year window cost estimations for PR-511 chains", size(medsmall)) ///
+	xtitle("5-year window est. total cost (millions of 2025 USD)", size(small)) ///
+	ytitle("11-year window est. total cost (millions of 2025 USD)", size(small)) ///
+	legend(off)
+	
+twoway ///
+	(scatter est_total_w11 est_total_w5) ///
+	(function y = x, range(0 2000)), ///
+	title("5-year and 11-year window cost estimations for PR-511 chains", size(medsmall)) ///
+	xtitle("5-year window est. total cost (millions of 2025 USD)", size(small)) ///
+	ytitle("11-year window est. total cost (millions of 2025 USD)", size(small)) ///
+	legend(off)
