@@ -97,7 +97,7 @@ foreach cost of local costs {
 	replace `cost' = 0 if `cost' == .
 }
 
-save "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", replace
+save "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", replace
 
 * ==============================================================================
 * Plot event study
@@ -590,7 +590,7 @@ foreach cost of varlist total_cost_mills_adj new_construction_cost_mills_adj row
 	replace `cost' = 0 if `cost' == .
 }
 
-save "$intermediate_data/PR511_FMIS_eventstudy_singleyear.dta", replace
+save "$intermediate_data/PR511_FMIS_eventstudy_cty_single_openyr_ever.dta", replace
 
 * ==============================================================================
 * Plot event study
@@ -785,7 +785,7 @@ restore
 * ==============================================================================
 
 * Find total FMIS costs
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 local costs total_cost_mills_adj new_construction_cost_mills_adj row_cost_mills_adj pe_cost_mills_adj
 foreach cost of local costs {
     local newname = substr("`cost'", 1, 10) + "_sum"
@@ -801,7 +801,7 @@ save `fmis_total_county'
 local yearthreshold 4
 // currently set at +- 4 years
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 drop if event_time < -(`yearthreshold') | event_time > (`yearthreshold')
 local costs total_cost_mills_adj new_construction_cost_mills_adj row_cost_mills_adj pe_cost_mills_adj
 foreach cost of local costs {
@@ -830,7 +830,7 @@ save `fmis_pct'
 // Set percentage cutoff
 local pct_cutoff 0.5
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 merge m:1 county_fips using `fmis_pct', nogen
 keep if total_cost_pct > `pct_cutoff'
 
@@ -861,7 +861,7 @@ twoway ///
     ysize(4) xsize(6)
 graph export "$out_dir/pr511_IC_eventstudy_totalcost_avg_concentrated.png", replace width(2400)
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 merge m:1 county_fips using `fmis_pct', nogen
 keep if new_constr_pct > `pct_cutoff'
 
@@ -893,7 +893,7 @@ twoway ///
     ysize(4) xsize(6)
 graph export "$out_dir/pr511_IC_eventstudy_newconstr_avg_concentrated.png", replace width(2400)
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 merge m:1 county_fips using `fmis_pct', nogen
 keep if row_cost_pct > `pct_cutoff'
 
@@ -925,7 +925,7 @@ twoway ///
     ysize(4) xsize(6)
 graph export "$out_dir/pr511_IC_eventstudy_rowcost_avg_concentrated.png", replace width(2400)
 
-use "$intermediate_data/PR511_FMIS_eventstudy_singlechain.dta", clear
+use "$intermediate_data/PR511_FMIS_eventstudy_cty_single_chain_ever.dta", clear
 merge m:1 county_fips using `fmis_pct', nogen
 keep if pe_cost_pct > `pct_cutoff'
 
@@ -1019,7 +1019,7 @@ foreach cost of varlist total_cost_mills_adj new_construction_cost_mills_adj row
 	replace `cost' = 0 if `cost' == .
 }
 
-save "$intermediate_data/PR511_FMIS_eventstudy_cty_rt_oneyear.dta", replace
+save "$intermediate_data/PR511_FMIS_eventstudy_cty_rt_single_openyr_ever.dta", replace
 
 * ==============================================================================
 * Plot event study
