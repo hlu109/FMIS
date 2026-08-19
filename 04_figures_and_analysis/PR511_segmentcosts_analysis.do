@@ -1,12 +1,5 @@
 /*==============================================================================
-* PR511_segmentcosts_analysis.do
-*
-*   Part A: determine how PR-511 opening years are arranged in time across county x route cells.
-    Trying to see how prevalent the case of loose bunching is that may prevent us from correctly assigning
-    FMIS spending
-*   
-*
-*   PART B -- describe how costs evolve over time (spend/mile from the matched PR-511 data)
+* describe how costs evolve over time (spend/mile from the matched PR-511 data)
 ==============================================================================*/
 * Set user
 local user = c(username)
@@ -64,212 +57,13 @@ local sep_wide = 2*`win_wide'
 local win_narrow 2
 local sep_narrow = 2*`win_narrow'
 
-* check what percent of single-year county x route spending is in window
-
-use "$intermediate_data/PR511_FMIS_eventstudy_cty_rt_single_openyr_ever.dta", clear
-collapse (mean) total_cost_mills_adj new_construction_cost_mills_adj row_cost_mills_adj pe_cost_mills_adj, by(event_time)
-
-summarize total_cost_mills_adj
-di r(sum)
-
-preserve
-drop if event_time < -4 | event_time > 6
-summarize total_cost_mills_adj
-di r(sum)
-restore
-
-preserve
-drop if event_time < -1 | event_time > 3
-summarize total_cost_mills_adj
-di r(sum)
-restore
-
 * ==============================================================================
-* PART A -- Spacing / bunching of PR-511 opening years
-* ==============================================================================
-* We run the same diagnostic at two units:
-*   county      : the level at which FMIS spending is actually resolved in the
-*                 estimation pipeline (the binding attribution constraint).
-*   cxr         : county x route, the level at which openings are recorded and
-*                 the level attribution *could* reach if FMIS receipts were
-*                 resolved to route.
-* ------------------------------------------------------------------------------
-
-foreach unit in county cxr {
-
-    * make county x route identifier
-    use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
-    drop if mi(open_year) | open_year < `open_lo' | open_year > `open_hi'
-
-    if "`unit'" == "county" {
-        drop if mi(st) | mi(county)
-        gen double cellid = st*1000 + county
-        local unitlab   "County"
-        local unitfile  "county"
-    }
-    else {
-        drop if mi(st) | mi(county) | mi(route)
-        gen double cellid = (st*1000 + county)*1000 + route
-        local unitlab   "County x route"
-        local unitfile  "cxroute"
-    }
-
-    * -- one row per cell x opening-year, carrying miles opened -----------------
-    collapse (sum) miles = chain_len, by(cellid open_year)
-
-    * distinct opening years, gaps between consecutive years, span, total miles
-    bysort cellid (open_year): gen double gap = open_year - open_year[_n-1] if _n > 1
-    by cellid: gen long n_years = _N
-    by cellid: egen double cell_miles = total(miles)
-    by cellid: egen double min_gap   = min(gap)     // missing for single-year cells
-    by cellid: egen double ymin       = min(open_year)
-    by cellid: egen double ymax       = max(open_year)
-    gen double span = ymax - ymin
-
-    * ==========================================================================
-    * Figure A1: how many distinct opening years does a cell have?
-    * ==========================================================================
-    preserve
-        bysort cellid: keep if _n == 1
-        qui count
-        local ncells = r(N)
-        qui count if n_years > 1
-        local nmulti = r(N)
-        local pctmulti : display %4.1f 100*`nmulti'/`ncells'
-
-        histogram n_years, discrete frequency ///
-            title("Distinct PR-511 opening years per `=lower("`unitlab'")' cell", size(medsmall)) ///
-            subtitle("`open_lo'-`open_hi'; `nmulti' of `ncells' cells (`pctmulti'%) open in more than one year", size(vsmall)) ///
-            xtitle("Number of distinct opening years", size(small)) ///
-            ytitle("Number of cells", size(small)) ///
-            xlabel(1(1)10, labsize(small)) ///
-            ylabel(, labsize(small) angle(horizontal)) ///
-            note( ///
-                "A cell is a `=lower("`unitlab'")'. Opening year is the PR-511 open_year of a chain; chains opening the same year are one opening year." ///
-                "Cells with a single opening year admit clean attribution of FMIS spending; multi-year cells are the concern.", ///
-                size(vsmall) span ///
-            ) ///
-            legend(off) ysize(4) xsize(6)
-        graph export "$out_dir/pr511_spacing_nyears_`unitfile'.png", replace width(2400)
-    restore
-	
-
-    * ==========================================================================
-    * Figure A2: gaps between consecutive opening years within a cell
-    * ==========================================================================
-    preserve
-        keep if !mi(gap)
-        qui count
-        if r(N) > 0 {
-            qui count if gap < `sep_wide'
-            local nclose = r(N)
-            qui count
-            local ngaps  = r(N)
-            local pctclose : display %4.1f 100*`nclose'/`ngaps'
-
-            histogram gap, discrete frequency ///
-                title("Gaps between consecutive PR-511 opening years", size(medsmall)) ///
-                subtitle("Within `=lower("`unitlab'")' cells, `open_lo'-`open_hi'; `nclose' of `ngaps' gaps (`pctclose'%) fall below `sep_wide' years", size(vsmall)) ///
-                xtitle("Years between successive opening years in the same cell", size(small)) ///
-                ytitle("Number of gaps", size(small)) ///
-                xlabel(0(5)40, labsize(small)) ///
-                ylabel(, labsize(small) angle(horizontal)) ///
-                note( ///
-                    "Dashed line at `sep_wide' years = twice the +/- `win'-year spending window used in the cost estimation." ///
-                    "Gaps to the left of the line mean one opening's spending window overlaps the next: attribution by (open_year, completion_year) is ambiguous.", ///
-                    size(vsmall) span ///
-                ) ///
-                legend(off) ysize(4) xsize(6)
-            graph export "$out_dir/pr511_spacing_gaps_`unitfile'.png", replace width(2400)
-        }
-        else {
-            display "No multi-year `unitlab' cells in `open_lo'-`open_hi'; skipping gap histogram."
-        }
-    restore
-
-    * ==========================================================================
-    * Figure A3: attribution-difficulty classification of cells
-    *   1 = single opening year               -> clean
-    *   2 = multiple years, all gaps >= `sep' -> separable (windows don't overlap)
-    *   3 = multiple years, some gap < `sep'  -> overlapping windows -> hard
-    * Shown as share of cells and share of miles.
-    * ==========================================================================
-    preserve
-    bysort cellid: keep if _n == 1
-
-    * ---- denominators from distinct cells (single counted once) ----
-    local Ncells = _N
-    egen double _tm = total(cell_miles)
-    local Tmiles = _tm[1]
-    drop _tm
-
-    * ---- two independent classifications, each in its own var ----
-    * wide scheme
-    gen byte code_wide = .
-    replace code_wide = 1 if n_years == 1
-    replace code_wide = 2 if n_years > 1 & !mi(min_gap) & min_gap >= `sep_wide'
-    replace code_wide = 3 if n_years > 1 & !mi(min_gap) & min_gap <  `sep_wide'
-
-    * narrow scheme (single handled by the wide var only, so it isn't double-counted)
-    gen byte code_narrow = .
-    replace code_narrow = 4 if n_years > 1 & !mi(min_gap) & min_gap >= `sep_narrow'
-    replace code_narrow = 5 if n_years > 1 & !mi(min_gap) & min_gap <  `sep_narrow'
-
-    * ---- headline share (compute here, while _N = distinct cells) ----
-    qui count
-    local ncells = r(N)
-    qui count if code_wide == 3
-    local nhard = r(N)
-    local pcthard : display %4.1f 100*`nhard'/`ncells'
-    display as text "== `unitlab': `nhard' of `ncells' cells (`pcthard'%) have overlapping spending windows (gap < `sep_wide'y) =="
-
-    * ---- stack the two classifications into one long var ----
-    gen long _id = _n
-    reshape long code_, i(_id) j(scheme) string
-    drop if mi(code_)
-    rename code_ cat
-
-    label define catlab 1 `""Single" "opening""' ///
-                    2 `""Multi:" "gaps >=`sep_wide'y""' ///
-                    3 `""Multi:" "gap <`sep_wide'y""' ///
-                    4 `""Multi:" "gaps >=`sep_narrow'y""' ///
-                    5 `""Multi:" "gap <`sep_narrow'y""', replace
-    label values cat catlab
-
-    * ---- collapse, normalise to the DISTINCT-cell totals ----
-    gen double _one = 1
-    collapse (sum) n_cells = _one (sum) miles = cell_miles, by(cat)
-    gen double pct_cells = 100*n_cells/`Ncells'
-    gen double pct_miles = 100*miles /`Tmiles'
-    label variable pct_cells "Share of cells"
-    label variable pct_miles "Share of miles"
-
-    graph bar pct_cells pct_miles, over(cat, label(labsize(vsmall))) ///
-        bar(1, color(navy)) bar(2, color(orange)) ///
-        title("Attribution difficulty by `=lower("`unitlab'")' cell", size(medsmall)) ///
-        subtitle("PR-511 openings `open_lo'-`open_hi'", size(vsmall)) ///
-        ytitle("Percent", size(small)) ///
-        ylabel(0(20)100, labsize(small) angle(horizontal)) ///
-        legend(order(1 "Share of county-routes" 2 "Share of miles") size(vsmall) rows(2)) ///
-        blabel(bar, format(%3.0f) size(vsmall)) ///
-		note( ///
-                "Single opening year: FMIS county-year spending maps to one opening." ///
-                "Multi indicates multiple opening years and whether the gaps between these years fall over or under a specific threshold", /// 
-                size(vsmall) span ///
-            ) ///
-        ysize(4) xsize(6)
-    graph export "$out_dir/pr511_spacing_difficulty_`unitfile'.png", replace width(2400)
-restore
-}
-
-* ==============================================================================
-* PART B -- Spending over calendar time and the project outlay S-curve
+* Spending over calendar time and the project outlay S-curve
 * ==============================================================================
 
 use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
 keep if funding_program == "Interstate Construction"
 keep if completion_year <= 2000 & completion_year >= 1950
-drop if detail_improvementtype == 5 | detail_improvementtype == 59  // resurfacing
 
 gen double new_construction_cost = total_cost_mills if new_construction == 1
 gen double row_cost = total_cost_mills if detail_improvementtype == 16
@@ -367,7 +161,7 @@ preserve
 restore
 
 * ==============================================================================
-* PART C -- Cost per mile over time: ground truth vs estimated windows
+* Cost per mile over time: ground truth vs estimated windows
 * ==============================================================================
 * Six mileage-weighted cost/mile series by PR-511 opening year:
 *   1. Ground truth  : raw route-resolved FMIS receipts summed within county x
@@ -522,4 +316,365 @@ foreach meas in total newc {
         ) ///
         ysize(4) xsize(6)
     graph export "$out_dir/pr511_costpermile_timeseries_`meas'.png", replace width(2400)
+}
+
+* ==============================================================================
+* Cost per mile over time: ground truth under alternative project definitions
+* ==============================================================================
+* Mileage-weighted FMIS interstate cost per mile, by PR-511 opening year, where a
+* "cleanly attributable" county x route cell is one that reduces to a SINGLE unit:
+*   baseline              : cxr opening in exactly one year (original ground truth).
+*   consec_{1,2}years     : cxr that collapse to exactly one condensed project
+*                           (consecutive-year grouping, no milepost test).
+*   consec_{1,2}years_mps : same, but also requiring adjacent mileposts.
+* For each definition we sum route-resolved FMIS receipts in the qualifying cxr
+* cells and divide by their miles, keyed by the unit's opening year (open_year_max
+* for condensed projects; the single open_year for baseline). Condensing merges
+* consecutive-year openings, so it enlarges the cleanly-attributable sample.
+* Run as a selection (self-contained). Requires the condensed project files from
+* the Workspace section to exist on disk.
+* ------------------------------------------------------------------------------
+
+local open_lo 1950
+local open_hi 2000
+
+* ---- FMIS interstate receipts, route-resolved, inflation-adjusted, per cxr ----
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+keep if funding_program == "Interstate Construction"
+keep if completion_year <= `open_hi' & completion_year >= `open_lo'
+drop if detail_improvementtype == 5 | detail_improvementtype == 59
+gen double new_construction_cost = total_cost_mills if new_construction == 1
+
+* route from federal project number; county key from state x county (matches PR-511)
+gen str3 fpn_prefix = substr(strtrim(federal_project_number), 1, 3)
+gen str3 route_fpn  = ustrregexra(fpn_prefix, "[A-Za-z]", "")
+destring route_fpn, replace
+rename route_fpn route
+capture drop county_fips
+gen double county_fips = state_fips*1000 + countyid
+
+rename completion_year year
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) keep(match) nogen
+replace total_cost_mills      = total_cost_mills      / cpi
+replace new_construction_cost = new_construction_cost / cpi
+drop cpi
+
+collapse (sum) gt_total = total_cost_mills gt_newc = new_construction_cost, by(county_fips route)
+tempfile fmis_cxr
+save `fmis_cxr'
+
+* ---- one cost/mile-by-opening-year series per project definition ----
+local schemes baseline consec_1years consec_2years consec_1years_mps consec_2years_mps
+
+local first 1
+foreach ds of local schemes {
+
+    * qualifying single-unit cxr cells: county_fips route oy miles
+    if "`ds'" == "baseline" {
+        use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
+        drop if mi(county_fips) | mi(route) | mi(open_year)
+        drop if open_year < `open_lo' | open_year > `open_hi'
+        collapse (sum) miles = chain_len, by(county_fips route open_year)
+        bysort county_fips route: gen long n_unit = _N
+        keep if n_unit == 1
+        rename open_year oy
+    }
+    else {
+        use "$pr511_intermediate/PR511_condensed_`ds'.dta", clear
+        drop if mi(county_fips) | mi(route) | mi(open_year_max) | mi(chain_len_total)
+        keep if inrange(open_year_max, `open_lo', `open_hi')
+        bysort county_fips route: gen long n_unit = _N
+        keep if n_unit == 1
+        rename open_year_max  oy
+        rename chain_len_total miles
+    }
+    keep county_fips route oy miles
+
+    * attach FMIS receipts and collapse to cost/mile by opening year
+    merge 1:1 county_fips route using `fmis_cxr', keep(3) nogen
+	
+	collapse (sum) s_total = gt_total s_newc = gt_newc s_miles = miles, by(oy)
+    gen double cm_total_`ds' = s_total / s_miles
+    gen double cm_newc_`ds'  = s_newc  / s_miles
+    keep oy cm_total_`ds' cm_newc_`ds'
+
+    if `first' {
+        tempfile cmseries
+        save `cmseries'
+        local first 0
+    }
+    else {
+        merge 1:1 oy using `cmseries', nogen
+        save `cmseries', replace
+    }
+}
+
+use `cmseries', clear
+rename oy open_year
+sort open_year
+
+
+* ---- one figure per cost measure ----
+foreach meas in total newc {
+    if "`meas'" == "total" local mword "total"
+    else                   local mword "new-construction"
+
+    twoway ///
+        (line cm_`meas'_consec_1years     open_year, lcolor(navy)) ///
+        (line cm_`meas'_consec_2years     open_year, lcolor(navy)  lpattern(dash)) ///
+        (line cm_`meas'_consec_1years_mps open_year, lcolor(green)) ///
+        (line cm_`meas'_consec_2years_mps open_year, lcolor(green) lpattern(dash)), ///
+        title("PR-511 `mword' cost per mile over time", size(medsmall)) ///
+        subtitle("Mileage-weighted FMIS receipts in single-unit county x route cells, by opening year", size(vsmall)) ///
+        xtitle("PR-511 opening year", size(small)) ///
+        ytitle("Cost per mile (millions of 2025 USD)", size(small)) ///
+        xlabel(`open_lo'(10)`open_hi', labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal) format(%9.1f)) ///
+        legend(order( ///
+            1 "Single project, consec 1yr" ///
+            2 "Single project, consec 2yr" ///
+            3 "Single project, consec 1yr + mileposts" ///
+            4 "Single project, consec 2yr + mileposts") size(vsmall) rows(4)) ///
+        note( ///
+            "A cell is a county x route. Cost sums route-resolved FMIS Interstate Construction receipts in cells that reduce to a single unit, over cell miles." ///
+            "Condensed schemes keep cells that collapse to exactly one project, keyed by the project's max opening year." ///
+            "Mileage-weighted: sum of cost over sum of miles within each opening year. Real 2025 USD, PR-511 openings `open_lo'-`open_hi'.", ///
+            size(vsmall) span ///
+        ) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_costpermile_timeseries_byproject_`meas'.png", replace width(2400)
+}
+
+
+* two-year bins
+
+preserve
+gen bin2 = 2*floor(open_year/2)      // 1950 & 1951 -> 1950, 1952 & 1953 -> 1952
+collapse (mean) cm_*, by(bin2)  // average the two years within each block
+
+foreach meas in total newc {
+    if "`meas'" == "total" local mword "total"
+    else                   local mword "new-construction"
+
+    twoway ///
+        (line cm_`meas'_consec_1years     bin2, lcolor(navy)) ///
+        (line cm_`meas'_consec_2years     bin2, lcolor(navy)  lpattern(dash)) ///
+        (line cm_`meas'_consec_1years_mps bin2, lcolor(green)) ///
+        (line cm_`meas'_consec_2years_mps bin2, lcolor(green) lpattern(dash)), ///
+        title("PR-511 `mword' cost per mile over time", size(medsmall)) ///
+        subtitle("Mileage-weighted FMIS receipts in single-unit county x route cells, by opening year", size(vsmall)) ///
+        xtitle("PR-511 opening year (2-year bins)", size(small)) ///
+        ytitle("Cost per mile (millions of 2025 USD)", size(small)) ///
+        xlabel(`open_lo'(10)`open_hi', labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal) format(%9.1f)) ///
+        legend(order( ///
+            1 "Single project, consec 1yr" ///
+            2 "Single project, consec 2yr" ///
+            3 "Single project, consec 1yr + mileposts" ///
+            4 "Single project, consec 2yr + mileposts") size(vsmall) rows(4)) ///
+        note( ///
+            "A cell is a county x route. Cost sums route-resolved FMIS Interstate Construction receipts in cells that reduce to a single unit, over cell miles." ///
+            "Condensed schemes keep cells that collapse to exactly one project, keyed by the project's max opening year." ///
+            "Mileage-weighted: sum of cost over sum of miles within each opening year. Real 2025 USD, PR-511 openings `open_lo'-`open_hi'.", ///
+            size(vsmall) span ///
+        ) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_costpermile_timeseries_byproject_`meas'_2yr_bin.png", replace width(2400)
+}
+restore
+
+preserve
+gen bin3 = 3*floor(open_year/3)    
+collapse (mean) cm_*, by(bin3)  
+
+foreach meas in total newc {
+    if "`meas'" == "total" local mword "total"
+    else                   local mword "new-construction"
+
+    twoway ///
+        (line cm_`meas'_consec_1years     bin3, lcolor(navy)) ///
+        (line cm_`meas'_consec_2years     bin3, lcolor(navy)  lpattern(dash)) ///
+        (line cm_`meas'_consec_1years_mps bin3, lcolor(green)) ///
+        (line cm_`meas'_consec_2years_mps bin3, lcolor(green) lpattern(dash)), ///
+        title("PR-511 `mword' cost per mile over time", size(medsmall)) ///
+        subtitle("Mileage-weighted FMIS receipts in single-unit county x route cells, by opening year", size(vsmall)) ///
+        xtitle("PR-511 opening year (3-year bins)", size(small)) ///
+        ytitle("Cost per mile (millions of 2025 USD)", size(small)) ///
+        xlabel(`open_lo'(10)`open_hi', labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal) format(%9.1f)) ///
+        legend(order( ///
+            1 "Single project, consec 1yr" ///
+            2 "Single project, consec 2yr" ///
+            3 "Single project, consec 1yr + mileposts" ///
+            4 "Single project, consec 2yr + mileposts") size(vsmall) rows(4)) ///
+        note( ///
+            "A cell is a county x route. Cost sums route-resolved FMIS Interstate Construction receipts in cells that reduce to a single unit, over cell miles." ///
+            "Condensed schemes keep cells that collapse to exactly one project, keyed by the project's max opening year." ///
+            "Mileage-weighted: sum of cost over sum of miles within each opening year. Real 2025 USD, PR-511 openings `open_lo'-`open_hi'.", ///
+            size(vsmall) span ///
+        ) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_costpermile_timeseries_byproject_`meas'_3yr_bin.png", replace width(2400)
+}
+restore
+
+preserve
+foreach v of varlist cm_* {
+    rangestat (mean) `v'_ma5 = `v', interval(open_year -2 2)
+}
+collapse (mean) cm_*_ma5, by(open_year)
+
+foreach meas in total newc {
+    if "`meas'" == "total" local mword "total"
+    else                   local mword "new-construction"
+    twoway ///
+        (line cm_`meas'_consec_1years_ma5     open_year, lcolor(navy)) ///
+        (line cm_`meas'_consec_2years_ma5     open_year, lcolor(navy)  lpattern(dash)) ///
+        (line cm_`meas'_consec_1years_mps_ma5 open_year, lcolor(green)) ///
+        (line cm_`meas'_consec_2years_mps_ma5 open_year, lcolor(green) lpattern(dash)), ///
+        title("PR-511 `mword' cost per mile over time", size(medsmall)) ///
+        subtitle("Mileage-weighted FMIS receipts in single-unit county x route cells, by opening year", size(vsmall)) ///
+        xtitle("PR-511 opening year (5-year centered moving average)", size(small)) ///
+        ytitle("Cost per mile (millions of 2025 USD)", size(small)) ///
+        xlabel(`open_lo'(10)`open_hi', labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal) format(%9.1f)) ///
+		legend(order( ///
+            1 "Single project, consec 1yr" ///
+            2 "Single project, consec 2yr" ///
+            3 "Single project, consec 1yr + mileposts" ///
+            4 "Single project, consec 2yr + mileposts") size(vsmall) rows(4)) ///
+        note( ///
+            "A cell is a county x route. Cost sums route-resolved FMIS Interstate Construction receipts in cells that reduce to a single unit, over cell miles." ///
+            "Condensed schemes keep cells that collapse to exactly one project, keyed by the project's max opening year." ///
+            "Mileage-weighted: sum of cost over sum of miles within each opening year. Real 2025 USD, PR-511 openings `open_lo'-`open_hi'.", ///
+            size(vsmall) span ///
+        ) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_costpermile_timeseries_byproject_`meas'_5yr_ma.png", replace width(2400)
+}
+restore
+
+* ==============================================================================
+* Cost per mile over time: 5-year smoothing applied BEFORE the ratio
+* ==============================================================================
+* The moving-average figures above smooth the cost/mile RATIO. That averages
+* ratios, which is not mileage-weighted. Here we instead smooth the numerator
+* (summed cost) and the denominator (summed miles) separately over a centered
+* 5-year window, then divide:
+*     cm_smooth(t) = sum_{s=t-2..t+2} cost(s) / sum_{s=t-2..t+2} miles(s)
+* This is a proper mileage-weighted 5-year average and damps single-year outliers
+* in a mathematically consistent way. Self-contained; requires the condensed
+* project files on disk and rangestat (ssc install rangestat).
+* ------------------------------------------------------------------------------
+
+local open_lo 1950
+local open_hi 2000
+local half 2                 // half-window: the 5-year window is [-2, +2]
+
+* ---- FMIS interstate receipts, route-resolved, inflation-adjusted, per cxr ----
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+keep if funding_program == "Interstate Construction"
+keep if completion_year <= `open_hi' & completion_year >= `open_lo'
+drop if detail_improvementtype == 5 | detail_improvementtype == 59
+gen double new_construction_cost = total_cost_mills if new_construction == 1
+
+gen str3 fpn_prefix = substr(strtrim(federal_project_number), 1, 3)
+gen str3 route_fpn  = ustrregexra(fpn_prefix, "[A-Za-z]", "")
+destring route_fpn, replace
+rename route_fpn route
+capture drop county_fips
+gen double county_fips = state_fips*1000 + countyid
+
+rename completion_year year
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) keep(match) nogen
+replace total_cost_mills      = total_cost_mills      / cpi
+replace new_construction_cost = new_construction_cost / cpi
+drop cpi
+
+collapse (sum) gt_total = total_cost_mills gt_newc = new_construction_cost, by(county_fips route)
+tempfile fmis_cxr
+save `fmis_cxr'
+
+* ---- per-scheme yearly sums, keeping numerator and denominator separately ----
+local schemes baseline consec_1years consec_2years consec_1years_mps consec_2years_mps
+
+local first 1
+foreach ds of local schemes {
+    if "`ds'" == "baseline" {
+        use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
+        drop if mi(county_fips) | mi(route) | mi(open_year)
+        drop if open_year < `open_lo' | open_year > `open_hi'
+        collapse (sum) miles = chain_len, by(county_fips route open_year)
+        bysort county_fips route: gen long n_unit = _N
+        keep if n_unit == 1
+        rename open_year oy
+    }
+    else {
+        use "$pr511_intermediate/PR511_condensed_`ds'.dta", clear
+        drop if mi(county_fips) | mi(route) | mi(open_year_max) | mi(chain_len_total)
+        keep if inrange(open_year_max, `open_lo', `open_hi')
+        bysort county_fips route: gen long n_unit = _N
+        keep if n_unit == 1
+        rename open_year_max  oy
+        rename chain_len_total miles
+    }
+    keep county_fips route oy miles
+
+    merge 1:1 county_fips route using `fmis_cxr', keep(3) nogen
+    collapse (sum) s_total_`ds' = gt_total s_newc_`ds' = gt_newc s_miles_`ds' = miles, by(oy)
+
+    if `first' {
+        tempfile sumseries
+        save `sumseries'
+        local first 0
+    }
+    else {
+        merge 1:1 oy using `sumseries', nogen
+        save `sumseries', replace
+    }
+}
+
+use `sumseries', clear
+rename oy open_year
+sort open_year
+
+* ---- centered 5-year moving SUM of numerator and denominator, then ratio ----
+foreach ds of local schemes {
+    rangestat (sum) s_total_`ds'_w = s_total_`ds'  ///
+                    s_newc_`ds'_w  = s_newc_`ds'   ///
+                    s_miles_`ds'_w = s_miles_`ds', ///
+              interval(open_year -`half' `half')
+    gen double cm_total_`ds' = s_total_`ds'_w / s_miles_`ds'_w
+    gen double cm_newc_`ds'  = s_newc_`ds'_w  / s_miles_`ds'_w
+}
+
+* ---- one figure per cost measure ----
+foreach meas in total newc {
+    if "`meas'" == "total" local mword "total"
+    else                   local mword "new-construction"
+
+    twoway ///
+        (line cm_`meas'_consec_1years     open_year, lcolor(navy)) ///
+        (line cm_`meas'_consec_2years     open_year, lcolor(navy)  lpattern(dash)) ///
+        (line cm_`meas'_consec_1years_mps open_year, lcolor(green)) ///
+        (line cm_`meas'_consec_2years_mps open_year, lcolor(green) lpattern(dash)), ///
+        title("PR-511 `mword' cost per mile over time", size(medsmall)) ///
+        subtitle("5-year window applied to cost and miles before the ratio (mileage-weighted)", size(vsmall)) ///
+        xtitle("PR-511 opening year (centered 5-year window)", size(small)) ///
+        ytitle("Cost per mile (millions of 2025 USD)", size(small)) ///
+        xlabel(`open_lo'(10)`open_hi', labsize(small)) ///
+        ylabel(, labsize(small) angle(horizontal) format(%9.1f)) ///
+        legend(order( ///
+            1 "Single project, consec 1yr" ///
+            2 "Single project, consec 2yr" ///
+            3 "Single project, consec 1yr + mileposts" ///
+            4 "Single project, consec 2yr + mileposts") size(vsmall) rows(4)) ///
+        note( ///
+            "Cost/mile = (sum of route-resolved FMIS receipts over the 5-year window) / (sum of cell miles over the same window)." ///
+            "Smoothing is applied to the numerator and denominator separately, then divided -- not a moving average of the ratio." ///
+            "Single-unit county x route cells only. Real 2025 USD, PR-511 openings `open_lo'-`open_hi'.", ///
+            size(vsmall) span ///
+        ) ///
+        ysize(4) xsize(6)
+    graph export "$out_dir/pr511_costpermile_timeseries_byproject_`meas'_5yr_wtd.png", replace width(2400)
 }
