@@ -273,12 +273,34 @@ def extract_title_data(genai_client,
 # Processing loop
 # ==============================================================================
 
+# Columns pushed to the front of the output CSV for readability
+FRONT_COLS = [
+    "project_title",
+    "project_description",
+    "state_name",
+    "county_name",
+    "route_fpn",
+]
+
 
 def _format_state_fips(value):
     """Format state FIPS as a 2-digit zero-padded string."""
     if pd.isna(value):
         return None
     return f"{int(value):02d}"
+
+
+def _clean_text(value):
+    """Coerces a possibly-missing free text field to a stripped string. """
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return ""
+    return str(value).strip()
+
+
+def _reorder_front_cols(df: pd.DataFrame) -> pd.DataFrame:
+    """Moves FRONT_COLS to the front of the DataFrame, skipping any that are absent."""
+    front = [col for col in FRONT_COLS if col in df.columns]
+    return df[front + [col for col in df.columns if col not in front]]
 
 
 def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path,
@@ -293,19 +315,8 @@ def _save_partial_results(all_dataframes: list[pd.DataFrame], outfile_path,
                        identifier)
         return None
 
-    partial_df = pd.concat(all_dataframes, ignore_index=True)
-
-    # rearrange order of columns
-    front_cols = [
-        "project_title",
-        "state_name",
-        "county_name",
-        "route_fpn",
-    ]
-    partial_df = partial_df[
-        front_cols +
-        [col for col in partial_df.columns if col not in front_cols]]
-
+    partial_df = _reorder_front_cols(
+        pd.concat(all_dataframes, ignore_index=True))
     partial_df.to_csv(outfile_path, index=False)
 
     _log_and_print(
@@ -392,6 +403,7 @@ def process_titles(genai_client,
                     "row_index",
                     "model_id",
                     "project_title",
+                    "project_description",
                     "state_fips",
                     "state_name",
                     "county_fips",
@@ -408,9 +420,18 @@ def process_titles(genai_client,
                 f"\nProcessing row {idx} ({i + 1}/{total_rows}): {recipient_id} / {fpn}"
             )
 
+            title = _clean_text(row.get("projecttitle"))
+            description = _clean_text(row.get("projectdescription"))
+
+            # send the description only when it can add extra information (if the title is repeated verbatim in the description, that just adds pure token cost)
+            if description.upper() == title.upper():
+                description = None
+
             project_input = {
                 "project_title":
-                str(row.get("projecttitle", "")),
+                title,
+                "project_description":
+                description,
                 "state_fips":
                 _format_state_fips(row.get("state_fips")),
                 "state_name":
@@ -423,10 +444,6 @@ def process_titles(genai_client,
                 int(row["route_fpn"])
                 if pd.notna(row.get("route_fpn")) else None,
             }
-
-            if project_input["project_title"] == "":
-                # skip projects with no title; don't raise any error, there are too many of these in FMIS and this is a known issue.
-                continue
 
             try:
                 result = extract_title_data(genai_client,
@@ -523,18 +540,8 @@ def process_titles(genai_client,
                    log_dir, identifier)
 
     if all_dataframes:
-        final_df = pd.concat(all_dataframes, ignore_index=True)
-
-        # rearrange order of columns
-        front_cols = [
-            "project_title",
-            "state_name",
-            "county_name",
-            "route_fpn",
-        ]
-        final_df = final_df[
-            front_cols +
-            [col for col in final_df.columns if col not in front_cols]]
+        final_df = _reorder_front_cols(
+            pd.concat(all_dataframes, ignore_index=True))
 
         print(f"\n Generated dataframe with {final_df.shape[0]} rows")
         final_df.to_csv(outfile_path, index=False)

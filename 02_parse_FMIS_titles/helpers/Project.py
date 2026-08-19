@@ -35,7 +35,8 @@ class LocationRef(BaseModel):
                                   "tunnel", "county_line", "state_line",
                                   "waterway", "other_terrain", "city",
                                   "city_limits", "county", "region",
-                                  "other_landmark", "unknown"]] = None
+                                  "dot_district", "other_landmark",
+                                  "unknown"]] = None
 
     mile_num: Optional[float] = None
     exit_num: Optional[int] = None
@@ -62,6 +63,7 @@ class Project(BaseModel):
     statewide: bool
     various_locs_unspecified: bool
     multi_locs_specified: bool
+    source: Optional[Literal["title", "description", "both"]] = None
     route_reasoning: Optional[str] = None
     segment_length: Optional[float] = None
     segment_length_unit: Optional[str] = None  # "mi", "km", "ft"
@@ -107,7 +109,9 @@ ANCHOR_TYPE_TO_PRECISION = {
     "region": "1",
     "other_terrain": "1",
     "other_landmark": "1",
-    # unknown
+    # no usable precision
+    "dot_district": None,
+    # a DOT district is administrative metadata rather than a project location, so it must never set an endpoint's max precision
     "unknown": None,
 }
 
@@ -195,6 +199,7 @@ def project_to_dataframe(project: Project) -> pd.DataFrame:
         "statewide": project.statewide,
         "various_locs_unspecified": project.various_locs_unspecified,
         "multi_locs_specified": project.multi_locs_specified,
+        "source": project.source,
         "route_reasoning": project.route_reasoning,
         "segment_length": project.segment_length,
         "segment_length_unit": project.segment_length_unit,
