@@ -38,7 +38,7 @@ print(f"PROJECT_ROOT: {PROJECT_ROOT}")
 # ------------------------------------------------------------------------------
 
 # Optional note to log purpose of the run (default set to None)
-NOTE = "Test new v7 prompt which incorporates project description."
+NOTE = "5k validation sample using FMIS GIS projects."
 
 # Set API Parameters
 GEMINI_MODEL_ID = "gemini-2.5-flash"
@@ -50,7 +50,7 @@ GEMINI_MODEL_ID = "gemini-2.5-flash"
 prompt_version = 7
 
 # SET FILE IDENTIFIERS
-RUN_PREFIX = f"VAL_fmis_gis_500_noninterstate_prompt_v{prompt_version}"
+RUN_PREFIX = f"VAL_fmis_gis_5k_noninterstate_prompt_v{prompt_version}"
 
 # SET RESUME PARAMETERS
 REUSE_OLD_RESULTS = False
@@ -66,7 +66,7 @@ page_schema = Project
 ROW_INDICES = None
 # ROW_INDICES = [27, 28, 29, 30]          # manual override; if set, skip auto sample
 # if set (and ROW_INDICES is None), sample this many rows
-SAMPLE_N = 500
+SAMPLE_N = 5000
 # SAMPLE_N = None # use full dataset
 SAMPLE_STRATIFY_BY = None
 # SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
