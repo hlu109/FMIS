@@ -4,7 +4,7 @@
 #SBATCH --output="/home/hl2266/project_pi_zdl3/shared/FMIS project/slurm_logs/gemini_parse_titles_day_%j.log"
 #
 #SBATCH --time=20:00:00
-#SBATCH --mem=1G
+#SBATCH --mem=5G
 #SBATCH --ntasks=1
 #
 #SBATCH --mail-type=FAIL,END
