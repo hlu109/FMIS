@@ -1,0 +1,13 @@
+{
+  "note": "5k validation sample using FMIS GIS projects.",
+  "gemini_model_id": "gemini-2.5-flash",
+  "prompt_version": 7,
+  "run_name": "VAL_fmis_gis_5k_noninterstate",
+  "reuse_old_results": false,
+  "resume_run_identifier": null,
+  "input_path": "geocode_eval/splits/VAL_fmis_gis_project_titles.dta",
+  "row_indices": null,
+  "sample_n": 5000,
+  "sample_stratify_by": null,
+  "random_seed": 42
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Validation sample using FMIS projects matched to counties AND ROUTES with only one year of PR511 openings.",
+  "gemini_model_id": "gemini-2.5-flash",
+  "prompt_version": 7,
+  "run_name": "VAL_fmis_pr511_1yr_ct_rt_interstate_newconstr",
+  "reuse_old_results": false,
+  "resume_run_identifier": null,
+  "input_path": "geocode_eval/splits/VAL_pr511_cty_rt_fmis_interstate_newconstr_project_titles.dta",
+  "row_indices": null,
+  "sample_n": null,
+  "sample_stratify_by": null,
+  "random_seed": 42
+}

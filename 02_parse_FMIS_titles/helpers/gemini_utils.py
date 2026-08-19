@@ -47,9 +47,9 @@ def _format_stratum_counts(label, counts):
 
 
 def log_config(prompt_text_path,
-               gemini_model_id,
                identifier,
                log_dir,
+               config_path=None,
                input_path=None,
                output_path=None,
                run_dir=None,
@@ -57,14 +57,10 @@ def log_config(prompt_text_path,
                row_indices=None,
                sample_n=None,
                sample_stratify_by=None,
-               random_seed=None,
                population_stratum_counts=None,
                allocated_stratum_counts=None,
-               sample_stratum_counts=None,
-               reuse_old_results=False,
-               resume_run_identifier=None,
-               note=None):
-    """Logs prompt text and configuration values for a Gemini run."""
+               sample_stratum_counts=None):
+    """Logs run configs, prompt text, data schema, and sampling diagnostics."""
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -90,32 +86,27 @@ def log_config(prompt_text_path,
             file.write("\n\n")
 
     file_path = os.path.join(log_dir, f"log_{identifier}.txt")
-
-    # archive other config parameters
+    # log config parameters
     with open(file_path, "a", encoding="utf-8") as file:
         file.write(f"[{timestamp}] \n\n")
-        file.write(f"CONFIG PARAMETERS\n\n")
-        if note:
-            file.write(f"Note: {note}\n")
+
+        file.write(f"CONFIG FILE: {config_path}\n\n")
+        with open(config_path, "r", encoding="utf-8") as cfg_file:
+            file.write(cfg_file.read())
+        file.write("\n\n")
+
+        # runtime-resolved paths and sampling outcomes
         file.write(f"Run identifier: {identifier}\n")
         file.write(f"Input file: {input_path}\n")
         file.write(f"Output CSV: {output_path}\n")
-        file.write(f"Intermediate JSON dir: {run_dir}\n")
+        file.write(f"Intermediate JSON output dir: {run_dir}\n")
         file.write(f"Prompt text file: {prompt_text_path}\n")
         if data_struct is not None:
             file.write(f"Data structure file: {data_struct_path}\n")
-        file.write(f"Gemini model: {gemini_model_id}\n")
-        if reuse_old_results:
-            file.write(
-                f"Reuse old results: True, resumed from run '{resume_run_identifier}'\n\n"
-            )
-        else:
-            file.write(f"Reuse old results: False\n\n")
+        file.write("\n")
 
         if sample_n is not None:
-            file.write(f"Sample: n={sample_n}, seed={random_seed}\n")
             if sample_stratify_by is not None:
-                file.write(f"Stratify variables: {sample_stratify_by}\n")
                 file.write(
                     _format_stratum_counts("Population counts by stratum",
                                            population_stratum_counts))
@@ -125,14 +116,13 @@ def log_config(prompt_text_path,
                 file.write(
                     _format_stratum_counts("Realized sample counts by stratum",
                                            sample_stratum_counts))
-            else:
-                file.write("Stratify variables: none (simple random sample)\n")
             if row_indices:
                 if len(row_indices) <= 20:
-                    file.write(f"Row indices: {row_indices}\n")
+                    file.write(f"Row indices sampled: {row_indices}\n")
                 else:
-                    file.write(f"Row indices: {len(row_indices)} rows, "
-                               f"first 10: {row_indices[:10]}\n")
+                    file.write(
+                        f"Row indices sampled: {len(row_indices)} rows, "
+                        f"first 10: {row_indices[:10]}\n")
         elif row_indices:
             if len(row_indices) <= 20:
                 file.write(f"Row indices filter: {row_indices}\n")

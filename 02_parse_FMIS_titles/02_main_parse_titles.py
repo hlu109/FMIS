@@ -84,9 +84,9 @@ def main():
 
     log_config(
         prompt_text_path=config.PROMPT_TEXT_PATH,
-        gemini_model_id=config.GEMINI_MODEL_ID,
         identifier=config.IDENTIFIER,
         log_dir=config.LOG_DIR,
+        config_path=config.CONFIG_PATH,
         input_path=config.INPUT_PATH,
         output_path=config.OUTPUT_PATH,
         run_dir=config.RUN_DIR,
@@ -94,10 +94,6 @@ def main():
         row_indices=row_indices,
         sample_n=config.SAMPLE_N if auto_sample else None,
         sample_stratify_by=config.SAMPLE_STRATIFY_BY if auto_sample else None,
-        random_seed=config.RANDOM_SEED if auto_sample else None,
-        reuse_old_results=config.REUSE_OLD_RESULTS,
-        resume_run_identifier=config.RESUME_RUN_IDENTIFIER,
-        note=config.NOTE,
         population_stratum_counts=population_stratum_counts,
         allocated_stratum_counts=allocated_stratum_counts,
         sample_stratum_counts=sample_stratum_counts,

@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import getpass
 from pathlib import Path
 from datetime import datetime
@@ -30,47 +31,45 @@ DATA_ROOT = PROJECT_ROOT / "Data"
 RAW_DATA_DIR = DATA_ROOT / "Raw"
 INTERMEDIATE_DATA_DIR = DATA_ROOT / "Intermediate"
 GEOCODING_DIR = INTERMEDIATE_DATA_DIR / "geocoding"
+CONFIG_DIR = CODE_ROOT / "02_parse_FMIS_titles" / "configs"
+PROMPTS_DIR = CODE_ROOT / "02_parse_FMIS_titles" / "prompts"
 
 print(f"PROJECT_ROOT: {PROJECT_ROOT}")
 
 # ------------------------------------------------------------------------------
-# SET PARAMETERS
+# LOAD RUN CONFIG
 # ------------------------------------------------------------------------------
+config_fname = "VAL_fmis_pr511_1yr_ct_rt_interstate_newconstr.json"
 
-# Optional note to log purpose of the run (default set to None)
-NOTE = "5k validation sample using FMIS GIS projects."
+CONFIG_PATH = CONFIG_DIR / config_fname
 
-# Set API Parameters
-GEMINI_MODEL_ID = "gemini-2.5-flash"
-# GEMINI_MODEL_ID = "gemini-2.5-pro"
-# GEMINI_MODEL_ID = "gemini-3.1-pro"
-# GEMINI_MODEL_ID = "gemini-3.5-flash"
+with open(CONFIG_PATH, "r", encoding="utf-8") as file:
+    run_config = json.load(file)
+print(f"Loaded run config: {CONFIG_PATH}")
 
-# SET GEMINI PROMPT
-prompt_version = 7
+# ------------------------------------------------------------------------------
+# UNPACK CUSTOMIZABLE PARAMETERS
+# ------------------------------------------------------------------------------
+# required
+GEMINI_MODEL_ID = run_config["gemini_model_id"]
+prompt_version = run_config["prompt_version"]
+run_name = run_config["run_name"]
+INPUT_PATH = INTERMEDIATE_DATA_DIR / run_config["input_path"]
+
+# optional (default None or as specified)
+NOTE = run_config.get("note")
+REUSE_OLD_RESULTS = run_config.get("reuse_old_results", False)
+RESUME_RUN_IDENTIFIER = run_config.get("resume_run_identifier")
+ROW_INDICES = run_config.get("row_indices")
+SAMPLE_N = run_config.get("sample_n")
+SAMPLE_STRATIFY_BY = run_config.get("sample_stratify_by")
+RANDOM_SEED = run_config.get("random_seed", 42)
 
 # SET FILE IDENTIFIERS
-RUN_PREFIX = f"VAL_fmis_gis_5k_noninterstate_prompt_v{prompt_version}"
-
-# SET RESUME PARAMETERS
-REUSE_OLD_RESULTS = False
-RESUME_RUN_IDENTIFIER = None
-
-# SET FILE PATHS
-INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "VAL_fmis_gis_project_titles.dta"
+RUN_PREFIX = f"{run_name}_prompt_v{prompt_version}"
 
 # SET SCHEMA
 page_schema = Project
-
-# SET SAMPLING PARAMETERS
-ROW_INDICES = None
-# ROW_INDICES = [27, 28, 29, 30]          # manual override; if set, skip auto sample
-# if set (and ROW_INDICES is None), sample this many rows
-SAMPLE_N = 5000
-# SAMPLE_N = None # use full dataset
-SAMPLE_STRATIFY_BY = None
-# SAMPLE_STRATIFY_BY = ["state_fips", "post_1970_auth", "below_median_cost"]
-RANDOM_SEED = 42
 
 # ------------------------------------------------------------------------------
 # AUTO SET REMAINING FILE PATHS
@@ -84,7 +83,7 @@ else:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     IDENTIFIER = f"{RUN_PREFIX}_{timestamp}"
 
-PROMPT_TEXT_PATH = CODE_ROOT / "02_parse_FMIS_titles" / "prompts" / f"prompt v{prompt_version}.md"
+PROMPT_TEXT_PATH = PROMPTS_DIR / f"prompt v{prompt_version}.md"
 
 GEMINI_DIR = GEOCODING_DIR / "title_parsing_gemini_output"
 LOG_DIR = GEOCODING_DIR / "title_parsing_gemini_logs"
