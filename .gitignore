@@ -321,3 +321,6 @@ BrooksLiscowReplication/*
 
 # API keys
 secret/
+
+
+*.DS_Store
