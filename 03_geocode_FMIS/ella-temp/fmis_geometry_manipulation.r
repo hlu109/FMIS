@@ -5,11 +5,14 @@
   library(mapview)
   library(lwgeom)
 
-  setwd('/Users/egoecknerwald/Library/CloudStorage/Dropbox/FHWA cost data/Code/ella-temp/extracted_geometry/')
+  setwd('/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data/Code/ella-temp/extracted_geometry/')
 
+  ##version control
+    version <- "VAL_fmis_gis_5k_noninterstate_prompt_v6_20260812_123113_corrected"
+  
   ##loading intermediate files
-    main_routes_intermediate <- read_sf('main_routes_intermediate/main_routes_intermediate.gpkg')
-    references_intermediate  <- read_sf('references_intermediate/references_intermediate.gpkg')
+    main_routes_intermediate <- read_sf(paste0('main_routes_intermediate/main_routes_intermediate_', version, '.gpkg'))
+    references_intermediate  <- read_sf(paste0('references_intermediate/references_intermediate_', version, '.gpkg'))
   
     ##import for stitched test--temp
       #main_routes_intermediate <- read_sf('/Users/egoecknerwald/Library/CloudStorage/Dropbox/FHWA cost data/Code/ella-temp/extracted_geometry/main_routes_intermediate/main_routes_intermediate_stitched.gpkg')
@@ -60,16 +63,16 @@
       st_set_geometry("geometry_adj")
   
   ##check
-    offset <- which(references_adjusted$rel_type == "offset" & references_adjusted$geom_empty == FALSE & references_adjusted$anchor_type == 'highway')
-    
-    mapview(references_adjusted$geom[24], color = "green") +
-      mapview(references_adjusted$geometry_adj[24], color = "red")
-    
-    mapview(references_adjusted$geom[64], color = "green") +
-      mapview(references_adjusted$geometry_adj[64], color = "red")
-    
-    mapview(references_adjusted$geom[offset[25]], color = "green") +
-      mapview(references_adjusted$geometry_adj[offset[25]], color = "red")
+    # offset <- which(references_adjusted$rel_type == "offset" & references_adjusted$geom_empty == FALSE & references_adjusted$anchor_type == 'highway')
+    # 
+    # mapview(references_adjusted$geom[24], color = "green") +
+    #   mapview(references_adjusted$geometry_adj[24], color = "red")
+    # 
+    # mapview(references_adjusted$geom[64], color = "green") +
+    #   mapview(references_adjusted$geometry_adj[64], color = "red")
+    # 
+    # mapview(references_adjusted$geom[offset[25]], color = "green") +
+    #   mapview(references_adjusted$geometry_adj[offset[25]], color = "red")
 
 ####Checking####
   ##creating df for viewing stats
@@ -159,20 +162,20 @@
              !is_bad(endpoint_b_geom))
     
     ##test
-      testrow <- 22
-      
-      r  <- projects_geom_clean[testrow,]
-      cr <- st_crs(main_routes_intermediate)
-      
-      route <- st_sf(what = "route",      geometry = st_sfc(r$main_route_geom[[1]], crs = cr))
-      epa   <- st_sf(what = "endpoint_a", geometry = st_sfc(r$endpoint_a_geom[[1]], crs = cr))
-      epb   <- st_sf(what = "endpoint_b", geometry = st_sfc(r$endpoint_b_geom[[1]], crs = cr))
-      
-      mapview(route, color = "black", lwd = 4) +
-        mapview(epa, col.regions = "red",  cex = 20) +
-        mapview(epb, col.regions = "blue", cex = 20)
-      
-      print(projects_geom_clean$project_title[testrow])
+      # testrow <- 22
+      # 
+      # r  <- projects_geom_clean[testrow,]
+      # cr <- st_crs(main_routes_intermediate)
+      # 
+      # route <- st_sf(what = "route",      geometry = st_sfc(r$main_route_geom[[1]], crs = cr))
+      # epa   <- st_sf(what = "endpoint_a", geometry = st_sfc(r$endpoint_a_geom[[1]], crs = cr))
+      # epb   <- st_sf(what = "endpoint_b", geometry = st_sfc(r$endpoint_b_geom[[1]], crs = cr))
+      # 
+      # mapview(route, color = "black", lwd = 4) +
+      #   mapview(epa, col.regions = "red",  cex = 20) +
+      #   mapview(epb, col.regions = "blue", cex = 20)
+      # 
+      # print(projects_geom_clean$project_title[testrow])
       
   ##checking geometry types
     table(st_geometry_type(projects_geom_clean$main_route_geom))
@@ -425,17 +428,17 @@
     projects_geom_cropped_subset %>%
       st_drop_geometry() %>% 
       st_set_geometry("endpoint_a_geom") %>% 
-      st_write("main_routes_cropped/endpoint_a.gpkg", delete_layer = TRUE)
+      st_write(paste0("main_routes_cropped/endpoint_a_", version, ".gpkg"), delete_layer = TRUE)
     
     projects_geom_cropped_subset %>%
       st_drop_geometry() %>% 
       st_set_geometry("endpoint_b_geom") %>% 
-      st_write("main_routes_cropped/endpoint_b.gpkg", delete_layer = TRUE)
+      st_write(paste0("main_routes_cropped/endpoint_b_", version, ".gpkg"), delete_layer = TRUE)
     
     projects_geom_cropped_subset %>%
       st_drop_geometry() %>% 
       st_set_geometry("route_cropped") %>% 
-      st_write("main_routes_cropped/route_cropped.gpkg", delete_layer = TRUE)
+      st_write(paste0("main_routes_cropped/route_cropped_", version, ".gpkg"), delete_layer = TRUE)
     
     
     

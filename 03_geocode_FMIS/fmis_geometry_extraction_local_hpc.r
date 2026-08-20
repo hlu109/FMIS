@@ -8,6 +8,9 @@
       library(future.apply)
     })
   
+  ##data version
+    version <- "VAL_fmis_gis_5k_noninterstate_prompt_v6_20260812_123113_corrected"
+    
   ##data & cache paths
     setwd('/home/egoecknerwald/fmis')    
     #setwd('/Users/egoecknerwald/Library/CloudStorage/Dropbox/FHWA cost data/Code/ella-temp')
@@ -18,7 +21,7 @@
     county_zip_stem <- "tl_2013_us_county"
     tiger_root       <- 'data/tiger_cb'
     cache_dir     <- 'data/tiger_cb/cache'
-    endpoints_csv <- 'data/fmis_endpoints/interstate_new_constr_10k_v5_20260710_113650.csv'
+    endpoints_csv <- paste0('data/fmis_endpoints/', version, '.csv')
     out_dir       <- 'data/extracted_geometry/by_state'
     
   ##clearing cache from prev run  
@@ -720,7 +723,7 @@
         st_as_sf(sf_column_name = "geometry")
       dir.create("data/extracted_geometry/references_intermediate", recursive = TRUE, showWarnings = FALSE)
       write_sf(references_intermediate,
-               "data/extracted_geometry/references_intermediate/references_intermediate.gpkg",
+               paste0("data/extracted_geometry/references_intermediate/references_intermediate_", version, ".gpkg"),
                delete_layer = TRUE)
       message("wrote references_intermediate.gpkg (", nrow(references_intermediate), " rows)")
       
@@ -748,7 +751,7 @@
         st_as_sf()
       dir.create("data/extracted_geometry/main_routes_intermediate", recursive = TRUE, showWarnings = FALSE)
       write_sf(main_routes_intermediate,
-               "data/extracted_geometry/main_routes_intermediate/main_routes_intermediate.gpkg",
+               paste0("data/extracted_geometry/main_routes_intermediate/main_routes_intermediate_", version, ".gpkg"),
                delete_layer = TRUE)
       message("wrote main_routes_intermediate.gpkg (", nrow(main_routes_intermediate), " rows)")
     }
