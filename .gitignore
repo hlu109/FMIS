@@ -310,6 +310,10 @@ renv/*
 renv.lock 
 
 # ------------------------------------------------------------------------------
+# misc 
+.claude/*
+.vscode/*
+
 
 # Hannah misc files 
 BrooksLiscowReplication/*
