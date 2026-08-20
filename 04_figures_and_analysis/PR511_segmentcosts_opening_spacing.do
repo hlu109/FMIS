@@ -1,3 +1,9 @@
+/*==============================================================================
+*   determine how PR-511 opening years are arranged in time across county x route cells.
+    Trying to see how prevalent the case of loose bunching is that may prevent us from correctly assigning
+    FMIS spending
+==============================================================================*/
+
 local user = c(username)
 if "`user'" == "andersonkovesci"{
 	global output "/Users/andersonkovesci/Dropbox/FHWA cost data/Output/Andy"
@@ -80,6 +86,46 @@ restore
 * look at how multiple-opening distributions appear in time series
 
 use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
+
+collapse (sum) chain_len, by(open_year)
+keep if open_year <= 2000 & open_year >= 1950
+rename open_year completion_year
+
+tempfile pr511_year
+save `pr511_year'
+
+use "$intermediate_data/receipt_level_FMIS_lite.dta", clear
+keep if funding_program == "Interstate Construction"
+keep if completion_year <= 2000 & completion_year >= 1950
+
+gen double new_construction_cost = total_cost_mills if new_construction == 1
+gen double row_cost = total_cost_mills if detail_improvementtype == 16
+gen double pe_cost  = total_cost_mills if detail_improvementtype == 15
+
+* inflation-adjust every dollar figure by completion year -> 2025 USD, millions
+rename completion_year year
+merge m:1 year using "$intermediate_data/CPI_2025.dta", keepusing(cpi) keep(match) nogen
+foreach v in total_cost_mills new_construction_cost row_cost pe_cost {
+    replace `v' = `v' / cpi
+}
+drop cpi
+rename year completion_year
+
+collapse (sum) total_cost_mills, by(completion_year)
+merge 1:1 completion_year using `pr511_year', nogen
+sort completion_year
+
+twoway (line chain_len completion_year, yaxis(1)) ///
+       (line total_cost_mills completion_year, yaxis(2)), ///
+    title("Total PR-511 Miles and FMIS Spending per Year") ///
+    xtitle("Opening Year") ///
+    ytitle("Total PR-511 Miles", axis(1)) ///
+    ytitle("Total FMIS Spending (millions)", axis(2)) ///
+	legend(position(6) rows(1) label(1 "PR-511 Miles") label(2 "FMIS Spending"))
+
+graph export "$out_dir/pr511_total_miles_per_year.png", replace width(2400)
+
+exit
 
 egen cxr = group(county_fips route)
 bys cxr open_year: gen byte unq = (_n == 1)
@@ -186,7 +232,6 @@ tabulate n_chains
 summarize duration_years chain_len_total, detail
 }
 
-
 * ==============================================================================
 * Figures for pacing / bunching of PR-511 opening years
 * ==============================================================================
@@ -244,19 +289,32 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
 
     * county x route cell id
     gen double cellid = county_fips*1000 + route
+	
+	if "`ds'" == "baseline" {
+	collapse (sum) miles = `milesvar', by(cellid `yvar')
 
-    * -- one row per cell x opening-year, carrying miles opened -----------------
-    collapse (sum) miles = `milesvar', by(cellid `yvar')
-    if "`yvar'" != "open_year" rename `yvar' open_year
-
-    * distinct opening years, gaps between consecutive years, span, total miles
-    bysort cellid (open_year): gen double gap = open_year - open_year[_n-1] if _n > 1
+	bysort cellid (open_year): gen double gap = open_year - open_year[_n-1] if _n > 1
     by cellid: gen long n_years = _N
     by cellid: egen double cell_miles = total(miles)
     by cellid: egen double min_gap   = min(gap)     // missing for single-year cells
     by cellid: egen double ymin       = min(open_year)
     by cellid: egen double ymax       = max(open_year)
     gen double span = ymax - ymin
+		
+	}
+        
+	else {
+	collapse (sum) miles = `milesvar', by(cellid open_year_min open_year_max)
+	
+	bysort cellid (open_year_max): gen double gap = open_year_min - open_year_max[_n-1] if _n > 1
+	by cellid: gen long n_years = _N
+	by cellid: egen double cell_miles = total(miles)
+    by cellid: egen double min_gap   = min(gap)     // missing for single-year cells
+    by cellid: egen double ymin       = min(open_year_min)
+    by cellid: egen double ymax       = max(open_year_max)
+	gen double span = ymax - ymin
+
+	}
 
     * ==========================================================================
     * Figure A1: how many distinct opening years does a cell have?
