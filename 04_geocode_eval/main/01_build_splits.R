@@ -27,7 +27,7 @@ if (user == "hl2266") {
 source(file.path(getwd(), "04_geocode_eval", "helpers", "splits.R"))
 # ==============================================================================
 
-geocode_eval_dir <- file.path(data_dir, "Intermediate", "geocode_eval")
+geocode_eval_dir <- file.path(data_dir, "Intermediate", "geocoding", "evaluation")
 gt_dir <- file.path(geocode_eval_dir, "ground_truth")
 splits_dir <- file.path(geocode_eval_dir, "splits")
 dir.create(gt_dir, recursive = TRUE, showWarnings = FALSE)

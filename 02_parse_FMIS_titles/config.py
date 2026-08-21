@@ -57,7 +57,7 @@ REUSE_OLD_RESULTS = False
 RESUME_RUN_IDENTIFIER = None
 
 # SET FILE PATHS
-INPUT_PATH = INTERMEDIATE_DATA_DIR / "geocode_eval" / "splits" / "VAL_fmis_gis_project_titles.dta"
+INPUT_PATH = GEOCODING_DIR / "evaluation" / "splits" / "VAL_fmis_gis_project_titles.dta"
 
 # SET SCHEMA
 page_schema = Project
