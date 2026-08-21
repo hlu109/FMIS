@@ -5,10 +5,37 @@
   library(mapview)
   library(lwgeom)
 
-  setwd('/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data/Code/ella-temp/extracted_geometry/')
+  get_dropbox_path <- function(account_type = "personal") {
+    if (!requireNamespace("jsonlite", quietly = TRUE)) {
+      stop("The 'jsonlite' package is required. Please install it using install.packages('jsonlite')")
+    }
+    sys_name <- Sys.info()[["sysname"]]
+    json_path <- NULL
+    if (sys_name == "Darwin") {
+      json_path <- file.path(path.expand("~"), ".dropbox", "info.json")
+    } else if (sys_name == "Windows") {
+      appdata_path <- file.path(Sys.getenv("APPDATA"), "Dropbox", "info.json")
+      local_path <- file.path(Sys.getenv("LOCALAPPDATA"), "Dropbox", "info.json")
+      if (file.exists(appdata_path)) {
+        json_path <- appdata_path
+      } else if (file.exists(local_path)) {
+        json_path <- local_path
+      }
+    } else if (sys_name == "Linux") {
+      json_path <- file.path(path.expand("~"), ".dropbox", "info.json")
+    }
+    if (!is.null(json_path) && file.exists(json_path)) {
+      info <- jsonlite::fromJSON(json_path)
+      return(info[[account_type]][["path"]])
+    } else {
+      stop("Could not automatically locate the Dropbox info.json file.")
+    }
+  }
+  
+  setwd(paste0(get_dropbox_path(), "/FHWA cost data/data/Intermediate/extracted_geometry"))
 
   ##version control
-    version <- "VAL_fmis_gis_5k_noninterstate_prompt_v6_20260812_123113_corrected"
+    version <- "VAL_fmis_pr511_1yr_ct_rt_interstate_newconstr_prompt_v7_20260819_141210"
   
   ##loading intermediate files
     main_routes_intermediate <- read_sf(paste0('main_routes_intermediate/main_routes_intermediate_', version, '.gpkg'))
@@ -121,7 +148,7 @@
       theme(axis.text.x = element_text(angle = 30, hjust = 1), legend.position = "top")
     
   ##view specific df subset
-    View(references_intermediate_stat[which(references_intermediate_stat$anchor_type == "city"),])
+    #View(references_intermediate_stat[which(references_intermediate_stat$anchor_type == "city"),])
   
     
 ####Joining dfs by project####
