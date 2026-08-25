@@ -25,10 +25,19 @@ output:
   pdf_document: 
     extra_dependencies: ["booktabs", "multirow", "makecell", "float", "longtable"]
 knit: (function(inputFile, encoding) {
-  rmarkdown::render(inputFile, 
-  encoding = encoding, 
-  output_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data/Output/Finn", 
-  output_file = paste0(format(Sys.Date(), "%Y-%m-%d"), " FMIS Mile Marker GIS Testing.pdf"))
+  input_path <- normalizePath(inputFile, winslash = "/", mustWork = TRUE);
+  repo       <- dirname(dirname(dirname(input_path)));
+  root_dir   <- dirname(dirname(repo));
+  user_name  <- sub("^FMIS_", "", basename(repo));
+  user_name  <- paste0(toupper(substr(user_name, 1, 1)), substring(user_name, 2));
+  out_dir    <- file.path(root_dir, "Output", user_name);
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE);
+  out <- rmarkdown::render(inputFile,
+  encoding = encoding,
+  output_dir = out_dir,
+  output_file = paste0(format(Sys.Date(), "%Y-%m-%d"), " FMIS Mile Marker GIS Testing.pdf"));
+  unlink(file.path(out_dir, paste0(tools::file_path_sans_ext(basename(input_path)), "_files")), recursive = TRUE);
+  out
   })
 ---
 
@@ -38,19 +47,26 @@ options(scipen = 0, digits = 6)
 if(!require('pacman')) {
   install.packages('pacman')
 }
-pacman::p_load(ggplot2, dplyr, tidyverse, data.table, lubridate, ggpubr, skimr, scales, tidycensus, readxl, httr, jsonlite, sf, mapview, tigris, lehdr, spatstat, crsuggest, dbmss, stargazer, rayshader, lmtest, sandwich, fixest, modelsummary, usmap, haven, janitor, fredr, purrr, tidycensus, here, ggtext, knitr, ggrepel, kableExtra)
+pacman::p_load(tidyverse, scales, readxl, haven, sf, usmap, fixest, modelsummary, stargazer, broom, here, knitr, kableExtra, ggtext, ggrepel)
 
-root_dir = "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
-data_dir = file.path(root_dir, "Data", "Intermediate")
-output_dir = file.path(root_dir, "Output", "Finn", "geocoding analysis")
-code_dir = file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "fmis_gis")
+here::i_am("04_figures_and_analysis/fmis_mile_marker_analysis/fmis_mile_marker_analysis.Rmd")
+
+repo  <- normalizePath(here::here(), winslash = "/", mustWork = FALSE)
+root_dir  <- dirname(dirname(repo))
+
+user_name <- sub("^FMIS_", "", basename(repo))
+user_name <- paste0(toupper(substr(user_name, 1, 1)), substring(user_name, 2))
+
+data_dir   <- file.path(root_dir, "Data", "Intermediate")
+output_dir <- file.path(root_dir, "Output", user_name, "geocoding analysis")
+code_dir   <- here::here("04_figures_and_analysis", "fmis_mile_marker_analysis")
 
 knitr::opts_knit$set(root.dir = root_dir)
 
 options(tinytex.latexmk.warning = FALSE)
 # options(viewer = NULL)
 
-source(file.path(root_dir, "Code", "FMIS_finn", "04_figures_and_analysis", "geocoding_analysis", "functions_aesthetic.R"), local=T)
+source(here("04_figures_and_analysis", "geocoding_potential_analysis", "functions_aesthetic.R"), local=T)
 
 # make figures in latex, pull titles as the figure title rather than within plot
 knitr::opts_chunk$set(fig.pos = "H", fig.topcaption = T)
@@ -346,47 +362,6 @@ iija_cy_1yr_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle 
 iija_cy_2yr_codes$es_plots[["All Project Types"]] + labs(title = NULL, subtitle = NULL)
 ```
 
-\newpage
-## Aggregate trends over time
-
-These figures are a replication of the aggregate trends over time in a previous section, but use the year of construction authorization as the x variable rather than the year of completion.
-
-```{r, echo=F, fig.width=8, fig.height=5}
-ggplot(
-  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
-  aes(x = auth_year, y = n, col = work_type)
-) +
-  geom_line() +
-  facet_wrap(~ definition) +
-  labs(
-    title = "Number of FMIS Projects over Time, by Work Type",
-    subtitle = "FMIS Projects Authorized from 1990-2023",
-    col = NULL,
-    x = "Project Construction Authorization Year", y = "# Projects",
-    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
-  ) +
-  qje_theme()
-```
-
-```{r, echo=F, fig.width=8, fig.height=5}
-ggplot(
-  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
-  aes(x = auth_year, y = cost, col = work_type)
-) +
-  geom_line() +
-  facet_wrap(~ definition) +
-  labs(
-    title = "FMIS Spending over Time, by Work Type",
-    subtitle = "FMIS Spending Authorized from 1990-2023",
-    col = NULL,
-    x = "Project Construction Authorization Year", y = "Spending ($ Millions)",
-    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
-  ) +
-  qje_theme()
-```
-
-
-
 
 
 # 7/27 - Mile Marker Subsample Representativeness
@@ -544,7 +519,7 @@ ggplot(
   qje_theme()
 ```
 
-## Aggregate trends over time
+## Aggregate trends over time (completion year)
 
 ```{r, echo=F, fig.width=8, fig.height=5}
 ggplot(
@@ -579,6 +554,44 @@ ggplot(
   ) +
   qje_theme()
 ```
+
+\newpage
+## Aggregate trends over time (authorization year)
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
+  aes(x = auth_year, y = n, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "Number of FMIS Projects over Time, by Work Type",
+    subtitle = "FMIS Projects Authorized from 1990-2023",
+    col = NULL,
+    x = "Project Construction Authorization Year", y = "# Projects",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
+```{r, echo=F, fig.width=8, fig.height=5}
+ggplot(
+  data = plf_gis_year_authconst_type %>% filter(auth_year >= 1990, auth_year <= 2023),
+  aes(x = auth_year, y = cost, col = work_type)
+) +
+  geom_line() +
+  facet_wrap(~ definition) +
+  labs(
+    title = "FMIS Spending over Time, by Work Type",
+    subtitle = "FMIS Spending Authorized from 1990-2023",
+    col = NULL,
+    x = "Project Construction Authorization Year", y = "Spending ($ Millions)",
+    caption = "Data is the sample of all FMIS projects. The first year with any project-level GIS data is 1993, so observations before 1990 are excluded. \"Has this type\" counts every project flagged with the work type (a project may have several); \"Has only this type\" restricts to projects with that work type and no other."
+  ) +
+  qje_theme()
+```
+
 
 ```{r, results='asis', echo=F}
 plf_gis %>% filter(completion_year >= 2015) %>% 
