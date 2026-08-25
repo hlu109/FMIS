@@ -20,6 +20,7 @@ else if "`user'" == "hl2266"{
 }
 else if "`user'" == "fm557"{
 	global project_root "C:/Users/fm557/YLS Dropbox/Finn Meffe/FHWA cost data"
+	*global output "C:/Users/fm557/Documents/FMIS Workspace/figures"
 	global output "$project_root/Output/Finn"
 	global data "$project_root/Data"
 	global raw_data "$data/Raw"
@@ -111,6 +112,7 @@ foreach v in total_cost_mills new_construction_cost row_cost pe_cost {
 drop cpi
 rename year completion_year
 
+preserve
 collapse (sum) total_cost_mills, by(completion_year)
 merge 1:1 completion_year using `pr511_year', nogen
 sort completion_year
@@ -124,14 +126,14 @@ twoway (line chain_len completion_year, yaxis(1)) ///
 	legend(position(6) rows(1) label(1 "PR-511 Miles") label(2 "FMIS Spending"))
 
 graph export "$out_dir/pr511_total_miles_per_year.png", replace width(2400)
+restore
 
-exit
-
+/*
 egen cxr = group(county_fips route)
 bys cxr open_year: gen byte unq = (_n == 1)
 by cxr: egen n_unq = sum(unq)
 collapse (max) n_unq (first) county_fips (first) route, by(cxr)
-
+*/
 
 * pr-511 project collapse
 * collapse if consecutive years and mile posts
@@ -194,7 +196,7 @@ drop if mi(st) | mi(county) | mi(route) | mi(open_year) | mi(mp_start) | mi(mp_e
 qui count
 local n_in = r(N)
 
-sort county_fips route mp_start open_year
+sort county_fips route open_year mp_start
 
 by county_fips route: gen byte proj_break = (_n == 1) ///
     | (abs(open_year - open_year[_n-1]) > `yeartol')
@@ -291,16 +293,27 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
     gen double cellid = county_fips*1000 + route
 	
 	if "`ds'" == "baseline" {
-	collapse (sum) miles = `milesvar', by(cellid `yvar')
+	* entry/segment-row level: keep every chain row as its own opening (no
+	* collapse to distinct opening years), so two entries opening the same year
+	* count as two openings and produce a within-year gap of 0.
+	gen double miles = `milesvar'
 
 	bysort cellid (open_year): gen double gap = open_year - open_year[_n-1] if _n > 1
     by cellid: gen long n_years = _N
     by cellid: egen double cell_miles = total(miles)
-    by cellid: egen double min_gap   = min(gap)     // missing for single-year cells
+    by cellid: egen double min_gap   = min(gap)     // missing for single-entry cells
     by cellid: egen double ymin       = min(open_year)
     by cellid: egen double ymax       = max(open_year)
     gen double span = ymax - ymin
-		
+
+    * wording: A1/A2 describe openings at the entry level for the baseline input
+    local a1_title  "PR-511 openings (entries) per `=lower("`unitlab'")' cell"
+    local a1_xtitle "Number of openings (segment entries)"
+    local a1_multiword "have more than one opening"
+    local a1_note1  "A cell is a `=lower("`unitlab'")'. Each PR-511 segment entry counts as one opening; two entries opening the same year count as two openings (gap 0)."
+    local a1_note2  "Cells with a single opening admit clean attribution of FMIS spending; multi-opening cells are the concern."
+    local a2_title  "Gaps between consecutive PR-511 openings (entries)"
+    local a2_xtitle "Years between successive segment entries in the same cell"
 	}
         
 	else {
@@ -314,6 +327,14 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
     by cellid: egen double ymax       = max(open_year_max)
 	gen double span = ymax - ymin
 
+    * wording: A1/A2 describe openings at the distinct opening-year level
+    local a1_title  "Distinct PR-511 opening years per `=lower("`unitlab'")' cell"
+    local a1_xtitle "Number of distinct opening years"
+    local a1_multiword "open in more than one year"
+    local a1_note1  "A cell is a `=lower("`unitlab'")'. Opening year is the entry's opening year; entries opening the same year count as one opening year."
+    local a1_note2  "Cells with a single opening year admit clean attribution of FMIS spending; multi-year cells are the concern."
+    local a2_title  "Gaps between consecutive PR-511 opening years"
+    local a2_xtitle "Years between successive opening years in the same cell"
 	}
 
     * ==========================================================================
@@ -327,16 +348,21 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
         local nmulti = r(N)
         local pctmulti : display %4.1f 100*`nmulti'/`ncells'
 
-        histogram n_years, discrete frequency ///
-            title("Distinct PR-511 opening years per `=lower("`unitlab'")' cell", size(medsmall)) ///
-            subtitle("`dslab' | `open_lo'-`open_hi'; `nmulti' of `ncells' cells (`pctmulti'%) open in more than one year", size(vsmall)) ///
-            xtitle("Number of distinct opening years", size(small)) ///
-            ytitle("Number of cells", size(small)) ///
+        * miles-weighted: share of cell miles by number of openings
+        collapse (sum) _w = cell_miles, by(n_years)
+        egen double _tot = total(_w)
+        gen double pct_miles = 100*_w/_tot
+
+        twoway bar pct_miles n_years, barwidth(0.9) color(navy) ///
+            title("`a1_title'", size(medsmall)) ///
+            subtitle("`dslab' | `open_lo'-`open_hi'", size(vsmall)) ///
+            xtitle("`a1_xtitle'", size(small)) ///
+            ytitle("Percent of miles", size(small)) ///
             xlabel(1(1)10, labsize(small)) ///
             ylabel(, labsize(small) angle(horizontal)) ///
             note( ///
-                "A cell is a `=lower("`unitlab'")'. Opening year is the entry's opening year; entries opening the same year count as one opening year." ///
-                "Cells with a single opening year admit clean attribution of FMIS spending; multi-year cells are the concern.", ///
+                "`a1_note1'" ///
+                "`a1_note2'", ///
                 size(vsmall) span ///
             ) ///
             legend(off) ysize(4) xsize(6)
@@ -357,12 +383,17 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
             local ngaps  = r(N)
             local pctclose : display %4.1f 100*`nclose'/`ngaps'
 
-            histogram gap, discrete frequency ///
+            * miles-weighted: share of opening miles by gap length
+            collapse (sum) _w = miles, by(gap)
+            egen double _tot = total(_w)
+            gen double pct_miles = 100*_w/_tot
+
+            twoway bar pct_miles gap, barwidth(0.9) color(navy) ///
                 xline(`sep_wide', lpattern(dash) lcolor(red)) ///
-                title("Gaps between consecutive PR-511 opening years", size(medsmall)) ///
-                subtitle("`dslab' | within `=lower("`unitlab'")' cells, `open_lo'-`open_hi'; `nclose' of `ngaps' gaps (`pctclose'%) fall below `sep_wide' years", size(vsmall)) ///
-                xtitle("Years between successive opening years in the same cell", size(small)) ///
-                ytitle("Number of gaps", size(small)) ///
+                title("`a2_title'", size(medsmall)) ///
+                subtitle("`dslab' | within `=lower("`unitlab'")' cells, `open_lo'-`open_hi'", size(vsmall)) ///
+                xtitle("`a2_xtitle'", size(small)) ///
+                ytitle("Percent of miles", size(small)) ///
                 xlabel(0(5)40, labsize(small)) ///
                 ylabel(, labsize(small) angle(horizontal)) ///
                 note( ///
@@ -452,3 +483,127 @@ foreach ds in baseline consec_1years consec_1years_mps consec_2years consec_2yea
     graph export "$out_dir/pr511_spacing_difficulty_`dstag'.png", replace width(2400)
 restore
 }
+
+* ==============================================================================
+* Figures A4-A6: baseline gap distributions by exact number of openings (entries)
+* ------------------------------------------------------------------------------
+* Baseline chains at the entry/segment-row level: each chain row is one opening,
+* so two entries opening the same year count as two openings and produce a
+* within-cell gap of 0. County x route cells; openings restricted to
+* `open_lo'-`open_hi'. Gap k within a cell = (opening k+1's year) - (opening k's year).
+*   A4: cells with exactly 2 openings -> the single gap
+*   A5: cells with exactly 3 openings -> the 1st gap (opening2 - opening1)
+*   A6: cells with exactly 3 openings -> the 2nd gap (opening3 - opening2)
+* ==============================================================================
+
+use "$pr511_intermediate/PR511_hubbardmazzeo_chained.dta", clear
+drop if mi(county_fips) | mi(route)
+drop if mi(open_year) | open_year < `open_lo' | open_year > `open_hi'
+
+gen double cellid = county_fips*1000 + route
+
+bysort cellid (open_year): gen long open_ord = _n
+by cellid: gen long n_open = _N
+by cellid: egen double cell_miles = total(chain_len)
+by cellid: gen double gap = open_year - open_year[_n-1] if _n > 1
+* index of each gap: the 1st gap lands on open_ord==2, the 2nd on open_ord==3, ...
+gen long gap_index = open_ord - 1 if _n > 1
+
+* ---- A4: county x routes with exactly 2 openings -> the single gap ----
+preserve
+    keep if n_open == 2 & gap_index == 1
+    qui count
+    local ncell = r(N)
+    if `ncell' > 0 {
+        qui count if gap < `sep_wide'
+        local nclose = r(N)
+        local pctclose : display %4.1f 100*`nclose'/`ncell'
+        * miles-weighted: share of cell miles by gap length
+        collapse (sum) _w = cell_miles, by(gap)
+        egen double _tot = total(_w)
+        gen double pct_miles = 100*_w/_tot
+
+        twoway bar pct_miles gap, barwidth(0.9) color(navy) ///
+            xline(`sep_wide', lpattern(dash) lcolor(red)) ///
+            title("Gap distribution: county x routes with exactly 2 PR-511 openings", size(medsmall)) ///
+            subtitle("Baseline entries | `open_lo'-`open_hi'", size(vsmall)) ///
+            xtitle("Years between the two openings in the cell", size(small)) ///
+            ytitle("Percent of miles", size(small)) ///
+            xlabel(0(5)40, labsize(small)) ///
+            ylabel(, labsize(small) angle(horizontal)) ///
+            note( ///
+                "Cells with exactly two baseline segment entries (openings). Two entries opening the same year give a gap of 0." ///
+                "Dashed line at `sep_wide' years = twice the +/- `win_wide'-year spending window; gaps left of it mean overlapping windows.", ///
+                size(vsmall) span ///
+            ) ///
+            legend(off) ysize(4) xsize(6)
+        graph export "$out_dir/pr511_spacing_gap_2openings_baseline.png", replace width(2400)
+    }
+    else display "No baseline cells with exactly 2 openings in `open_lo'-`open_hi'; skipping A4."
+restore
+
+* ---- A5: county x routes with exactly 3 openings -> the first gap ----
+preserve
+    keep if n_open == 3 & gap_index == 1
+    qui count
+    local ncell = r(N)
+    if `ncell' > 0 {
+        qui count if gap < `sep_wide'
+        local nclose = r(N)
+        local pctclose : display %4.1f 100*`nclose'/`ncell'
+        * miles-weighted: share of cell miles by gap length
+        collapse (sum) _w = cell_miles, by(gap)
+        egen double _tot = total(_w)
+        gen double pct_miles = 100*_w/_tot
+
+        twoway bar pct_miles gap, barwidth(0.9) color(navy) ///
+            xline(`sep_wide', lpattern(dash) lcolor(red)) ///
+            title("First-gap distribution: county x routes with exactly 3 PR-511 openings", size(medsmall)) ///
+            subtitle("Baseline entries | `open_lo'-`open_hi'", size(vsmall)) ///
+            xtitle("Years between the 1st and 2nd openings in the cell", size(small)) ///
+            ytitle("Percent of miles", size(small)) ///
+            xlabel(0(5)40, labsize(small)) ///
+            ylabel(, labsize(small) angle(horizontal)) ///
+            note( ///
+                "Cells with exactly three baseline segment entries (openings), ordered by opening year." ///
+                "Dashed line at `sep_wide' years = twice the +/- `win_wide'-year spending window; gaps left of it mean overlapping windows.", ///
+                size(vsmall) span ///
+            ) ///
+            legend(off) ysize(4) xsize(6)
+        graph export "$out_dir/pr511_spacing_gap1_3openings_baseline.png", replace width(2400)
+    }
+    else display "No baseline cells with exactly 3 openings in `open_lo'-`open_hi'; skipping A5."
+restore
+
+* ---- A6: county x routes with exactly 3 openings -> the second gap ----
+preserve
+    keep if n_open == 3 & gap_index == 2
+    qui count
+    local ncell = r(N)
+    if `ncell' > 0 {
+        qui count if gap < `sep_wide'
+        local nclose = r(N)
+        local pctclose : display %4.1f 100*`nclose'/`ncell'
+        * miles-weighted: share of cell miles by gap length
+        collapse (sum) _w = cell_miles, by(gap)
+        egen double _tot = total(_w)
+        gen double pct_miles = 100*_w/_tot
+
+        twoway bar pct_miles gap, barwidth(0.9) color(navy) ///
+            xline(`sep_wide', lpattern(dash) lcolor(red)) ///
+            title("Second-gap distribution: county x routes with exactly 3 PR-511 openings", size(medsmall)) ///
+            subtitle("Baseline entries | `open_lo'-`open_hi'", size(vsmall)) ///
+            xtitle("Years between the 2nd and 3rd openings in the cell", size(small)) ///
+            ytitle("Percent of miles", size(small)) ///
+            xlabel(0(5)40, labsize(small)) ///
+            ylabel(, labsize(small) angle(horizontal)) ///
+            note( ///
+                "Cells with exactly three baseline segment entries (openings), ordered by opening year." ///
+                "Dashed line at `sep_wide' years = twice the +/- `win_wide'-year spending window; gaps left of it mean overlapping windows.", ///
+                size(vsmall) span ///
+            ) ///
+            legend(off) ysize(4) xsize(6)
+        graph export "$out_dir/pr511_spacing_gap2_3openings_baseline.png", replace width(2400)
+    }
+    else display "No baseline cells with exactly 3 openings in `open_lo'-`open_hi'; skipping A6."
+restore
