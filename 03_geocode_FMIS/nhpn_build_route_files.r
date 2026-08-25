@@ -1,38 +1,16 @@
 ####################################################################################
-## nhpn_build_route_files.r
-##
-## PURPOSE
 ##   Turn the raw NHPN edge network into per-route line files, one file per sign
-##   TYPE (interstate, US, state, ...). For each requested type it writes TWO
-##   versions, each with ONE observation per distinct route (e.g. a single line
-##   for I-5):
+##   TYPE (interstate, US, state, ...). Return two types of files:
 ##
 ##     * <type>_by_sign.gpkg    - routes aggregated by SIGNT + SIGNN (the national
 ##                                sign identity, e.g. all "I 5" segments -> one row)
 ##     * <type>_by_routeid.gpkg - routes aggregated by ROUTE_ID (NHPN's own route
 ##                                key, which is effectively state-local)
 ##
-##   Concurrencies: a segment can carry up to three signs (SIGN1/SIGN2/SIGN3).
-##   For the by-sign version every segment is counted under EACH sign it carries
-##   (melt over the three slots), so overlapping routes never drop a shared
-##   segment ("append this to each ... avoid missing segments").
 ##
-##   Gaps: after unioning a route's segments, any remaining disjoint pieces are
-##   bridged with the STITCHING TECHNIQUE from fmis_geometry_extraction_stitching_test.r
-##   (undirected weighted graph -> connected components -> Dijkstra bridge between
-##   dangling ends, accepting a path only if it is <= stitch_ratio x the straight-
-##   line gap and the gap itself is <= stitch_max_m). The reference version keyed
-##   the graph on TIGER node ids (TNIDF/TNIDT); NHPN has no node ids, so here the
-##   nodes are SYNTHESIZED by snapping each segment's endpoints to a snap_tol_m
-##   grid. Everything downstream of node construction is the same algorithm.
+##   Gaps: work in progress. Need to find good "stiching" threshold 
 ##
-## ENTRY POINT
-##   build_nhpn_routes(types = c("I","U"), ...)   # see the function for all args
 ##
-## NOTE
-##   Read-only w.r.t. the source data; only writes the output gpkgs. This file is
-##   meant to be sourced and then called; the example call at the bottom is
-##   commented out on purpose (nothing runs on source()).
 ####################################################################################
 
 suppressPackageStartupMessages({
@@ -447,3 +425,11 @@ suppressPackageStartupMessages({
     }
     invisible(written)
   }
+  
+  
+# build_nhpn_routes(types = c("I", "U", "S", "C"),
+#                   aggregations = "sign",
+#                   stitch = F,
+#                   sign_scope = "state",
+#                   out_format = "gpkg"
+#                   )
